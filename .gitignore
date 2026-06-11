@@ -1,0 +1,9 @@
+# 세이브 파일
+*_세이브*.json
+
+# 개발 관련
+node_modules/
+*.log
+
+# 대용량 AI 모델 파일
+*.onnx
