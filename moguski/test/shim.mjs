@@ -11,47 +11,26 @@ for (const name of ['rng.js', 'levels.js', 'logic.js']) {
   new Function('window', code)(globalThis.window);
 }
 
-// ── 봇 3종 (sim-test·튜닝 공용) ──
+// ── 봇 (sim-test·튜닝 공용): 홀드-릴리즈 정책으로 주행 ──
 const M = globalThis.window.MSJ;
 const DT = 1 / 120;
 
-// 퍼펙트 봇: 립 정확 탭 + 존 중앙 유지 + 텔레마크
-export function runPerfect(no) {
+// releasePolicy(st) → true면 이번 프레임부터 버튼을 뗀 상태
+export function runBot(no, releasePolicy) {
   const st = M.Logic.create(no);
-  M.Logic.step(st, DT, { btn: false, tap: true });          // 출발
-  let guard = 0;
-  while (st.phase !== 'landed' && guard++ < 12000) {
-    let tap = false, btn = false;
-    if (st.phase === 'slide') tap = st.untilLip <= DT * st.v / Math.max(st.v, 0.1) + DT;  // 립 직전 프레임
-    if (st.phase === 'flight') {
-      btn = st.P < 0.62;                                    // 존 중앙 유지
-      if (st.teleOpen && !st.teleTapped && (st.y - st.stage.hillY(st.x)) < 1.6) tap = true;
-    }
-    M.Logic.step(st, DT, { btn, tap });
+  let released = false, guard = 0;
+  while (st.phase !== 'landed' && guard++ < 15000) {
+    if (!released && releasePolicy(st)) released = true;
+    M.Logic.step(st, DT, { btn: !released });
   }
   return st;
 }
 
-// 무입력 봇: 출발만 하고 방치
-export function runNone(no) {
-  const st = M.Logic.create(no);
-  M.Logic.step(st, DT, { btn: false, tap: true });
-  let guard = 0;
-  while (st.phase !== 'landed' && guard++ < 12000) M.Logic.step(st, DT, { btn: false, tap: false });
-  return st;
-}
-
-// 어중간 봇: 타이밍 0.15초 빗나감 + 자세 대충 (절반 확률 홀드)
-export function runSloppy(no) {
-  const st = M.Logic.create(no);
-  const rng = M.makeRng(no * 31 + 5);
-  M.Logic.step(st, DT, { btn: false, tap: true });
-  let tapped = false, guard = 0;
-  while (st.phase !== 'landed' && guard++ < 12000) {
-    let tap = false, btn = false;
-    if (st.phase === 'slide' && !tapped && st.untilLip <= 0.15) { tap = true; tapped = true; }
-    if (st.phase === 'flight') btn = rng.chance(0.5);
-    M.Logic.step(st, DT, { btn, tap });
-  }
-  return st;
-}
+// 퍼펙트: 립 직전 프레임에 릴리즈
+export const runPerfect = (no) => runBot(no, (st) => st.phase === 'slide' && st.untilLip <= DT);
+// 무기술: 출발 0.15초 뒤 바로 릴리즈 (타이밍 스킬 없음)
+export const runNone = (no) => runBot(no, (st) => st.t > 0.15);
+// 어중간: 립 0.15초 전 릴리즈
+export const runSloppy = (no) => runBot(no, (st) => st.phase === 'slide' && st.untilLip <= 0.15);
+// 계속 홀드: 끝까지 안 뗌
+export const runHold = (no) => runBot(no, () => false);

@@ -88,9 +88,8 @@ M.ui = {
     $('result-stars').textContent = st.stars > 0 ? '★'.repeat(st.stars) + '☆'.repeat(3 - st.stars) : '';
     $('result-title').textContent = st.stars > 0 ? (st.stars === 3 ? '완벽한 비행!!' : 'CLEAR!') : '아쉽다...';
     $('result-title').style.color = st.stars > 0 ? '#ffd83d' : '#ff8a8a';
-    const qLabel = st.jumpQ >= 0.9 ? '퍼펙트!' : st.jumpQ >= 0.6 ? '좋음' : st.jumpQ > 0 ? '아쉬움' : '미스';
-    let html = `도약 타이밍 <b>${qLabel}</b> · 목표 ${T}m`;
-    if (st.teleTapped && !st.crash) html += ` · 텔레마크 <b>+${((1.5 + st.stage.K * 0.02) * st.teleQ).toFixed(1)}m</b>`;
+    const qLabel = st.q >= 0.9 ? '퍼펙트!' : st.q >= 0.6 ? '좋음' : st.q > 0.15 ? '아쉬움' : '미스';
+    let html = `릴리즈 타이밍 <b>${qLabel}</b> · 목표 ${T}m`;
     if (st.crash) html += ' · <b style="color:#ff8a8a">데굴데굴 착지 🙀</b>';
     if (isBest) html += '<br><b style="color:#7de08a">신기록!</b>';
     $('result-stats').innerHTML = html;

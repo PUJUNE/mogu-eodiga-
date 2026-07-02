@@ -5,33 +5,58 @@
 <title>모구 스키점프</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
-  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0c1420;
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000;
     font-family:'Malgun Gothic','맑은 고딕',sans-serif; user-select:none;
     touch-action:none; overscroll-behavior:none;
     -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
-  #app { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-  #stage-wrap { position:relative; }
-  canvas { display:block; background:#000; }
+  #app { position:relative; width:100%; height:100%; }
+  canvas { display:block; }
 
   .screen { position:absolute; inset:0; display:flex; flex-direction:column;
     align-items:center; justify-content:center; z-index:10; }
   .hidden { display:none !important; }
 
-  /* ── 캔버스 위 DOM HUD ── */
-  #hud-bar { position:absolute; top:0; left:0; right:0; text-align:center; z-index:5; pointer-events:none;
-    padding-top:4px; }
-  #hud-stage { color:#fff; font-size:12px; font-weight:800; text-shadow:0 2px 3px rgba(0,0,0,.7); }
-  #hud-target { color:#c8d8ee; font-size:10px; font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,.7); }
-  #hud-toast { position:absolute; top:42%; left:50%; transform:translateX(-50%); z-index:5; pointer-events:none;
-    color:#fff; font-size:20px; font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
+  /* ── 주행 HUD ── */
+  #hud { position:absolute; inset:0; pointer-events:none; z-index:5; }
+  #hud-stage { position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    color:#fff; font-size:15px; font-weight:800; text-shadow:0 2px 3px rgba(0,0,0,.6); white-space:nowrap; }
+  #hud-target { position:absolute; top:30px; left:50%; transform:translateX(-50%);
+    color:#d8e4f5; font-size:12px; font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,.6); white-space:nowrap; }
+  #hud-wind { position:absolute; top:12px; left:14px; font-size:13px; font-weight:800;
+    text-shadow:0 1px 3px rgba(0,0,0,.7); }
+  #hud-speed { position:absolute; top:32px; left:14px; color:rgba(255,255,255,.9); font-size:13px;
+    font-weight:700; text-shadow:0 1px 3px rgba(0,0,0,.7); }
+  #hud-dist { position:absolute; top:12%; left:50%; transform:translateX(-50%);
+    color:#fff; font-size:min(44px, 9vw); font-weight:900; text-shadow:0 4px 8px rgba(0,0,0,.6); }
+  #hud-toast { position:absolute; top:36%; left:50%; transform:translateX(-50%);
+    color:#fff; font-size:min(26px, 6vw); font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
     opacity:0; transition:opacity .3s; white-space:nowrap; }
+
+  /* 릴리즈 타이밍 미터 */
+  #meter-wrap { position:absolute; top:20%; left:50%; transform:translateX(-50%); width:min(300px, 62vw);
+    text-align:center; }
+  #meter-label { color:#ffd83d; font-size:14px; font-weight:800; text-shadow:0 2px 3px rgba(0,0,0,.6); margin-bottom:5px; }
+  #meter { position:relative; height:16px; background:rgba(0,0,0,.55); border-radius:8px;
+    border:2px solid rgba(255,255,255,.6); overflow:hidden; }
+  #meter-zone { position:absolute; right:0; top:0; bottom:0; width:24%; background:rgba(90,220,110,.75); }
+  #meter-zone-core { position:absolute; right:0; top:0; bottom:0; width:8%; background:rgba(255,255,255,.45); }
+  #meter-needle { position:absolute; top:-3px; bottom:-3px; width:4px; background:#fff; border-radius:2px; }
+
+  /* 웅크리기(차지) 게이지 */
+  #charge-wrap { position:absolute; bottom:14%; left:50%; transform:translateX(-50%);
+    width:min(210px, 46vw); text-align:center; }
+  #charge-label { color:rgba(255,255,255,.85); font-size:12px; font-weight:700;
+    text-shadow:0 1px 3px rgba(0,0,0,.7); margin-bottom:4px; }
+  #charge { height:10px; background:rgba(0,0,0,.5); border-radius:5px; border:2px solid rgba(255,255,255,.5); overflow:hidden; }
+  #charge-fill { height:100%; width:0%; background:linear-gradient(90deg,#5db8ff,#9fe06a); }
+
   #ready-overlay { position:absolute; inset:0; z-index:6; pointer-events:none;
-    display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding-bottom:12%; }
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding-bottom:16%; }
   #ready-overlay .go { font-size:min(26px, 6vw); font-weight:900; color:#ffd83d;
     text-shadow:0 3px 6px rgba(0,0,0,.6); animation:blink 1.1s step-end infinite; }
   @keyframes blink { 50%{opacity:.25} }
-  #ready-hint { margin-top:8px; font-size:12px; color:rgba(255,255,255,.85);
-    text-shadow:0 1px 3px rgba(0,0,0,.7); text-align:center; padding:0 14px; }
+  #ready-hint { margin-top:8px; font-size:13px; color:rgba(255,255,255,.9);
+    text-shadow:0 1px 3px rgba(0,0,0,.7); text-align:center; padding:0 14px; line-height:1.7; }
 
   /* ── 타이틀 ── */
   #title-screen { background:linear-gradient(#8ecdf0 0%, #d8f0fa 55%, #4f7be0 56%, #2c3a60 100%); }
@@ -80,7 +105,6 @@
   #pause-screen { background:rgba(0,0,0,.6); z-index:20; }
   #pause-screen .big { font-size:min(40px, 10vw); font-weight:900; color:#fff; }
 
-  /* ── 터치 일시정지 버튼 ── */
   .vbtn { position:fixed; pointer-events:auto; display:none; align-items:center; justify-content:center;
     background:rgba(255,255,255,.15); border:2px solid rgba(255,255,255,.5); color:rgba(255,255,255,.92);
     touch-action:none; user-select:none; z-index:8; }
@@ -90,17 +114,29 @@
 </head>
 <body>
 <div id="app">
-  <div id="stage-wrap">
-    <canvas id="game" width="480" height="270"></canvas>
-    <div id="hud-bar">
-      <div id="hud-stage">STAGE 1</div>
-      <div id="hud-target">목표 41m</div>
+  <div id="hud" class="hidden">
+    <div id="hud-stage">STAGE 1</div>
+    <div id="hud-target">목표 39.5m</div>
+    <div id="hud-wind"></div>
+    <div id="hud-speed"></div>
+    <div id="hud-dist" class="hidden">0.0 m</div>
+    <div id="meter-wrap" class="hidden">
+      <div id="meter-label">지금이다… 손을 떼!</div>
+      <div id="meter">
+        <div id="meter-zone"></div>
+        <div id="meter-zone-core"></div>
+        <div id="meter-needle"></div>
+      </div>
+    </div>
+    <div id="charge-wrap" class="hidden">
+      <div id="charge-label">웅크리는 중…</div>
+      <div id="charge"><div id="charge-fill"></div></div>
     </div>
     <div id="hud-toast"></div>
-    <div id="ready-overlay" class="hidden">
-      <div class="go">탭해서 출발!</div>
-      <div id="ready-hint">Space = 점프 버튼 — 도약대 끝에서 탭! · 공중에서 꾹 눌러 자세 유지 · 착지 직전 한 번 더 탭</div>
-    </div>
+  </div>
+  <div id="ready-overlay" class="hidden">
+    <div class="go">꾹 눌러서 출발!</div>
+    <div id="ready-hint">누르고 있는 동안 모구가 웅크려요<br>도약대 끝에서 손을 떼면 점프!</div>
   </div>
 
   <div id="title-screen" class="screen">
@@ -108,7 +144,7 @@
     <div class="sub">~ 포대 타고 슝 ~</div>
     <img id="title-icon" alt="모구">
     <div class="menu-buttons"><button class="btn primary" id="btn-start">힐 맵으로</button></div>
-    <div id="title-hint">Space 하나로 전부: 도약 탭 → 공중 홀드 → 착지 탭</div>
+    <div id="title-hint">Space를 꾹 눌러 활강 — 도약대 끝에서 떼면 점프!</div>
   </div>
 
   <div id="map-screen" class="screen hidden">
@@ -141,13 +177,16 @@
   <div class="vbtn" id="vbtn-pause">⏸</div>
 </div>
 
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
+</script>
 <script>window.MSJ = { ASSETS: { mogu: "../game/assets/mogu-icon.png" } };</script>
-<script src="src/rng.js"></script>
-<script src="src/levels.js"></script>
-<script src="src/logic.js"></script>
-<script src="src/render.js"></script>
-<script src="src/audio.js"></script>
-<script src="src/ui.js"></script>
-<script src="src/main.js"></script>
+<script type="module" src="src/rng.js"></script>
+<script type="module" src="src/levels.js"></script>
+<script type="module" src="src/logic.js"></script>
+<script type="module" src="src/render.js"></script>
+<script type="module" src="src/audio.js"></script>
+<script type="module" src="src/ui.js"></script>
+<script type="module" src="src/main.js"></script>
 </body>
 </html>
