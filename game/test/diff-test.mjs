@@ -44,7 +44,7 @@ await page.click('.diff-btn[data-diff="hard"]');
 await page.waitForTimeout(200);
 check('하드 클릭 → 선택 반영', await page.evaluate(() => window.MOGU.diff === 'hard'));
 const spdHard = await page.evaluate(() => window.MOGU.paramsFor(1).speed);
-check(`하드 speed = 6×1.3 (${spdHard})`, Math.abs(spdHard - 7.8) < 0.01);
+check(`하드 speed = 6×1.43 (${spdHard})`, Math.abs(spdHard - 8.58) < 0.01);
 
 // 3) 스테이지 시작 → HUD 라벨 + 실주행 속도
 await page.evaluate(() => { const n = document.querySelectorAll('.stage-node')[0]; n.click(); });
@@ -54,7 +54,7 @@ check('하드 HUD 라벨', await page.evaluate(() =>
 const z0 = await page.evaluate(() => parseFloat(window.MOGU._dbg().player.z));
 await page.waitForTimeout(1000);
 const z1 = await page.evaluate(() => parseFloat(window.MOGU._dbg().player.z));
-check(`하드 실주행 속도 ≈7.8블록/s (측정 ${(z1 - z0).toFixed(1)})`, Math.abs((z1 - z0) - 7.8) < 1.2);
+check(`하드 실주행 속도 ≈8.6블록/s (측정 ${(z1 - z0).toFixed(1)})`, Math.abs((z1 - z0) - 8.58) < 1.3);
 await page.screenshot({ path: join(root, 'test', 'diff-play-hard.png') });
 
 // 4) 저장 유지 — 리로드 후에도 하드
@@ -73,7 +73,7 @@ await page.waitForTimeout(1500);
 check('크레이지 플레이 시작 + HUD 라벨', await page.evaluate(() =>
   window.MOGU._dbg().state === 'play' && document.getElementById('hud-stage').textContent.includes('크레이지')));
 const spdCrazy = await page.evaluate(() => window.MOGU._player().currentSpeed());
-check(`크레이지 주행 속도 = 6×1.7 (${spdCrazy.toFixed(1)})`, Math.abs(spdCrazy - 10.2) < 0.01);
+check(`크레이지 주행 속도 = 6×1.87 (${spdCrazy.toFixed(2)})`, Math.abs(spdCrazy - 11.22) < 0.01);
 await page.screenshot({ path: join(root, 'test', 'diff-play-crazy.png') });
 
 // 6) 이지 — 버튼 클릭 경로로 재확인
@@ -84,7 +84,7 @@ await page.waitForTimeout(1500);
 await page.click('.diff-btn[data-diff="easy"]');
 await page.waitForTimeout(200);
 const spdEasy = await page.evaluate(() => window.MOGU.paramsFor(1).speed);
-check(`이지 speed = 6×0.75 (${spdEasy})`, Math.abs(spdEasy - 4.5) < 0.01);
+check(`이지 speed = 6×0.825 (${spdEasy})`, Math.abs(spdEasy - 4.95) < 0.01);
 
 console.log(errors.length ? '콘솔 에러:\n' + errors.join('\n') : '콘솔 에러 없음(404 제외)');
 console.log(fails.length ? `실패 ${fails.length}건` : '전체 통과');

@@ -6,10 +6,10 @@ const G = window.MOGU;
 // speed에 비례해 늘어나므로 어떤 배율에서도 통과 가능 경로가 구조적으로 유지됨
 G.DIFF_ORDER = ['easy', 'normal', 'hard', 'crazy'];
 G.DIFFS = {
-  easy:   { name: '이지',     mult: 0.75 },
-  normal: { name: '노말',     mult: 1.0 },
-  hard:   { name: '하드',     mult: 1.3 },
-  crazy:  { name: '크레이지', mult: 1.7 },
+  easy:   { name: '이지',     mult: 0.825 },
+  normal: { name: '노말',     mult: 1.1 },
+  hard:   { name: '하드',     mult: 1.43 },
+  crazy:  { name: '크레이지', mult: 1.87 },
 };
 G.diff = 'normal';
 
