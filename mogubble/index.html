@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구버블</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0c1018;
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  #app { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  #stage-wrap { position:relative; }
+  canvas { display:block; background:#000; touch-action:none; }
+
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10; }
+  .hidden { display:none !important; }
+
+  /* ── HUD (캔버스 기준) ── */
+  #hud { position:absolute; inset:0; pointer-events:none; z-index:5; color:#fff;
+    font-weight:800; text-shadow:0 2px 3px rgba(0,0,0,.7); }
+  #hud-score-wrap { position:absolute; top:4px; left:8px; font-size:13px; }
+  #hud-score-wrap .lab { font-size:9px; color:#9fc0e8; }
+  #hud-hi-wrap { position:absolute; top:4px; right:8px; font-size:13px; text-align:right; }
+  #hud-hi-wrap .lab { font-size:9px; color:#ffd83d; }
+  #hud-round { position:absolute; top:8px; left:50%; transform:translateX(-50%); font-size:11px; white-space:nowrap; }
+  #hud-toast { position:absolute; top:46%; left:50%; transform:translateX(-50%);
+    font-size:19px; font-weight:900; opacity:0; transition:opacity .3s; white-space:nowrap; }
+
+  /* ── 타이틀 ── */
+  #title-screen { background:linear-gradient(#1a3450 0%, #2c5a70 55%, #14283a 100%); }
+  #title-screen .logo { font-size:min(58px, 12vw); font-weight:900; color:#7de0f0; white-space:nowrap;
+    text-shadow:0 5px 0 #1a5a70, 0 9px 18px rgba(0,0,0,.5); letter-spacing:min(6px, 1.3vw); }
+  #title-screen .sub { margin-top:6px; font-size:17px; color:#bce4f0; font-weight:700; }
+  #title-icon { width:110px; height:auto; margin:16px 0 4px; animation:bob 1.6s ease-in-out infinite;
+    filter:drop-shadow(0 8px 10px rgba(0,0,0,.4)); }
+  @keyframes bob { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-12px) rotate(4deg)} }
+  #title-hi { margin-top:4px; color:#ffd83d; font-size:14px; font-weight:800; min-height:19px; }
+  #title-hint { margin-top:12px; color:rgba(255,255,255,.8); font-size:13px; text-align:center; padding:0 14px; }
+
+  .menu-buttons { display:flex; gap:12px; margin-top:18px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
+  .btn { pointer-events:auto; padding:12px 24px; font-size:16px; font-weight:800; color:#fff;
+    background:#3a86d4; border:3px solid rgba(255,255,255,.8); border-radius:12px; cursor:pointer;
+    box-shadow:0 4px 8px rgba(0,0,0,.4); font-family:inherit; }
+  .btn.primary { background:#3aa84f; }
+  .btn.series { padding:9px 18px; font-size:13px; background:#2e6da3; }
+
+  /* ── 일시정지 / 게임오버 / 엔딩 ── */
+  #pause-screen { background:rgba(0,0,0,.6); z-index:20; }
+  #pause-screen .big, #over-screen .big, #ending-screen .big {
+    font-size:min(42px, 10vw); font-weight:900; color:#fff; white-space:nowrap; }
+  #over-screen { background:rgba(0,0,0,.85); z-index:20; }
+  #over-screen .big { color:#ff5252; letter-spacing:5px; }
+  #over-count { font-size:70px; font-weight:900; color:#fff; margin-top:8px; text-shadow:0 4px 10px rgba(0,0,0,.8); }
+  #over-screen .hint { margin-top:10px; font-size:16px; color:#ffd83d; font-weight:700; padding:0 14px; text-align:center; }
+  #ending-screen { background:linear-gradient(#1a3450 0%, #3a6a90 60%, #14283a 100%); z-index:20; }
+  #ending-screen .big { color:#7de0f0; }
+  #ending-screen .msg { margin-top:14px; color:#e0f4fa; font-size:16px; line-height:1.8; text-align:center; padding:0 16px; }
+  #ending-score { margin-top:10px; color:#fff; font-size:22px; font-weight:900; }
+
+  .vbtn { position:fixed; pointer-events:auto; display:none; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.15); border:2px solid rgba(255,255,255,.5); color:rgba(255,255,255,.92);
+    touch-action:none; user-select:none; z-index:8; }
+  #vbtn-pause { right:calc(12px + env(safe-area-inset-right)); top:calc(10px + env(safe-area-inset-top));
+    width:44px; height:44px; font-size:17px; border-radius:12px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage-wrap">
+    <canvas id="game" width="320" height="560"></canvas>
+    <div id="hud" class="hidden">
+      <div id="hud-score-wrap"><span class="lab">SCORE</span><br><span id="hud-score">000000</span></div>
+      <div id="hud-hi-wrap"><span class="lab">HI</span><br><span id="hud-hi">000000</span></div>
+      <div id="hud-round">ROUND 1</div>
+      <div id="hud-toast"></div>
+    </div>
+  </div>
+
+  <div id="title-screen" class="screen">
+    <div class="logo">모 구 버 블</div>
+    <div class="sub">~ 퐁퐁 물방울 대작전 ~</div>
+    <img id="title-icon" alt="모구">
+    <div id="title-hi"></div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-continue">이어하기</button>
+      <button class="btn" id="btn-new">처음부터</button>
+    </div>
+    <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
+    <div id="title-hint">←→ 조준 · Space 발사 (마우스 조준·클릭 발사 가능)<br>같은 색 물방울 3개를 모으면 팡!</div>
+  </div>
+
+  <div id="pause-screen" class="screen hidden">
+    <div class="big">일시정지</div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-resume">계속</button>
+      <button class="btn" id="btn-restage">재시작</button>
+      <button class="btn" id="btn-title">타이틀로</button>
+    </div>
+  </div>
+
+  <div id="over-screen" class="screen hidden">
+    <div class="big">CONTINUE?</div>
+    <div id="over-count">10</div>
+    <div class="hint">Enter 또는 화면 터치 = 이어서 도전 (점수 10% 차감)</div>
+    <div class="menu-buttons"><button class="btn" id="btn-over-title">타이틀로</button></div>
+  </div>
+
+  <div id="ending-screen" class="screen hidden">
+    <div class="big">🏆 올 클리어!!</div>
+    <div class="msg">30라운드의 물방울을 전부 터뜨렸습니다!<br>모구는 뽀송뽀송한 낮잠에 빠졌습니다 💤</div>
+    <div id="ending-score">SCORE 0</div>
+    <div class="menu-buttons"><button class="btn primary" id="btn-end-title">타이틀로</button></div>
+  </div>
+
+  <div class="vbtn" id="vbtn-pause">⏸</div>
+</div>
+
+<script>window.MGB = { ASSETS: { mogu: "../game/assets/mogu-icon.png" } };</script>
+<script src="src/rng.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/render.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
