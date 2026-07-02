@@ -97,7 +97,7 @@ M.Render = {
     const h = 20, y = pl.y - h - bob;
     c.save();
     c.translate(pl.x, 0);
-    if (pl.dir < 0) c.scale(-1, 1);
+    if (pl.dir > 0) c.scale(-1, 1);          // 모구 원본 사진이 왼쪽을 보므로 오른쪽 이동 시 반전
     if (this.mogu) {
       const a = this.mogu.width / this.mogu.height, w = h * a;
       c.drawImage(this.mogu, -w / 2, y, w, h);
