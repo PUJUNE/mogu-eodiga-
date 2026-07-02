@@ -32,8 +32,8 @@
     color:#fff; font-size:min(26px, 6vw); font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
     opacity:0; transition:opacity .3s; white-space:nowrap; }
 
-  /* 릴리즈 타이밍 미터 */
-  #meter-wrap { position:absolute; top:20%; left:50%; transform:translateX(-50%); width:min(300px, 62vw);
+  /* 릴리즈 타이밍 미터 (모구 머리 위에 JS로 앵커) */
+  #meter-wrap { position:absolute; top:24%; left:50%; transform:translate(-50%, -110%); width:min(280px, 58vw);
     text-align:center; }
   #meter-label { color:#ffd83d; font-size:14px; font-weight:800; text-shadow:0 2px 3px rgba(0,0,0,.6); margin-bottom:5px; }
   #meter { position:relative; height:16px; background:rgba(0,0,0,.55); border-radius:8px;
@@ -42,9 +42,9 @@
   #meter-zone-core { position:absolute; right:0; top:0; bottom:0; width:8%; background:rgba(255,255,255,.45); }
   #meter-needle { position:absolute; top:-3px; bottom:-3px; width:4px; background:#fff; border-radius:2px; }
 
-  /* 웅크리기(차지) 게이지 */
-  #charge-wrap { position:absolute; bottom:14%; left:50%; transform:translateX(-50%);
-    width:min(210px, 46vw); text-align:center; }
+  /* 웅크리기(차지) 게이지 (모구 머리 위에 JS로 앵커) */
+  #charge-wrap { position:absolute; top:24%; left:50%; transform:translate(-50%, -110%);
+    width:min(190px, 42vw); text-align:center; }
   #charge-label { color:rgba(255,255,255,.85); font-size:12px; font-weight:700;
     text-shadow:0 1px 3px rgba(0,0,0,.7); margin-bottom:4px; }
   #charge { height:10px; background:rgba(0,0,0,.5); border-radius:5px; border:2px solid rgba(255,255,255,.5); overflow:hidden; }
@@ -443,13 +443,16 @@ M.Render = {
     // ── 모구 (사진 빌보드 — 캔버스 경유 필수) + 포대 ──
     const g = new THREE.Group();
     this.sackMesh = new THREE.Mesh(BOXG, new THREE.MeshLambertMaterial({ color: 0xa8783c }));
-    this.sackMesh.scale.set(1.5, 0.5, 2.0);
-    this.sackMesh.position.y = 0.3;
+    this.sackMesh.scale.set(1.6, 0.6, 2.0);
+    this.sackMesh.position.y = 0.36;                 // 포대 윗면 y=0.66
     g.add(this.sackMesh);
+    // 스프라이트는 바닥 앵커: 엉덩이(이미지 위에서 56% 지점)가 포대 윗면에 앉고
+    // 꼬리는 포대 뒤(카메라 쪽) 면으로 늘어져 튀어나옴
+    this.SPR_H = 1.7; this.SPR_BOT = -0.05; this.sprA = 0.41;
     this.moguMat = new THREE.SpriteMaterial({ color: 0xffffff });
     this.moguSprite = new THREE.Sprite(this.moguMat);
-    this.moguSprite.position.set(0, 1.15, 0);
-    this.moguSprite.scale.set(0.85, 2.05, 1);
+    this.moguSprite.position.set(0, this.SPR_BOT + this.SPR_H / 2, -1.02);
+    this.moguSprite.scale.set(this.SPR_H * this.sprA, this.SPR_H, 1);
     g.add(this.moguSprite);
     const sh = new THREE.Mesh(new THREE.CircleGeometry(1.0, 14),
       new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false }));
@@ -468,8 +471,8 @@ M.Render = {
       tex.colorSpace = THREE.SRGBColorSpace;
       this.moguMat.map = tex;
       this.moguMat.needsUpdate = true;
-      const a = cv.width / cv.height, h = 2.05;
-      this.moguSprite.scale.set(h * a, h, 1);
+      this.sprA = cv.width / cv.height;
+      this.moguSprite.scale.set(this.SPR_H * this.sprA, this.SPR_H, 1);
     };
     img.src = M.ASSETS.mogu;
   },
@@ -671,10 +674,11 @@ M.Render = {
     const bob = st.phase === 'slide' ? Math.sin(t * 18) * 0.04 * Math.min(1, st.v / 8) : 0;
     g.position.set(0, my + bob, mz);
     g.rotation.x = st.phase === 'landed' && st.crash ? (st.landT * 9) % (Math.PI * 2) : pitch;
-    // 웅크리기(차지) — 모구가 낮게 엎드림
+    // 웅크리기(차지) — 엉덩이(바닥 앵커)는 포대에 붙인 채 몸만 낮아짐
     const crouch = st.phase === 'slide' && st.holding ? st.charge : 0;
-    this.moguSprite.position.y = 1.15 - crouch * 0.42;
-    this.moguSprite.scale.y = 2.05 * (1 - crouch * 0.22);
+    const sh = this.SPR_H * (1 - crouch * 0.22);
+    this.moguSprite.scale.y = sh;
+    this.moguSprite.position.y = this.SPR_BOT + sh / 2;
     this.shadow.visible = st.phase !== 'flight' || (st.y - stg.hillY(st.x)) < 4;
 
     // ── 뒤통수 추적 카메라 ──
@@ -692,6 +696,13 @@ M.Render = {
     const fovT = 62 + Math.min(16, spd * 0.35);
     this.camera.fov += (fovT - this.camera.fov) * damp;
     this.camera.updateProjectionMatrix();
+
+    // 모구 머리 위 지점의 화면 좌표 (타이밍 바·차지 게이지 앵커)
+    const hv = new THREE.Vector3(0, my + 2.3, mz).project(this.camera);
+    this.headScreen = {
+      x: (hv.x * 0.5 + 0.5) * window.innerWidth,
+      y: (0.5 - hv.y * 0.5) * window.innerHeight,
+    };
 
     this.renderer.render(this.scene, this.camera);
   },
@@ -1007,6 +1018,14 @@ M._st = () => st;
 // ── HUD 갱신 ──
 function updateHud() {
   const slide = st.phase === 'slide';
+  // 타이밍 바·차지 게이지를 모구 머리 위에 앵커
+  const hp = M.Render.headScreen;
+  if (hp) {
+    $('meter-wrap').style.left = hp.x + 'px';
+    $('meter-wrap').style.top = hp.y + 'px';
+    $('charge-wrap').style.left = hp.x + 'px';
+    $('charge-wrap').style.top = hp.y + 'px';
+  }
   $('meter-wrap').classList.toggle('hidden', !(slide && st.untilLip < 1.15 && st.holding));
   if (slide && st.untilLip < 1.15) {
     $('meter-needle').style.left = `calc(${((1 - Math.min(1, st.untilLip / 1.15)) * 100).toFixed(1)}% - 2px)`;

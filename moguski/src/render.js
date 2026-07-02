@@ -33,13 +33,16 @@ M.Render = {
     // ── 모구 (사진 빌보드 — 캔버스 경유 필수) + 포대 ──
     const g = new THREE.Group();
     this.sackMesh = new THREE.Mesh(BOXG, new THREE.MeshLambertMaterial({ color: 0xa8783c }));
-    this.sackMesh.scale.set(1.5, 0.5, 2.0);
-    this.sackMesh.position.y = 0.3;
+    this.sackMesh.scale.set(1.6, 0.6, 2.0);
+    this.sackMesh.position.y = 0.36;                 // 포대 윗면 y=0.66
     g.add(this.sackMesh);
+    // 스프라이트는 바닥 앵커: 엉덩이(이미지 위에서 56% 지점)가 포대 윗면에 앉고
+    // 꼬리는 포대 뒤(카메라 쪽) 면으로 늘어져 튀어나옴
+    this.SPR_H = 1.7; this.SPR_BOT = -0.05; this.sprA = 0.41;
     this.moguMat = new THREE.SpriteMaterial({ color: 0xffffff });
     this.moguSprite = new THREE.Sprite(this.moguMat);
-    this.moguSprite.position.set(0, 1.15, 0);
-    this.moguSprite.scale.set(0.85, 2.05, 1);
+    this.moguSprite.position.set(0, this.SPR_BOT + this.SPR_H / 2, -1.02);
+    this.moguSprite.scale.set(this.SPR_H * this.sprA, this.SPR_H, 1);
     g.add(this.moguSprite);
     const sh = new THREE.Mesh(new THREE.CircleGeometry(1.0, 14),
       new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false }));
@@ -58,8 +61,8 @@ M.Render = {
       tex.colorSpace = THREE.SRGBColorSpace;
       this.moguMat.map = tex;
       this.moguMat.needsUpdate = true;
-      const a = cv.width / cv.height, h = 2.05;
-      this.moguSprite.scale.set(h * a, h, 1);
+      this.sprA = cv.width / cv.height;
+      this.moguSprite.scale.set(this.SPR_H * this.sprA, this.SPR_H, 1);
     };
     img.src = M.ASSETS.mogu;
   },
@@ -261,10 +264,11 @@ M.Render = {
     const bob = st.phase === 'slide' ? Math.sin(t * 18) * 0.04 * Math.min(1, st.v / 8) : 0;
     g.position.set(0, my + bob, mz);
     g.rotation.x = st.phase === 'landed' && st.crash ? (st.landT * 9) % (Math.PI * 2) : pitch;
-    // 웅크리기(차지) — 모구가 낮게 엎드림
+    // 웅크리기(차지) — 엉덩이(바닥 앵커)는 포대에 붙인 채 몸만 낮아짐
     const crouch = st.phase === 'slide' && st.holding ? st.charge : 0;
-    this.moguSprite.position.y = 1.15 - crouch * 0.42;
-    this.moguSprite.scale.y = 2.05 * (1 - crouch * 0.22);
+    const sh = this.SPR_H * (1 - crouch * 0.22);
+    this.moguSprite.scale.y = sh;
+    this.moguSprite.position.y = this.SPR_BOT + sh / 2;
     this.shadow.visible = st.phase !== 'flight' || (st.y - stg.hillY(st.x)) < 4;
 
     // ── 뒤통수 추적 카메라 ──
@@ -282,6 +286,13 @@ M.Render = {
     const fovT = 62 + Math.min(16, spd * 0.35);
     this.camera.fov += (fovT - this.camera.fov) * damp;
     this.camera.updateProjectionMatrix();
+
+    // 모구 머리 위 지점의 화면 좌표 (타이밍 바·차지 게이지 앵커)
+    const hv = new THREE.Vector3(0, my + 2.3, mz).project(this.camera);
+    this.headScreen = {
+      x: (hv.x * 0.5 + 0.5) * window.innerWidth,
+      y: (0.5 - hv.y * 0.5) * window.innerHeight,
+    };
 
     this.renderer.render(this.scene, this.camera);
   },

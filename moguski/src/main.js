@@ -138,6 +138,14 @@ M._st = () => st;
 // ── HUD 갱신 ──
 function updateHud() {
   const slide = st.phase === 'slide';
+  // 타이밍 바·차지 게이지를 모구 머리 위에 앵커
+  const hp = M.Render.headScreen;
+  if (hp) {
+    $('meter-wrap').style.left = hp.x + 'px';
+    $('meter-wrap').style.top = hp.y + 'px';
+    $('charge-wrap').style.left = hp.x + 'px';
+    $('charge-wrap').style.top = hp.y + 'px';
+  }
   $('meter-wrap').classList.toggle('hidden', !(slide && st.untilLip < 1.15 && st.holding));
   if (slide && st.untilLip < 1.15) {
     $('meter-needle').style.left = `calc(${((1 - Math.min(1, st.untilLip / 1.15)) * 100).toFixed(1)}% - 2px)`;

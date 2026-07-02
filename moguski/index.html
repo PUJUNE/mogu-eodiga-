@@ -32,8 +32,8 @@
     color:#fff; font-size:min(26px, 6vw); font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
     opacity:0; transition:opacity .3s; white-space:nowrap; }
 
-  /* 릴리즈 타이밍 미터 */
-  #meter-wrap { position:absolute; top:20%; left:50%; transform:translateX(-50%); width:min(300px, 62vw);
+  /* 릴리즈 타이밍 미터 (모구 머리 위에 JS로 앵커) */
+  #meter-wrap { position:absolute; top:24%; left:50%; transform:translate(-50%, -110%); width:min(280px, 58vw);
     text-align:center; }
   #meter-label { color:#ffd83d; font-size:14px; font-weight:800; text-shadow:0 2px 3px rgba(0,0,0,.6); margin-bottom:5px; }
   #meter { position:relative; height:16px; background:rgba(0,0,0,.55); border-radius:8px;
@@ -42,9 +42,9 @@
   #meter-zone-core { position:absolute; right:0; top:0; bottom:0; width:8%; background:rgba(255,255,255,.45); }
   #meter-needle { position:absolute; top:-3px; bottom:-3px; width:4px; background:#fff; border-radius:2px; }
 
-  /* 웅크리기(차지) 게이지 */
-  #charge-wrap { position:absolute; bottom:14%; left:50%; transform:translateX(-50%);
-    width:min(210px, 46vw); text-align:center; }
+  /* 웅크리기(차지) 게이지 (모구 머리 위에 JS로 앵커) */
+  #charge-wrap { position:absolute; top:24%; left:50%; transform:translate(-50%, -110%);
+    width:min(190px, 42vw); text-align:center; }
   #charge-label { color:rgba(255,255,255,.85); font-size:12px; font-weight:700;
     text-shadow:0 1px 3px rgba(0,0,0,.7); margin-bottom:4px; }
   #charge { height:10px; background:rgba(0,0,0,.5); border-radius:5px; border:2px solid rgba(255,255,255,.5); overflow:hidden; }
