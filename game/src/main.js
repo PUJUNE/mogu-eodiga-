@@ -152,6 +152,12 @@ document.getElementById('btn-pmap').onclick = () => transition(() => goMap());
 
 function resumePlay() { state = 'play'; G.ui.hideAll(); }
 
+function pauseGame() {
+  state = 'pause'; pauseSel = 0;
+  G.ui.show('pause-screen');
+  G.ui.highlightButtons(PAUSE_BTNS, 0);
+}
+
 G.ui.onStageClick = (s) => { if (state === 'map') transition(() => startStage(s)); };
 
 // ── 입력 ──
@@ -173,7 +179,7 @@ window.addEventListener('keydown', (e) => {
     if (k === 'ArrowUp' || k === 'ArrowLeft') { mapSel = Math.max(1, mapSel - 1); G.ui.selectMapNode(mapSel); }
     if (k === 'Enter' || k === ' ') transition(() => startStage(mapSel));
   } else if (state === 'play') {
-    if (k === 'Escape') { state = 'pause'; pauseSel = 0; G.ui.show('pause-screen'); G.ui.highlightButtons(PAUSE_BTNS, 0); }
+    if (k === 'Escape') pauseGame();
     if (k === 'r' || k === 'R') transition(() => startStage(stageNo));
   } else if (state === 'pause') {
     if (k === 'Enter' || k === 'Escape') resumePlay();
@@ -198,6 +204,61 @@ window.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowDown') keys.down = false;
 });
 
+// ── 터치 입력 (모바일) ──
+const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+const vpad = document.getElementById('vpad');
+if (isTouch) {
+  document.body.classList.add('touch');
+  document.getElementById('title-press').textContent = '화면을 터치해 시작';
+  document.getElementById('continue-hint').textContent = '화면 터치 = 코인 투입 (무제한)';
+  const mapHint = document.querySelector('.map-hint span');
+  if (mapHint) mapHint.textContent = '스테이지를 터치해 출발';
+
+  // 가상 패드: 누르는 동안 방향키와 동일하게 동작 (버튼 밖으로 미끄러지면 해제)
+  const bindHold = (id, key) => {
+    const el = document.getElementById(id);
+    const set = (v) => (e) => {
+      e.preventDefault();
+      G.audio.resume();
+      keys[key] = v;
+      el.classList.toggle('pressed', v);
+    };
+    el.addEventListener('pointerdown', set(true));
+    el.addEventListener('pointerup', set(false));
+    el.addEventListener('pointercancel', set(false));
+    el.addEventListener('pointerleave', set(false));
+  };
+  bindHold('vbtn-left', 'left');
+  bindHold('vbtn-right', 'right');
+  bindHold('vbtn-up', 'up');
+  bindHold('vbtn-down', 'down');
+  document.getElementById('vbtn-pause').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (state === 'play') pauseGame();
+  });
+
+  // 타이틀: 터치로 시작
+  document.getElementById('title-screen').addEventListener('pointerdown', () => {
+    G.audio.resume();
+    if (state === 'title') transition(() => goMap());
+  });
+
+  // 페이지 스크롤·핀치 줌 방지 (월드 맵 스크롤 영역만 허용)
+  document.addEventListener('touchmove', (e) => {
+    if (!e.target.closest('#map-scroll')) e.preventDefault();
+  }, { passive: false });
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  vpad.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+// 컨티뉴: 화면 터치/클릭 = 코인 투입, 포기 버튼은 예외
+document.getElementById('continue-screen').addEventListener('pointerdown', (e) => {
+  if (e.target.closest('#btn-giveup')) return;
+  G.audio.resume();
+  if (state === 'continue') useCoin();
+});
+document.getElementById('btn-giveup').onclick = () => { if (state === 'continue') giveUp(); };
+
 // 디버그 (테스트 자동화용)
 G.THREE = THREE;
 G._scene = scene; G._camera = camera; G._renderer = renderer;
@@ -218,6 +279,7 @@ let gameTime = 0;
 function frame() {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, clock.getDelta());
+  if (isTouch) vpad.classList.toggle('on', state === 'play');
 
   if (state === 'play' && player && world) {
     gameTime += dt;

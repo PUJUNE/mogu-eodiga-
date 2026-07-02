@@ -3,10 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <title>모구 어디가</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
   html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000;
-    font-family:'Malgun Gothic','맑은 고딕',sans-serif; user-select:none; }
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
   #app { position:relative; width:100%; height:100%; }
   canvas { display:block; }
 
@@ -16,8 +18,8 @@
 
   /* ── 타이틀 ─────────────────────────── */
   #title-screen { background:linear-gradient(#7ec8f0 0%, #b8e4f7 55%, #4f9be0 56%, #3d7be8 100%); }
-  #title-screen .logo { font-size:84px; font-weight:900; color:#fff;
-    text-shadow:0 5px 0 #2a5db0, 0 9px 18px rgba(0,0,0,.35); letter-spacing:6px; }
+  #title-screen .logo { font-size:min(84px, 15vw); font-weight:900; color:#fff; white-space:nowrap;
+    text-shadow:0 5px 0 #2a5db0, 0 9px 18px rgba(0,0,0,.35); letter-spacing:min(6px, 1vw); }
   #title-screen .sub { margin-top:6px; font-size:20px; color:#1c3f78; font-weight:700; }
   #title-icon { width:170px; height:auto; margin:26px 0 8px; animation:bob 1.6s ease-in-out infinite;
     filter:drop-shadow(0 8px 10px rgba(0,0,0,.3)); }
@@ -30,7 +32,7 @@
   #map-screen { background:#1b2838; justify-content:flex-start; }
   #map-head { width:100%; padding:14px 0 10px; text-align:center; color:#fff;
     font-size:26px; font-weight:800; background:rgba(0,0,0,.35); z-index:2; letter-spacing:3px; }
-  #map-scroll { position:relative; width:100%; flex:1; overflow-y:auto; scroll-behavior:smooth; }
+  #map-scroll { position:relative; width:100%; flex:1; overflow-y:auto; scroll-behavior:smooth; touch-action:pan-y; }
   #map-track { position:relative; width:100%; }
   .world-band { position:absolute; left:0; width:100%; }
   .world-label { position:absolute; left:18px; top:10px; color:rgba(255,255,255,.85);
@@ -45,9 +47,9 @@
   .stage-node.cleared { background:#3aa84f; }
   .stage-node.selected { transform:scale(1.28); border-color:#ffd83d; z-index:3;
     box-shadow:0 0 0 6px rgba(255,216,61,.35), 0 6px 12px rgba(0,0,0,.5); }
-  .map-hint { width:100%; display:flex; align-items:center; justify-content:center; gap:18px;
-    color:rgba(255,255,255,.75); font-size:15px;
-    padding:8px 0 10px; background:rgba(0,0,0,.35); z-index:2; }
+  .map-hint { width:100%; display:flex; align-items:center; justify-content:center; gap:12px 18px;
+    color:rgba(255,255,255,.75); font-size:15px; flex-wrap:wrap;
+    padding:8px 10px 10px; background:rgba(0,0,0,.35); z-index:2; box-sizing:border-box; }
   .btn-mini { padding:7px 14px; font-size:14px; font-weight:700; color:#fff;
     background:#2e6da3; border:2px solid rgba(255,255,255,.55); border-radius:9px; cursor:pointer;
     font-family:inherit; }
@@ -76,8 +78,8 @@
 
   /* ── 컨티뉴 ─────────────────────────── */
   #continue-screen { background:rgba(0,0,0,.82); z-index:20; }
-  #continue-screen .big { font-size:64px; font-weight:900; color:#ff5252;
-    text-shadow:0 0 24px rgba(255,82,82,.6); letter-spacing:8px; }
+  #continue-screen .big { font-size:min(64px, 13vw); font-weight:900; color:#ff5252; white-space:nowrap;
+    text-shadow:0 0 24px rgba(255,82,82,.6); letter-spacing:min(8px, 1.6vw); }
   #coin-slot { margin:28px 0 6px; width:90px; height:130px; border-radius:12px;
     background:linear-gradient(#caa53d,#8f6f1d); border:4px solid #5e470f;
     display:flex; align-items:center; justify-content:center; position:relative;
@@ -93,15 +95,17 @@
     100%{opacity:0; top:34px; transform:rotate(160deg) scaleX(.2)} }
   #continue-count { font-size:88px; font-weight:900; color:#fff; margin-top:10px;
     text-shadow:0 4px 10px rgba(0,0,0,.8); }
-  #continue-screen .hint { margin-top:14px; font-size:19px; color:#ffd83d; font-weight:700; }
-  #continue-screen .hint2 { margin-top:6px; font-size:14px; color:rgba(255,255,255,.65); }
+  #continue-screen .hint { margin-top:14px; font-size:19px; color:#ffd83d; font-weight:700;
+    padding:0 14px; text-align:center; }
+  #continue-screen .hint2 { margin-top:6px; font-size:14px; color:rgba(255,255,255,.65);
+    padding:0 14px; text-align:center; }
 
   /* ── 결과 ──────────────────────────── */
   #result-screen { background:rgba(8,20,40,.88); z-index:20; }
   #result-title { font-size:52px; font-weight:900; color:#fff; text-shadow:0 4px 8px rgba(0,0,0,.6); }
   #result-stars { font-size:64px; margin:14px 0 4px; letter-spacing:10px; }
   #result-stats { color:#dce8f5; font-size:19px; line-height:1.9; text-align:center; margin-top:8px; }
-  .result-buttons { display:flex; gap:16px; margin-top:30px; }
+  .result-buttons { display:flex; gap:16px; margin-top:30px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
   .btn { pointer-events:auto; padding:13px 26px; font-size:18px; font-weight:800; color:#fff;
     background:#3a86d4; border:3px solid rgba(255,255,255,.8); border-radius:12px; cursor:pointer;
     box-shadow:0 4px 8px rgba(0,0,0,.4); font-family:inherit; }
@@ -111,6 +115,22 @@
   /* ── 일시정지 ───────────────────────── */
   #pause-screen { background:rgba(0,0,0,.6); z-index:20; }
   #pause-screen .big { font-size:46px; font-weight:900; color:#fff; margin-bottom:26px; }
+
+  /* ── 터치 가상 패드 (모바일 전용) ────── */
+  #vpad { position:absolute; inset:0; pointer-events:none; z-index:8; display:none; }
+  body.touch #vpad.on { display:block; }
+  .vbtn { position:absolute; pointer-events:auto; width:78px; height:78px; border-radius:50%;
+    background:rgba(255,255,255,.15); border:2px solid rgba(255,255,255,.5);
+    color:rgba(255,255,255,.92); font-size:32px; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+    touch-action:none; user-select:none; text-shadow:0 2px 3px rgba(0,0,0,.5); }
+  .vbtn.pressed { background:rgba(255,255,255,.38); border-color:#ffd83d; }
+  #vbtn-left  { left:calc(16px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #vbtn-right { left:calc(110px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #vbtn-up    { right:calc(16px + env(safe-area-inset-right)); bottom:calc(112px + env(safe-area-inset-bottom)); }
+  #vbtn-down  { right:calc(16px + env(safe-area-inset-right)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #vbtn-pause { right:calc(12px + env(safe-area-inset-right)); top:calc(56px + env(safe-area-inset-top));
+    width:50px; height:50px; font-size:20px; border-radius:14px; }
 
   #fade { position:absolute; inset:0; background:#000; opacity:0; pointer-events:none;
     transition:opacity .45s; z-index:30; }
@@ -131,6 +151,14 @@
     <div id="hud-items">🐟 0&nbsp;&nbsp;🍡 0/0</div>
     <div id="hud-speed"></div>
     <div id="hud-toast"></div>
+  </div>
+
+  <div id="vpad">
+    <div class="vbtn" id="vbtn-left">◀</div>
+    <div class="vbtn" id="vbtn-right">▶</div>
+    <div class="vbtn" id="vbtn-up">▲</div>
+    <div class="vbtn" id="vbtn-down">▽</div>
+    <div class="vbtn" id="vbtn-pause">⏸</div>
   </div>
 
   <div id="title-screen" class="screen">
@@ -156,8 +184,9 @@
     <div class="big">CONTINUE?</div>
     <div id="coin-slot"><div class="slit"></div><div id="coin">C</div></div>
     <div id="continue-count">10</div>
-    <div class="hint">방향키 또는 Enter = 코인 투입 (무제한)</div>
+    <div class="hint" id="continue-hint">방향키 또는 Enter = 코인 투입 (무제한)</div>
     <div class="hint2">ESC = 포기하고 월드 맵으로 · 컨티뉴 사용 시 이 판 별점은 ★1</div>
+    <div class="result-buttons"><button class="btn" id="btn-giveup">포기하고 맵으로</button></div>
   </div>
 
   <div id="result-screen" class="screen hidden">
