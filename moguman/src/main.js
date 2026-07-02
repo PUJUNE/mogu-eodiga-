@@ -115,6 +115,10 @@ function startTitle(fresh) {
   const from = fresh ? 1 : M.save.data.best;
   startStage(from, { score: 0, lives: 3 });
 }
+document.getElementById('btn-series').onclick = () => {
+  // 개발 페이지(/moguman/)와 빌드본(루트) 양쪽에서 런처로 이동
+  location.href = location.pathname.includes('/moguman/') ? '../index.html' : 'index.html';
+};
 document.getElementById('btn-continue').onclick = () => startTitle(false);
 document.getElementById('btn-new').onclick = () => startTitle(true);
 document.getElementById('btn-resume').onclick = () => { mode = 'play'; M.ui.hideAll(); };
