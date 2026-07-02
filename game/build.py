@@ -1,11 +1,12 @@
 # build.py — game/ 모듈들을 단일 배포 html로 병합
-# 산출물: ../모구 어디가.html (더블클릭 실행, three.js만 CDN)
+# 산출물: ../모구 어디가.html + ../eodiga.html (동일 내용 — 런처 링크용 ASCII 파일명)
 import base64
 import re
 from pathlib import Path
 
 HERE = Path(__file__).parent
 OUT = HERE.parent / "모구 어디가.html"
+OUT2 = HERE.parent / "eodiga.html"
 
 html = (HERE / "index.html").read_text(encoding="utf-8")
 
@@ -41,4 +42,5 @@ html = re.sub(
 )
 
 OUT.write_text(html, encoding="utf-8")
-print("빌드 완료:", OUT, f"({OUT.stat().st_size/1024:.0f} KB)")
+OUT2.write_text(html, encoding="utf-8")
+print("빌드 완료:", OUT, f"({OUT.stat().st_size/1024:.0f} KB)", "+ eodiga.html")
