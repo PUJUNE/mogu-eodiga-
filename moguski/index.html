@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구 스키점프</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0c1420;
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  #app { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  #stage-wrap { position:relative; }
+  canvas { display:block; background:#000; }
+
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10; }
+  .hidden { display:none !important; }
+
+  /* ── 캔버스 위 DOM HUD ── */
+  #hud-bar { position:absolute; top:0; left:0; right:0; text-align:center; z-index:5; pointer-events:none;
+    padding-top:4px; }
+  #hud-stage { color:#fff; font-size:12px; font-weight:800; text-shadow:0 2px 3px rgba(0,0,0,.7); }
+  #hud-target { color:#c8d8ee; font-size:10px; font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,.7); }
+  #hud-toast { position:absolute; top:42%; left:50%; transform:translateX(-50%); z-index:5; pointer-events:none;
+    color:#fff; font-size:20px; font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
+    opacity:0; transition:opacity .3s; white-space:nowrap; }
+  #ready-overlay { position:absolute; inset:0; z-index:6; pointer-events:none;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end; padding-bottom:12%; }
+  #ready-overlay .go { font-size:min(26px, 6vw); font-weight:900; color:#ffd83d;
+    text-shadow:0 3px 6px rgba(0,0,0,.6); animation:blink 1.1s step-end infinite; }
+  @keyframes blink { 50%{opacity:.25} }
+  #ready-hint { margin-top:8px; font-size:12px; color:rgba(255,255,255,.85);
+    text-shadow:0 1px 3px rgba(0,0,0,.7); text-align:center; padding:0 14px; }
+
+  /* ── 타이틀 ── */
+  #title-screen { background:linear-gradient(#8ecdf0 0%, #d8f0fa 55%, #4f7be0 56%, #2c3a60 100%); }
+  #title-screen .logo { font-size:min(60px, 12vw); font-weight:900; color:#fff; white-space:nowrap;
+    text-shadow:0 5px 0 #2a5db0, 0 9px 18px rgba(0,0,0,.4); letter-spacing:min(5px, 1vw); }
+  #title-screen .sub { margin-top:6px; font-size:17px; color:#1c3f78; font-weight:700; }
+  #title-icon { width:120px; height:auto; margin:18px 0 4px; animation:fly 2.2s ease-in-out infinite;
+    filter:drop-shadow(0 8px 10px rgba(0,0,0,.35)); }
+  @keyframes fly { 0%,100%{transform:translateY(0) rotate(8deg)} 50%{transform:translateY(-16px) rotate(-6deg)} }
+  #title-hint { margin-top:12px; color:rgba(255,255,255,.9); font-size:13px; text-shadow:0 1px 3px rgba(0,0,0,.5);
+    text-align:center; padding:0 14px; }
+
+  .menu-buttons { display:flex; gap:14px; margin-top:20px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
+  .btn { pointer-events:auto; padding:12px 26px; font-size:17px; font-weight:800; color:#fff;
+    background:#3a86d4; border:3px solid rgba(255,255,255,.8); border-radius:12px; cursor:pointer;
+    box-shadow:0 4px 8px rgba(0,0,0,.4); font-family:inherit; }
+  .btn.primary { background:#3aa84f; }
+
+  /* ── 힐 맵 ── */
+  #map-screen { background:#16223a; justify-content:flex-start; }
+  #map-head { width:100%; padding:12px 0 8px; text-align:center; color:#fff;
+    font-size:22px; font-weight:800; background:rgba(0,0,0,.35); letter-spacing:3px; }
+  #map-scroll { width:100%; flex:1; overflow-y:auto; touch-action:pan-y; }
+  #map-track { max-width:560px; margin:0 auto; padding:10px 12px 30px; }
+  .map-world { color:#9fc0e8; font-size:13px; font-weight:800; margin:14px 0 6px; }
+  .map-grid { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; }
+  .stage-cell { position:relative; padding:8px 2px 6px; border-radius:10px; border:2px solid rgba(255,255,255,.4);
+    background:#2c4a74; color:#fff; font-family:inherit; cursor:pointer; text-align:center; }
+  .stage-cell b { font-size:16px; }
+  .stage-cell .stars { display:block; font-size:10px; color:#ffd83d; margin-top:2px; }
+  .stage-cell .stars.dim { color:rgba(255,255,255,.5); }
+  .stage-cell .crown { position:absolute; top:-7px; right:-4px; font-size:13px; }
+  .stage-cell.cleared { background:#2c7444; }
+  .stage-cell.locked { background:#3a4252; color:rgba(255,255,255,.4); cursor:default; }
+  .map-foot { width:100%; text-align:center; color:rgba(255,255,255,.6); font-size:12px;
+    padding:8px 0 10px; background:rgba(0,0,0,.35); }
+
+  /* ── 결과 / 일시정지 ── */
+  #result-screen { background:rgba(8,20,40,.88); z-index:20; }
+  #result-title { font-size:min(40px, 9vw); font-weight:900; color:#ffd83d; white-space:nowrap;
+    text-shadow:0 4px 8px rgba(0,0,0,.6); }
+  #result-dist { font-size:min(56px, 13vw); font-weight:900; color:#fff; margin:6px 0 2px;
+    text-shadow:0 4px 10px rgba(0,0,0,.7); }
+  #result-stars { font-size:34px; color:#ffd83d; letter-spacing:8px; min-height:44px; }
+  #result-stats { color:#dce8f5; font-size:15px; line-height:1.9; text-align:center; padding:0 16px; }
+  #pause-screen { background:rgba(0,0,0,.6); z-index:20; }
+  #pause-screen .big { font-size:min(40px, 10vw); font-weight:900; color:#fff; }
+
+  /* ── 터치 일시정지 버튼 ── */
+  .vbtn { position:fixed; pointer-events:auto; display:none; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.15); border:2px solid rgba(255,255,255,.5); color:rgba(255,255,255,.92);
+    touch-action:none; user-select:none; z-index:8; }
+  #vbtn-pause { right:calc(12px + env(safe-area-inset-right)); top:calc(10px + env(safe-area-inset-top));
+    width:46px; height:46px; font-size:18px; border-radius:12px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage-wrap">
+    <canvas id="game" width="480" height="270"></canvas>
+    <div id="hud-bar">
+      <div id="hud-stage">STAGE 1</div>
+      <div id="hud-target">목표 41m</div>
+    </div>
+    <div id="hud-toast"></div>
+    <div id="ready-overlay" class="hidden">
+      <div class="go">탭해서 출발!</div>
+      <div id="ready-hint">Space = 점프 버튼 — 도약대 끝에서 탭! · 공중에서 꾹 눌러 자세 유지 · 착지 직전 한 번 더 탭</div>
+    </div>
+  </div>
+
+  <div id="title-screen" class="screen">
+    <div class="logo">모구 스키점프</div>
+    <div class="sub">~ 포대 타고 슝 ~</div>
+    <img id="title-icon" alt="모구">
+    <div class="menu-buttons"><button class="btn primary" id="btn-start">힐 맵으로</button></div>
+    <div id="title-hint">Space 하나로 전부: 도약 탭 → 공중 홀드 → 착지 탭</div>
+  </div>
+
+  <div id="map-screen" class="screen hidden">
+    <div id="map-head">힐 맵</div>
+    <div id="map-scroll"><div id="map-track"></div></div>
+    <div class="map-foot">★1 이상이면 다음 힐 해금 · 👑 = 라이벌 힐</div>
+  </div>
+
+  <div id="result-screen" class="screen hidden">
+    <div id="result-title">CLEAR!</div>
+    <div id="result-dist">0.0 m</div>
+    <div id="result-stars"></div>
+    <div id="result-stats"></div>
+    <div class="menu-buttons">
+      <button class="btn" id="btn-retry">다시 점프</button>
+      <button class="btn" id="btn-map">힐 맵</button>
+      <button class="btn primary" id="btn-next">다음 힐 →</button>
+    </div>
+  </div>
+
+  <div id="pause-screen" class="screen hidden">
+    <div class="big">일시정지</div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-resume">계속</button>
+      <button class="btn" id="btn-prestart">다시 점프</button>
+      <button class="btn" id="btn-pmap">힐 맵</button>
+    </div>
+  </div>
+
+  <div class="vbtn" id="vbtn-pause">⏸</div>
+</div>
+
+<script>window.MSJ = { ASSETS: { mogu: "../game/assets/mogu-icon.png" } };</script>
+<script src="src/rng.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/render.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
