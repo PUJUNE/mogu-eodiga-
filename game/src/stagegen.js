@@ -51,7 +51,7 @@ G.makeStage = function (stageNo) {
   while (z < L - 40) {
     const hw = halfW(z);
     const dz = z - lastZ;
-    const reach = P.latReach * (dz / P.speed) * 0.65;
+    const reach = P.latReach * (dz / P.speed) * P.drift;
     gapX = Math.max(-(hw - GAP_HALF - 0.6), Math.min(hw - GAP_HALF - 0.6, gapX + rng.range(-reach, reach)));
     gapSamples.push({ z, x: gapX });
 

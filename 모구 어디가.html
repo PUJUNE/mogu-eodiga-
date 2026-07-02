@@ -381,15 +381,18 @@ G.audio = A;
 // difficulty.js — 스테이지 1~50 난이도 파라미터 + 월드 테마
 const G = window.MOGU;
 
-// ── 난이도 모드 (속도 배율) ──
-// 배율은 생성 단계(paramsFor)의 speed에 적용 — 장애물 간격·통로 드리프트가
-// speed에 비례해 늘어나므로 어떤 배율에서도 통과 가능 경로가 구조적으로 유지됨
+// ── 난이도 모드 ──
+// mult(속도 배율)는 생성 단계(paramsFor)의 speed에 적용 — 장애물 간격·통로
+// 드리프트가 speed에 비례해 늘어나므로 어떤 배율에서도 통과 가능 경로가 유지됨.
+// 속도만으로는 반응 시간(간격 바닥값 speed×reaction)이 일정해 난이도가 포화하므로
+// 크레이지는 추가 노브 사용: reaction(행 간 반응 시간 계수, 기본 0.95),
+// densityMul(장애물 밀도), widthMul(강폭), drift(통로 흔들림 계수, 기본 0.65 ≤ 1)
 G.DIFF_ORDER = ['easy', 'normal', 'hard', 'crazy'];
 G.DIFFS = {
   easy:   { name: '이지',     mult: 0.825 },
   normal: { name: '노말',     mult: 1.1 },
   hard:   { name: '하드',     mult: 1.43 },
-  crazy:  { name: '크레이지', mult: 1.87 },
+  crazy:  { name: '크레이지', mult: 1.87, reaction: 0.75, densityMul: 1.4, widthMul: 0.85, drift: 0.8 },
 };
 G.diff = 'normal';
 
@@ -439,16 +442,18 @@ G.paramsFor = function (stage) {
   const isWorldStart = wi === 0 && stage > 1;
   const isBoss = wi === 9;
 
+  const D = G.DIFFS[G.diff];
+
   let speed = lerp(6, 13, t);
   if (isWorldStart) speed -= 0.8;                         // 새 기믹 학습 구간
   if (isBoss) speed += 0.5;
-  speed *= G.DIFFS[G.diff].mult;                          // 난이도 모드 배율
+  speed *= D.mult;                                        // 난이도 모드 배율
 
-  const widthMax = Math.max(8, lerp(16, 10, t));
-  const widthMin = Math.max(6, lerp(13, 6, t));
+  const widthMax = Math.max(8, lerp(16, 10, t)) * (D.widthMul || 1);
+  const widthMin = Math.max(6, lerp(13, 6, t)) * (D.widthMul || 1);
 
-  const density = lerp(4, 16, t);                         // 개/100블록
-  let interval = Math.max(speed * 0.95, 100 / density);   // 패턴 간 거리(블록)
+  const density = lerp(4, 16, t) * (D.densityMul || 1);   // 개/100블록
+  let interval = Math.max(speed * (D.reaction || 0.95), 100 / density); // 패턴 간 거리(블록)
   if (isBoss) interval *= 0.85;
 
   const targetTime = lerp(60, 120, t);
@@ -462,6 +467,7 @@ G.paramsFor = function (stage) {
     curvePeriod: lerp(150, 90, t),
     obstacles: OBSTACLE_SETS[world],
     latReach: 7,                                          // 좌우 이동 속도(블록/s)
+    drift: D.drift || 0.65,                               // 통로 흔들림 계수 (≤1 이면 도달 보장)
     rapids: world === 3 || world === 5,
     blizzard: world === 4,
     ice: world === 4,
@@ -527,7 +533,7 @@ G.makeStage = function (stageNo) {
   while (z < L - 40) {
     const hw = halfW(z);
     const dz = z - lastZ;
-    const reach = P.latReach * (dz / P.speed) * 0.65;
+    const reach = P.latReach * (dz / P.speed) * P.drift;
     gapX = Math.max(-(hw - GAP_HALF - 0.6), Math.min(hw - GAP_HALF - 0.6, gapX + rng.range(-reach, reach)));
     gapSamples.push({ z, x: gapX });
 
