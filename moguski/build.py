@@ -14,7 +14,7 @@ def data_uri(p):
     b = (HERE.parent / p).read_bytes()
     return "data:image/png;base64," + base64.b64encode(b).decode()
 
-assets_js = 'window.MSJ = { ASSETS: { mogu: "%s" } };' % data_uri("game/assets/mogu-icon.png")
+assets_js = 'window.MSJ = { ASSETS: { mogu: "%s" } };' % data_uri("moguski/assets/mogu-ski.png")
 html = re.sub(
     r'<script>window\.MSJ = \{ ASSETS: .*?\};</script>',
     lambda m: "<script>" + assets_js + "</script>",

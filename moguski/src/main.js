@@ -91,6 +91,10 @@ window.addEventListener('keyup', (e) => {
 });
 
 $('btn-start').onclick = () => goMap();
+$('btn-series').onclick = () => {
+  // 개발 페이지(/moguski/)와 빌드본(루트) 양쪽에서 런처로 이동
+  location.href = location.pathname.includes('/moguski/') ? '../index.html' : 'index.html';
+};
 $('btn-retry').onclick = () => startStage(st.no);
 $('btn-map').onclick = () => goMap();
 $('btn-next').onclick = () => startStage(st.no + 1);

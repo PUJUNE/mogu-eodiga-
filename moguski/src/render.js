@@ -38,8 +38,8 @@ M.Render = {
     g.add(this.sackMesh);
     this.moguMat = new THREE.SpriteMaterial({ color: 0xffffff });
     this.moguSprite = new THREE.Sprite(this.moguMat);
-    this.moguSprite.position.set(0, 1.35, 0);
-    this.moguSprite.scale.set(1.8, 1.55, 1);
+    this.moguSprite.position.set(0, 1.15, 0);
+    this.moguSprite.scale.set(0.85, 2.05, 1);
     g.add(this.moguSprite);
     const sh = new THREE.Mesh(new THREE.CircleGeometry(1.0, 14),
       new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2, depthWrite: false }));
@@ -58,7 +58,7 @@ M.Render = {
       tex.colorSpace = THREE.SRGBColorSpace;
       this.moguMat.map = tex;
       this.moguMat.needsUpdate = true;
-      const a = cv.width / cv.height, h = 1.7;
+      const a = cv.width / cv.height, h = 2.05;
       this.moguSprite.scale.set(h * a, h, 1);
     };
     img.src = M.ASSETS.mogu;
@@ -105,12 +105,13 @@ M.Render = {
     this.targetZ = solve(stage.target);
     const bestZ = best > 0 ? solve(best) : null;
 
-    // ── 복셀 지면 ──
+    // ── 지면 ──
+    // 트랙(활강로): 0.25m 소형 슬래브가 프로파일을 연속으로 따라감 → 매끄러운 비탈
+    // 둔치·지반: 1m 복셀 (마인크래프트 질감 유지)
     const zMin = Math.floor(topX) - 12;         // 출발 플랫폼 여유 (카메라 자리)
     const zMax = Math.ceil(stage.K * 1.32 + 56);
     const HALF_W = 8;
-    const DEPTH = 4;
-    const cells = [];
+    const TRACK_HW = 3.5, S = 0.25;             // 트랙 반폭·소형 박스 크기
     const cTrack = new THREE.Color(th.track), cGround = new THREE.Color(th.ground);
     const cDirt = new THREE.Color(th.ground).multiplyScalar(0.55);
     const cAccent = new THREE.Color(th.accent), cLip = new THREE.Color(0xd83a3a);
@@ -120,38 +121,69 @@ M.Render = {
       h = Math.imul(h ^ (h >>> 13), 1274126177);
       return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
     };
-    // 10m 간격 눈금의 z 좌표
-    const markZ = new Set();
-    for (let d = 10; d < stage.K * 1.7; d += 10) markZ.add(Math.round(solve(d)));
-    const tgtZi = Math.round(this.targetZ);
+    // 10m 간격 눈금·목표 라인의 z 좌표
+    const markZ = [];
+    for (let d = 10; d < stage.K * 1.7; d += 10) markZ.push(solve(d));
+    const tgtZ = this.targetZ;
+
+    // 1) 트랙 소형 슬래브
+    const strip = [];
+    const cols = Math.round((TRACK_HW * 2) / S);
+    for (let z = zMin; z < zMax; z += S) {
+      const zc = z + S / 2;
+      const sy = this.surfaceY(zc);
+      for (let ci = 0; ci < cols; ci++) {
+        const xc = -TRACK_HW + S / 2 + ci * S;
+        let col;
+        if (zc >= -1 && zc <= 0) col = Math.floor(Math.abs(xc) * 2) % 2 ? cLip : cMark;      // 도약대 끝 줄무늬
+        else if (zc > 0 && Math.abs(zc - tgtZ) < 0.3) col = cAccent;                          // 목표 라인
+        else if (zc > 0 && markZ.some((m) => Math.abs(zc - m) < 0.15)) col = cMark;           // 10m 눈금
+        else col = cTrack.clone().multiplyScalar(0.94 + hash(Math.floor(zc), Math.floor(xc * 2)) * 0.12);
+        strip.push({ x: xc, y: sy - 0.25, z: zc, col });
+      }
+    }
+    const imS = new THREE.InstancedMesh(BOXG, new THREE.MeshLambertMaterial(), strip.length);
+    {
+      const mtx = new THREE.Matrix4();
+      strip.forEach((c, i) => {
+        mtx.makeScale(S, 0.5, S);
+        mtx.setPosition(c.x, c.y, c.z);
+        imS.setMatrixAt(i, mtx);
+        imS.setColorAt(i, c.col);
+      });
+      imS.instanceMatrix.needsUpdate = true;
+      if (imS.instanceColor) imS.instanceColor.needsUpdate = true;
+      grp.add(imS);
+    }
+
+    // 2) 둔치(1m 복셀) + 트랙 밑 지반
+    const cells = [];
     for (let z = zMin; z <= zMax; z++) {
       const ys = Math.floor(this.surfaceY(z + 0.5));
       for (let wx = -HALF_W; wx <= HALF_W; wx++) {
-        for (let d = 0; d < DEPTH; d++) {
+        const isSide = Math.abs(wx) > TRACK_HW;
+        const dep = isSide ? 4 : 3;
+        for (let d = isSide ? 0 : 1; d < dep; d++) {
           let col;
-          const isTrack = Math.abs(wx) <= 3;
           if (d > 0) col = cDirt.clone().multiplyScalar(0.85 + hash(z * 3 + d, wx) * 0.3);
-          else if (z >= -1 && z <= 0) col = Math.abs(wx) % 2 ? cLip : cMark;   // 도약대 끝 줄무늬
-          else if (z === tgtZi && z > 0) col = cAccent;                        // 목표 라인
-          else if (markZ.has(z) && isTrack && z > 0) col = cMark;              // 10m 눈금
-          else {
-            const base = isTrack ? cTrack : cGround;
-            col = base.clone().multiplyScalar(0.9 + hash(z, wx) * 0.2);        // 블록별 색 변주
-          }
+          else col = cGround.clone().multiplyScalar(0.9 + hash(z, wx) * 0.2);
           cells.push({ x: wx, y: ys - d, z, col });
         }
       }
     }
     const im = new THREE.InstancedMesh(BOXG, new THREE.MeshLambertMaterial(), cells.length);
-    const mtx = new THREE.Matrix4();
-    cells.forEach((c, i) => {
-      mtx.setPosition(c.x, c.y - 0.5, c.z + 0.5);
-      im.setMatrixAt(i, mtx);
-      im.setColorAt(i, c.col);
-    });
-    im.instanceMatrix.needsUpdate = true;
-    if (im.instanceColor) im.instanceColor.needsUpdate = true;
-    grp.add(im);
+    {
+      const mtx = new THREE.Matrix4();
+      cells.forEach((c, i) => {
+        mtx.identity();
+        mtx.setPosition(c.x, c.y - 0.5, c.z + 0.5);
+        im.setMatrixAt(i, mtx);
+        im.setColorAt(i, c.col);
+      });
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      grp.add(im);
+    }
 
     // ── 계곡 바닥 + 인런 뒤 능선 (수평선이 하늘로 비지 않게) ──
     const outY = stage.hillY(stage.K * 1.32 + 40);
@@ -231,8 +263,8 @@ M.Render = {
     g.rotation.x = st.phase === 'landed' && st.crash ? (st.landT * 9) % (Math.PI * 2) : pitch;
     // 웅크리기(차지) — 모구가 낮게 엎드림
     const crouch = st.phase === 'slide' && st.holding ? st.charge : 0;
-    this.moguSprite.position.y = 1.35 - crouch * 0.5;
-    this.moguSprite.scale.y = 1.7 * (1 - crouch * 0.22);
+    this.moguSprite.position.y = 1.15 - crouch * 0.42;
+    this.moguSprite.scale.y = 2.05 * (1 - crouch * 0.22);
     this.shadow.visible = st.phase !== 'flight' || (st.y - stg.hillY(st.x)) < 4;
 
     // ── 뒤통수 추적 카메라 ──
