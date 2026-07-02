@@ -54,6 +54,15 @@
     background:#2e6da3; border:2px solid rgba(255,255,255,.55); border-radius:9px; cursor:pointer;
     font-family:inherit; }
   .btn-mini:hover { background:#3a86d4; }
+
+  /* ── 난이도 선택 ─────────────────────── */
+  #diff-row { width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+    padding:7px 10px; background:rgba(0,0,0,.35); z-index:2; flex-wrap:wrap; box-sizing:border-box; }
+  .diff-label { color:rgba(255,255,255,.75); font-size:14px; font-weight:700; margin-right:4px; }
+  .diff-btn { background:#3d4a5c; border-color:rgba(255,255,255,.35); }
+  .diff-btn:hover { background:#51637a; }
+  .diff-btn.selected { background:#3aa84f; border-color:#ffd83d; outline:2px solid rgba(255,216,61,.5); }
+  .diff-btn.crazy.selected { background:#c8385a; }
   #save-msg { color:#ffd83d; font-weight:700; min-width:0; }
 
   /* ── HUD ───────────────────────────── */
@@ -170,9 +179,16 @@
 
   <div id="map-screen" class="screen hidden">
     <div id="map-head">월 드 맵</div>
+    <div id="diff-row">
+      <span class="diff-label">난이도</span>
+      <button class="btn-mini diff-btn" data-diff="easy">이지</button>
+      <button class="btn-mini diff-btn" data-diff="normal">노말</button>
+      <button class="btn-mini diff-btn" data-diff="hard">하드</button>
+      <button class="btn-mini diff-btn crazy" data-diff="crazy">크레이지</button>
+    </div>
     <div id="map-scroll"><div id="map-track"></div></div>
     <div class="map-hint">
-      <span>방향키 이동 · Enter 출발 · 클릭 가능</span>
+      <span>방향키 이동 · Enter 출발 · D 난이도 · 클릭 가능</span>
       <button class="btn-mini" id="btn-save-export">💾 세이브 내보내기</button>
       <button class="btn-mini" id="btn-save-import">📂 세이브 불러오기</button>
       <input type="file" id="save-file-input" accept=".json,application/json" style="display:none">

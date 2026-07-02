@@ -1,6 +1,18 @@
 // difficulty.js — 스테이지 1~50 난이도 파라미터 + 월드 테마
 const G = window.MOGU;
 
+// ── 난이도 모드 (속도 배율) ──
+// 배율은 생성 단계(paramsFor)의 speed에 적용 — 장애물 간격·통로 드리프트가
+// speed에 비례해 늘어나므로 어떤 배율에서도 통과 가능 경로가 구조적으로 유지됨
+G.DIFF_ORDER = ['easy', 'normal', 'hard', 'crazy'];
+G.DIFFS = {
+  easy:   { name: '이지',     mult: 0.75 },
+  normal: { name: '노말',     mult: 1.0 },
+  hard:   { name: '하드',     mult: 1.3 },
+  crazy:  { name: '크레이지', mult: 1.7 },
+};
+G.diff = 'normal';
+
 G.THEMES = {
   1: { name: '평원 마을', sky: 0x87ceeb, fog: 0xa8d8ee, fogFar: 95,
        water: 0x3d7be8, waterOpacity: 0.86,
@@ -50,6 +62,7 @@ G.paramsFor = function (stage) {
   let speed = lerp(6, 13, t);
   if (isWorldStart) speed -= 0.8;                         // 새 기믹 학습 구간
   if (isBoss) speed += 0.5;
+  speed *= G.DIFFS[G.diff].mult;                          // 난이도 모드 배율
 
   const widthMax = Math.max(8, lerp(16, 10, t));
   const widthMin = Math.max(6, lerp(13, 6, t));

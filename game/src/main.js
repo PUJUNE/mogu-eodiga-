@@ -82,7 +82,8 @@ function startStage(n) {
   itemTotal = stage.items.length;
   state = 'play';
   G.ui.hideAll();
-  G.ui.toast(`WORLD ${stage.params.world} · ${stage.params.theme.name}`, 2.2);
+  G.ui.toast(`WORLD ${stage.params.world} · ${stage.params.theme.name}` +
+    (G.diff !== 'normal' ? ` · ${G.DIFFS[G.diff].name}` : ''), 2.2);
   G.audio.resume(); G.audio.startWater(); G.audio.meow();
   // 카메라 초기 위치
   camera.position.set(stage.cx(0), 6.4, -8);
@@ -178,6 +179,11 @@ window.addEventListener('keydown', (e) => {
     if (k === 'ArrowDown' || k === 'ArrowRight') { mapSel = Math.min(unlocked, mapSel + 1); G.ui.selectMapNode(mapSel); }
     if (k === 'ArrowUp' || k === 'ArrowLeft') { mapSel = Math.max(1, mapSel - 1); G.ui.selectMapNode(mapSel); }
     if (k === 'Enter' || k === ' ') transition(() => startStage(mapSel));
+    if (k === 'd' || k === 'D') {
+      const next = G.DIFF_ORDER[(G.DIFF_ORDER.indexOf(G.diff) + 1) % G.DIFF_ORDER.length];
+      G.save.setDiff(next);
+      G.ui.updateDiffBtns();
+    }
   } else if (state === 'play') {
     if (k === 'Escape') pauseGame();
     if (k === 'r' || k === 'R') transition(() => startStage(stageNo));

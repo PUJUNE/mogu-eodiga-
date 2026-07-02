@@ -9,9 +9,16 @@ G.save = {
   data: { stars: {}, bestTime: {} },
   load() {
     try { const raw = localStorage.getItem(this.KEY); if (raw) this.data = JSON.parse(raw); } catch (e) {}
+    if (G.DIFFS[this.data.diff]) G.diff = this.data.diff;
     return this.data;
   },
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
+  setDiff(d) {
+    if (!G.DIFFS[d]) return;
+    G.diff = d;
+    this.data.diff = d;
+    this.store();
+  },
   unlocked() {
     let max = 1;
     for (let s = 1; s <= 50; s++) if (this.data.stars[s] > 0) max = Math.max(max, Math.min(50, s + 1));
@@ -45,6 +52,15 @@ G.ui = {
 
   init() {
     $('title-icon').src = G.ASSETS.icon;
+
+    // ── 난이도 버튼 ──
+    document.querySelectorAll('.diff-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        G.save.setDiff(btn.dataset.diff);
+        this.updateDiffBtns();
+      });
+    });
+    this.updateDiffBtns();
 
     // ── 세이브 내보내기 / 불러오기 ──
     const msg = (t) => {
@@ -86,6 +102,12 @@ G.ui = {
     });
   },
 
+  updateDiffBtns() {
+    document.querySelectorAll('.diff-btn').forEach((btn) => {
+      btn.classList.toggle('selected', btn.dataset.diff === G.diff);
+    });
+  },
+
   show(id) {
     for (const s of this.screens) $(s).classList.toggle('hidden', s !== id);
     $('hud').classList.toggle('hidden', id !== null && id !== 'continue-screen' && id !== 'pause-screen');
@@ -99,7 +121,7 @@ G.ui = {
   // ── HUD ──
   hud(hearts, stageNo, progress, churGot, churTotal, fish, speedLabel) {
     $('hud-hearts').textContent = '❤️'.repeat(Math.max(0, hearts)) + '🖤'.repeat(Math.max(0, 3 - hearts));
-    $('hud-stage').textContent = `STAGE ${stageNo}`;
+    $('hud-stage').textContent = `STAGE ${stageNo}` + (G.diff !== 'normal' ? ` · ${G.DIFFS[G.diff].name}` : '');
     const pct = Math.min(100, Math.max(0, progress * 100));
     $('hud-progress-fill').style.width = pct + '%';
     $('hud-progress-icon').style.left = pct + '%';

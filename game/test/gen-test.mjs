@@ -1,10 +1,14 @@
-// gen-test.mjs — 스테이지 1~50 생성 검증 (node 단독 실행)
+// gen-test.mjs — 스테이지 1~50 × 난이도 4종 생성 검증 (node 단독 실행)
 // 검사: (1) 생성 성공 (2) 모든 정적 장애물 행에 폭 2.0 이상의 틈 존재
 //       (3) 연속 행 사이 틈 이동이 좌우 이동 속도로 도달 가능 (4) 통계 출력
 import './shim.mjs';
 
 const G = globalThis.window.MOGU;
 let fail = 0;
+
+for (const diff of G.DIFF_ORDER) {
+G.diff = diff;
+console.log(`\n── 난이도 ${G.DIFFS[diff].name} (speed ×${G.DIFFS[diff].mult}) ──`);
 
 for (let s = 1; s <= 50; s++) {
   const st = G.makeStage(s);
@@ -70,6 +74,8 @@ for (let s = 1; s <= 50; s++) {
       `minGap=${minGapW === 99 ? '-' : minGapW.toFixed(1)}`);
   }
 }
+}
+G.diff = 'normal';
 
-console.log(fail === 0 ? '\n✅ 50 스테이지 전부 통과 가능 경로 확인' : `\n❌ 실패 ${fail}건`);
+console.log(fail === 0 ? '\n✅ 50 스테이지 × 난이도 4종 전부 통과 가능 경로 확인' : `\n❌ 실패 ${fail}건`);
 process.exit(fail === 0 ? 0 : 1);
