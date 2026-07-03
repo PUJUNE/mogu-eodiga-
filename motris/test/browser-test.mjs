@@ -25,13 +25,13 @@ const fails = [];
 const errors = [];
 const check = (name, ok) => { console.log((ok ? 'PASS' : 'FAIL') + ' — ' + name); if (!ok) fails.push(name); };
 
-// ══ 1. 런처: 카드 5장 ══
+// ══ 1. 런처: 카드 10장 ══
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
 page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push(String(e)));
 await page.goto('http://localhost:8747/');
 await page.waitForTimeout(600);
-check('런처: 게임 카드 5개', await page.evaluate(() => document.querySelectorAll('.card').length === 5));
+check('런처: 게임 카드 10개', await page.evaluate(() => document.querySelectorAll('.card').length >= 10));
 await page.screenshot({ path: join(shots, 'shot-launcher5.png') });
 await page.click('#card-motris');
 await page.waitForTimeout(900);

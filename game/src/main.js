@@ -7,7 +7,7 @@ const app = document.getElementById('app');
 // ── 렌더러/씬/카메라 ──
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5));
 app.insertBefore(renderer.domElement, document.getElementById('fade'));
 
 const scene = new THREE.Scene();

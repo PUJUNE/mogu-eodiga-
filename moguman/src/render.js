@@ -30,6 +30,12 @@ M.Render = {
     s = s >= 2 ? Math.floor(s) : Math.max(0.8, s * 0.97);
     this.cv.style.width = M.W * s + 'px';
     this.cv.style.height = M.H * s + 'px';
+    // 고해상도: 내부 버퍼를 표시 배율×DPR로 키우고 논리 좌표는 유지
+    const res = Math.min(4, Math.max(1, s * (window.devicePixelRatio || 1)));
+    this.cv.width = Math.round(M.W * res);
+    this.cv.height = Math.round(M.H * res);
+    this.ctx.setTransform(res, 0, 0, res, 0, 0);
+    this.ctx.imageSmoothingQuality = 'high';
   },
 
   addFx(x, y, text, color) { this.fx.push({ x, y, text, color: color || '#fff', t: 0 }); },

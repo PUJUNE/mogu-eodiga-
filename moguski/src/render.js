@@ -13,7 +13,7 @@ M.Render = {
   init(container) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5));
     container.insertBefore(this.renderer.domElement, container.firstChild);
 
     this.scene = new THREE.Scene();

@@ -21,6 +21,12 @@ M.Render = {
     s = s >= 2 ? Math.floor(s) : Math.max(0.6, s * 0.97);
     this.cv.style.width = W * s + 'px';
     this.cv.style.height = H * s + 'px';
+    // 고해상도: 내부 버퍼를 표시 배율×DPR로 키우고 논리 좌표는 유지
+    const res = Math.min(4, Math.max(1, s * (window.devicePixelRatio || 1)));
+    this.cv.width = Math.round(W * res);
+    this.cv.height = Math.round(H * res);
+    this.ctx.setTransform(res, 0, 0, res, 0, 0);
+    this.ctx.imageSmoothingQuality = 'high';
   },
 
   addSpark(x, y, kd) { this.fx.push({ kind: kd ? 'kd' : 'spark', x, y, t: 0 }); },
