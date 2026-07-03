@@ -183,7 +183,7 @@ const clean = (no) => {
   check(`연장 상한 ${L.FLAP_MAX}회 (연타 8회 = ${over} 프레임)`, over <= triple + 8);
 }
 
-// 12) 충돌 비틀거림: 미끄러지던 방향으로 탁탁탁 밀려남
+// 12) 충돌 비틀거림: 전진 정지 + 미끄러지던 방향으로 탁탁탁 밀려남
 {
   const st = clean(1);
   st.stage.objs = [{ d: 200, x: 0, type: 'hole', w: 34 }];
@@ -191,6 +191,10 @@ const clean = (no) => {
   run(st, 0.6);
   check(`충돌 비틀 횡밀림 (x → ${st.x.toFixed(0)}, dir ${st.tumbleDir})`,
     st.crashes === 1 && st.tumbleDir === 1 && st.x > 15);
+  check(`경직 중 전진 정지 (spd ${st.spd}, dist ${st.dist.toFixed(0)})`,
+    st.stunT > 0 && st.spd === 0 && st.dist < 210);
+  run(st, 1.5, { up: true });                        // 경직 해제 후 재출발
+  check(`경직 해제 → 재출발 (dist ${st.dist.toFixed(0)})`, st.stunT <= 0 && st.spd > 60 && st.dist > 220);
 }
 
 // 13) 크레바스 바다사자: 점프+정면 → 충돌 / 점프+측면 → 통과

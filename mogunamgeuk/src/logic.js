@@ -56,9 +56,9 @@ M.Logic = {
       st.x = Math.max(-M.TRACK_W, Math.min(M.TRACK_W, st.x));
     }
 
-    // 속도 (경직 중엔 최저속 고정)
+    // 속도 (경직 중엔 전진 정지 — 비틀거림 모션만, 풀리면 최저속부터 재출발)
     if (stunned) {
-      st.spd = SPD_MIN;
+      st.spd = 0;
     } else {
       if (input.up) st.spd += ACCEL * dt;
       if (input.down) st.spd -= BRAKE * dt;
