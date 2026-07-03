@@ -164,6 +164,20 @@ const spawn = (st, dx, type = 'scorp', opt) => {
   check('독침 명중 → 피해', st.p.hp < st.p.maxHp);
 }
 
+// 9b) 게이트 소프트락 방지: 원거리 적이 구간 밖으로 후퇴해도 도달 범위 내로 클램프
+{
+  const st = arena();
+  const sec = st.stage.sections[0];
+  const e = spawn(st, 0, 'sting');
+  e.x = sec.x1 + 30; e.z = st.p.z;                   // 게이트 너머에서 시작
+  st.p.x = sec.x1 - 60;
+  run(st, 4, { right: true });                       // 게이트(x1-20)에 밀착 + 적은 후퇴 시도
+  check(`원거리 적 구간 클램프 (e.x ${e.x.toFixed(0)} ≤ ${sec.x1 + 18})`, e.x <= sec.x1 + 18.5);
+  st.p.iv = 99;                                      // 독침 피격 경직 배제하고 처치 확인
+  run(st, 8, { atk: true });
+  check('게이트에서 원거리 적 처치 가능', e.hp < e.maxHp || e.state === 'dead');
+}
+
 // 10) 물약: HP·MP 회복
 {
   const st = arena();

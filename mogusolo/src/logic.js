@@ -410,6 +410,10 @@ M.Logic = {
         e.atkCd = e.baseAtkCd;
         ev.push({ type: 'eswing' });
       }
+      // 구간 밖 후퇴 방지: 게이트가 닫힌 동안 적이 플레이어 도달 범위 밖으로 못 나감
+      // (원거리 적이 거리 유지로 게이트 너머까지 물러나면 소프트락)
+      const eHi = st.secIdx >= 3 || st.go ? st.stage.length - 14 : sec.x1 + 18;
+      e.x = Math.max(14, Math.min(eHi, e.x));
       this._atkFrame(st, e, this.allies(st).filter((f) => !(f.kind === 'p' && st.stealth > 0)), ev);
     }
 
