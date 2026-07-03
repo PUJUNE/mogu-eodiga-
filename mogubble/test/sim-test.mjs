@@ -10,7 +10,7 @@ const IDLE = {};
 const fire = (st, aim) => {
   const evs = [...L.step(st, DT, { aim, shoot: true })];
   let g = 0;
-  while (st.flying && g++ < 3000) evs.push(...L.step(st, DT, IDLE));
+  while ((st.flying || st.popping) && g++ < 3000) evs.push(...L.step(st, DT, IDLE));
   return evs;
 };
 
@@ -87,6 +87,21 @@ const fire = (st, aim) => {
   let only4 = true;
   for (let i = 0; i < 30; i++) if (L._draw(st) !== 4) only4 = false;
   check('큐 추첨이 판 위 색(4)만 반환', only4);
+}
+
+// 8-b) 매치 하이라이트 모션: 착탄 → 빨간 점멸 단계(방울 유지) → 지연 후 팝
+{
+  const st = L.create(1);
+  st.grid = new Map([['0,3', 0], ['1,3', 0]]);
+  st.cur = 0;
+  const evs = [...L.step(st, DT, { aim: 0, shoot: true })];
+  let g = 0;
+  while (st.flying && g++ < 3000) evs.push(...L.step(st, DT, IDLE));   // 착탄까지만
+  check('착탄 직후 매치 이벤트 + 방울 유지(하이라이트 중)', evs.some((e) => e.type === 'match') &&
+    st.popping !== null && st.grid.size === 3 && !evs.some((e) => e.type === 'pop'));
+  const evs2 = [];
+  for (let i = 0; i < Math.round(0.5 / DT); i++) evs2.push(...L.step(st, DT, IDLE));
+  check('지연(0.42초) 후 팝 발생', evs2.some((e) => e.type === 'pop') && st.popping === null && st.phase === 'clear');
 }
 
 // 9) 결정성

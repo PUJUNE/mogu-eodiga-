@@ -112,10 +112,22 @@ M.Render = {
     c.beginPath(); c.moveTo(M.WALL_L, M.DEADLINE); c.lineTo(M.WALL_R, M.DEADLINE); c.stroke();
     c.setLineDash([]);
 
-    // 그리드 방울
+    // 그리드 방울 (매치 하이라이트 중인 방울은 빨갛게 점멸하며 부풂)
+    const popSet = st.popping ? new Set(st.popping.keys) : null;
     for (const [k, col] of st.grid) {
       const [r, cc] = k.split(',').map(Number);
-      this.bubble(M.cellX(r, cc), M.cellY(r, st.drop), col);
+      const x = M.cellX(r, cc), y = M.cellY(r, st.drop);
+      if (popSet && popSet.has(k)) {
+        const p = st.popping.t / 0.42;
+        const pulse = 1 + 0.14 * p + 0.06 * Math.sin(st.popping.t * 34);
+        this.bubble(x, y, col, pulse);
+        c.globalAlpha = 0.35 + 0.35 * (Math.floor(st.popping.t * 16) % 2);   // 빨간 점멸
+        c.fillStyle = '#ff3030';
+        c.beginPath(); c.arc(x, y, (M.D / 2) * pulse - 1, 0, Math.PI * 2); c.fill();
+        c.globalAlpha = 1;
+      } else {
+        this.bubble(x, y, col);
+      }
     }
 
     // 발사 가이드 (점선)

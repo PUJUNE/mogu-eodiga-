@@ -49,6 +49,7 @@ function handleEvents(evs) {
       case 'shoot': M.audio.shoot(); break;
       case 'bounce': M.audio.bounce(); break;
       case 'snap': M.audio.snap(); break;
+      case 'match': M.audio.match(); break;
       case 'popfx': M.Render.addPop(e.x, e.y, e.col); break;
       case 'fallfx': M.Render.addFall(e.x, e.y, e.col); break;
       case 'pop': M.audio.pop(e.n); if (e.n >= 5) M.ui.toast(`${e.n}연쇄 팝!!`, 1.2); break;

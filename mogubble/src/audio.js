@@ -47,6 +47,7 @@ const A = {
   shoot()   { this.tone(520, 0.1, 'triangle', 0.18, 880); this.noise(0.06, 0.12, 2400, 1.4); },
   bounce()  { this.tone(360, 0.05, 'square', 0.1, 320); },
   snap()    { this.tone(240, 0.06, 'square', 0.14, 200); },
+  match()   { [520, 640, 760].forEach((f, i) => this.tone(f, 0.07, 'square', 0.12, null, i * 0.09)); },
   pop(n)    { const k = Math.min(n, 8);
               for (let i = 0; i < k; i++) this.tone(620 + i * 90, 0.08, 'square', 0.16, 900 + i * 90, i * 0.045);
               this.noise(0.12, 0.2, 1200, 1); },

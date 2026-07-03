@@ -225,6 +225,7 @@ const M = window.MGB;
 
 const SPEED = 480;              // 발사 속도 (px/s)
 const AIM_MAX = 78 * Math.PI / 180;   // 발사각 클램프 (수직 기준 ±78°)
+const POP_DELAY = 0.42;         // 매치 하이라이트(빨갛게 점멸·부풀기) 시간 — 원작 모션
 
 M.Logic = {
   create(no, carry) {
@@ -233,6 +234,7 @@ M.Logic = {
       stage, no, phase: 'play', t: 0, clearT: 0,
       grid: stage.grid,                       // Map "r,c" → 색
       drop: 0, shots: 0,                      // 압축 오프셋·발사 수
+      popping: null,                          // {keys, t} — 매치 하이라이트 중
       score: (carry && carry.score) || 0,
       aim: 0,                                 // 수직 기준 라디안 (+ = 오른쪽)
       flying: null,                           // {x,y,vx,vy,col}
@@ -265,6 +267,13 @@ M.Logic = {
 
     // 조준
     if (typeof input.aim === 'number') st.aim = Math.max(-AIM_MAX, Math.min(AIM_MAX, input.aim));
+
+    // 매치 하이라이트 진행 (끝나면 팝) — 이 동안 발사 금지
+    if (st.popping) {
+      st.popping.t += dt;
+      if (st.popping.t >= POP_DELAY) this._burst(st, ev);
+      return ev;
+    }
 
     // 발사
     if (input.shoot && !st.flying) {
@@ -337,37 +346,52 @@ M.Logic = {
       }
     }
     if (same.length >= 3) {
-      for (const k of same) {
-        const [r, c] = k.split(',').map(Number);
-        ev.push({ type: 'popfx', x: M.cellX(r, c), y: M.cellY(r, c, st.drop), col: st.grid.get(k) });
-        st.grid.delete(k);
-      }
-      st.popped += same.length;
-      st.score += 10 * same.length * same.length;
-      ev.push({ type: 'pop', n: same.length });
-      // 천장과 끊긴 방울 낙하
-      const attached = new Set();
-      const q = [];
-      for (let c = 0; c < 8; c++) if (st.grid.has('0,' + c)) { attached.add('0,' + c); q.push([0, c]); }
-      while (q.length) {
-        const [r, c] = q.shift();
-        for (const [nr, nc] of M.neighbors(r, c)) {
-          const k = nr + ',' + nc;
-          if (st.grid.has(k) && !attached.has(k)) { attached.add(k); q.push([nr, nc]); }
-        }
-      }
-      let fell = 0;
-      for (const k of [...st.grid.keys()]) {
-        if (!attached.has(k)) {
-          const [r, c] = k.split(',').map(Number);
-          ev.push({ type: 'fallfx', x: M.cellX(r, c), y: M.cellY(r, c, st.drop), col: st.grid.get(k) });
-          st.grid.delete(k);
-          fell++;
-        }
-      }
-      if (fell > 0) { st.dropped += fell; st.score += 20 * fell; ev.push({ type: 'fall', n: fell }); }
+      // 원작 모션: 즉시 터뜨리지 않고 빨갛게 점멸·부풀기(하이라이트) 후 팝
+      st.popping = { keys: same, t: 0 };
+      ev.push({ type: 'match', n: same.length });
+      return;                                        // 이후 진행은 팝 완료 시(_burst)
     }
+    this._postLand(st, ev);
+  },
 
+  // 하이라이트가 끝난 뒤 실제 팝 + 낙하 + 후처리
+  _burst(st, ev) {
+    const same = st.popping.keys;
+    st.popping = null;
+    for (const k of same) {
+      const [r, c] = k.split(',').map(Number);
+      ev.push({ type: 'popfx', x: M.cellX(r, c), y: M.cellY(r, c, st.drop), col: st.grid.get(k) });
+      st.grid.delete(k);
+    }
+    st.popped += same.length;
+    st.score += 10 * same.length * same.length;
+    ev.push({ type: 'pop', n: same.length });
+    // 천장과 끊긴 방울 낙하
+    const attached = new Set();
+    const q = [];
+    for (let c = 0; c < 8; c++) if (st.grid.has('0,' + c)) { attached.add('0,' + c); q.push([0, c]); }
+    while (q.length) {
+      const [r, c] = q.shift();
+      for (const [nr, nc] of M.neighbors(r, c)) {
+        const k = nr + ',' + nc;
+        if (st.grid.has(k) && !attached.has(k)) { attached.add(k); q.push([nr, nc]); }
+      }
+    }
+    let fell = 0;
+    for (const k of [...st.grid.keys()]) {
+      if (!attached.has(k)) {
+        const [r, c] = k.split(',').map(Number);
+        ev.push({ type: 'fallfx', x: M.cellX(r, c), y: M.cellY(r, c, st.drop), col: st.grid.get(k) });
+        st.grid.delete(k);
+        fell++;
+      }
+    }
+    if (fell > 0) { st.dropped += fell; st.score += 20 * fell; ev.push({ type: 'fall', n: fell }); }
+    this._postLand(st, ev);
+  },
+
+  // 착탄 후 공통 후처리: 클리어·압축·데드라인·다음 방울
+  _postLand(st, ev) {
     // 클리어
     if (st.grid.size === 0) {
       st.score += 500;
@@ -516,10 +540,22 @@ M.Render = {
     c.beginPath(); c.moveTo(M.WALL_L, M.DEADLINE); c.lineTo(M.WALL_R, M.DEADLINE); c.stroke();
     c.setLineDash([]);
 
-    // 그리드 방울
+    // 그리드 방울 (매치 하이라이트 중인 방울은 빨갛게 점멸하며 부풂)
+    const popSet = st.popping ? new Set(st.popping.keys) : null;
     for (const [k, col] of st.grid) {
       const [r, cc] = k.split(',').map(Number);
-      this.bubble(M.cellX(r, cc), M.cellY(r, st.drop), col);
+      const x = M.cellX(r, cc), y = M.cellY(r, st.drop);
+      if (popSet && popSet.has(k)) {
+        const p = st.popping.t / 0.42;
+        const pulse = 1 + 0.14 * p + 0.06 * Math.sin(st.popping.t * 34);
+        this.bubble(x, y, col, pulse);
+        c.globalAlpha = 0.35 + 0.35 * (Math.floor(st.popping.t * 16) % 2);   // 빨간 점멸
+        c.fillStyle = '#ff3030';
+        c.beginPath(); c.arc(x, y, (M.D / 2) * pulse - 1, 0, Math.PI * 2); c.fill();
+        c.globalAlpha = 1;
+      } else {
+        this.bubble(x, y, col);
+      }
     }
 
     // 발사 가이드 (점선)
@@ -645,6 +681,7 @@ const A = {
   shoot()   { this.tone(520, 0.1, 'triangle', 0.18, 880); this.noise(0.06, 0.12, 2400, 1.4); },
   bounce()  { this.tone(360, 0.05, 'square', 0.1, 320); },
   snap()    { this.tone(240, 0.06, 'square', 0.14, 200); },
+  match()   { [520, 640, 760].forEach((f, i) => this.tone(f, 0.07, 'square', 0.12, null, i * 0.09)); },
   pop(n)    { const k = Math.min(n, 8);
               for (let i = 0; i < k; i++) this.tone(620 + i * 90, 0.08, 'square', 0.16, 900 + i * 90, i * 0.045);
               this.noise(0.12, 0.2, 1200, 1); },
@@ -772,6 +809,7 @@ function handleEvents(evs) {
       case 'shoot': M.audio.shoot(); break;
       case 'bounce': M.audio.bounce(); break;
       case 'snap': M.audio.snap(); break;
+      case 'match': M.audio.match(); break;
       case 'popfx': M.Render.addPop(e.x, e.y, e.col); break;
       case 'fallfx': M.Render.addFall(e.x, e.y, e.col); break;
       case 'pop': M.audio.pop(e.n); if (e.n >= 5) M.ui.toast(`${e.n}연쇄 팝!!`, 1.2); break;

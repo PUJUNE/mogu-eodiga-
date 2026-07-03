@@ -3,6 +3,7 @@ const M = window.MGB;
 
 const SPEED = 480;              // 발사 속도 (px/s)
 const AIM_MAX = 78 * Math.PI / 180;   // 발사각 클램프 (수직 기준 ±78°)
+const POP_DELAY = 0.42;         // 매치 하이라이트(빨갛게 점멸·부풀기) 시간 — 원작 모션
 
 M.Logic = {
   create(no, carry) {
@@ -11,6 +12,7 @@ M.Logic = {
       stage, no, phase: 'play', t: 0, clearT: 0,
       grid: stage.grid,                       // Map "r,c" → 색
       drop: 0, shots: 0,                      // 압축 오프셋·발사 수
+      popping: null,                          // {keys, t} — 매치 하이라이트 중
       score: (carry && carry.score) || 0,
       aim: 0,                                 // 수직 기준 라디안 (+ = 오른쪽)
       flying: null,                           // {x,y,vx,vy,col}
@@ -43,6 +45,13 @@ M.Logic = {
 
     // 조준
     if (typeof input.aim === 'number') st.aim = Math.max(-AIM_MAX, Math.min(AIM_MAX, input.aim));
+
+    // 매치 하이라이트 진행 (끝나면 팝) — 이 동안 발사 금지
+    if (st.popping) {
+      st.popping.t += dt;
+      if (st.popping.t >= POP_DELAY) this._burst(st, ev);
+      return ev;
+    }
 
     // 발사
     if (input.shoot && !st.flying) {
@@ -115,37 +124,52 @@ M.Logic = {
       }
     }
     if (same.length >= 3) {
-      for (const k of same) {
-        const [r, c] = k.split(',').map(Number);
-        ev.push({ type: 'popfx', x: M.cellX(r, c), y: M.cellY(r, c, st.drop), col: st.grid.get(k) });
-        st.grid.delete(k);
-      }
-      st.popped += same.length;
-      st.score += 10 * same.length * same.length;
-      ev.push({ type: 'pop', n: same.length });
-      // 천장과 끊긴 방울 낙하
-      const attached = new Set();
-      const q = [];
-      for (let c = 0; c < 8; c++) if (st.grid.has('0,' + c)) { attached.add('0,' + c); q.push([0, c]); }
-      while (q.length) {
-        const [r, c] = q.shift();
-        for (const [nr, nc] of M.neighbors(r, c)) {
-          const k = nr + ',' + nc;
-          if (st.grid.has(k) && !attached.has(k)) { attached.add(k); q.push([nr, nc]); }
-        }
-      }
-      let fell = 0;
-      for (const k of [...st.grid.keys()]) {
-        if (!attached.has(k)) {
-          const [r, c] = k.split(',').map(Number);
-          ev.push({ type: 'fallfx', x: M.cellX(r, c), y: M.cellY(r, c, st.drop), col: st.grid.get(k) });
-          st.grid.delete(k);
-          fell++;
-        }
-      }
-      if (fell > 0) { st.dropped += fell; st.score += 20 * fell; ev.push({ type: 'fall', n: fell }); }
+      // 원작 모션: 즉시 터뜨리지 않고 빨갛게 점멸·부풀기(하이라이트) 후 팝
+      st.popping = { keys: same, t: 0 };
+      ev.push({ type: 'match', n: same.length });
+      return;                                        // 이후 진행은 팝 완료 시(_burst)
     }
+    this._postLand(st, ev);
+  },
 
+  // 하이라이트가 끝난 뒤 실제 팝 + 낙하 + 후처리
+  _burst(st, ev) {
+    const same = st.popping.keys;
+    st.popping = null;
+    for (const k of same) {
+      const [r, c] = k.split(',').map(Number);
+      ev.push({ type: 'popfx', x: M.cellX(r, c), y: M.cellY(r, c, st.drop), col: st.grid.get(k) });
+      st.grid.delete(k);
+    }
+    st.popped += same.length;
+    st.score += 10 * same.length * same.length;
+    ev.push({ type: 'pop', n: same.length });
+    // 천장과 끊긴 방울 낙하
+    const attached = new Set();
+    const q = [];
+    for (let c = 0; c < 8; c++) if (st.grid.has('0,' + c)) { attached.add('0,' + c); q.push([0, c]); }
+    while (q.length) {
+      const [r, c] = q.shift();
+      for (const [nr, nc] of M.neighbors(r, c)) {
+        const k = nr + ',' + nc;
+        if (st.grid.has(k) && !attached.has(k)) { attached.add(k); q.push([nr, nc]); }
+      }
+    }
+    let fell = 0;
+    for (const k of [...st.grid.keys()]) {
+      if (!attached.has(k)) {
+        const [r, c] = k.split(',').map(Number);
+        ev.push({ type: 'fallfx', x: M.cellX(r, c), y: M.cellY(r, c, st.drop), col: st.grid.get(k) });
+        st.grid.delete(k);
+        fell++;
+      }
+    }
+    if (fell > 0) { st.dropped += fell; st.score += 20 * fell; ev.push({ type: 'fall', n: fell }); }
+    this._postLand(st, ev);
+  },
+
+  // 착탄 후 공통 후처리: 클리어·압축·데드라인·다음 방울
+  _postLand(st, ev) {
     // 클리어
     if (st.grid.size === 0) {
       st.score += 500;
