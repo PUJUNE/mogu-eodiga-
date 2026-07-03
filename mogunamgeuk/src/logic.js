@@ -51,8 +51,10 @@ M.Logic = {
     const stunned = st.stunT > 0;
     if (stunned) {
       st.stunT -= dt;
-      // 비틀거림: 경직 동안 옆으로 탁탁탁 밀려남 (점점 잦아듦)
-      st.x += st.tumbleDir * TUMBLE_V * (st.stunT / STUN_T) * dt;
+      // 비틀거림: 스텝 박자로 끊어서 옆으로 탁·탁·탁 밀려남 (점점 잦아듦)
+      if (Math.floor(st.stunT * 8) % 2 === 0) {
+        st.x += st.tumbleDir * TUMBLE_V * 1.6 * (st.stunT / STUN_T) * dt;
+      }
       st.x = Math.max(-M.TRACK_W, Math.min(M.TRACK_W, st.x));
     }
 

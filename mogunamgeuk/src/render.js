@@ -269,10 +269,12 @@ M.Render = {
     c.save();
     c.translate(x, y);
     if (st.stunT > 0) {
-      // 충돌 비틀거림: 옆으로 탁·탁·탁 끊기며 밀려나는 스텝 + 버둥 회전
-      const hop = (Math.floor(st.stunT * 9) % 2 ? 1 : -1) * 4 * (st.stunT / 1.2);
-      c.translate(hop, -Math.abs(Math.sin(st.stunT * 14)) * 4);
-      c.rotate(Math.sin(st.stunT * 26) * 0.5 + st.tumbleDir * 0.12);
+      // 탁탁탁 비틀거림: 몸은 세운 채 스텝마다 반대로 기우뚱 + 콩콩 (꽈당 회전 없음)
+      const ph = st.stunT * 8;
+      const decay = 0.35 + 0.65 * (st.stunT / 1.2);
+      const tilt = (Math.floor(ph) % 2 ? -1 : 1) * 0.2 * decay;
+      c.translate(0, -Math.abs(Math.sin(ph * Math.PI)) * 5 * decay);
+      c.rotate(tilt + st.tumbleDir * 0.08);
     } else if (st.flapT > 0 && jy > 0) {
       // 공중 파닥임: 좌우로 빠르게 몸 흔들기
       c.rotate(Math.sin(t * 46) * 0.3);
