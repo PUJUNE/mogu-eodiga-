@@ -39,6 +39,15 @@ check('런처 → 모구 혼자 레벨업 타이틀', await page.evaluate(() =>
   !!window.MSL && !document.getElementById('title-screen').classList.contains('hidden')));
 await page.screenshot({ path: join(shots, 'shot-title.png') });
 
+// 난이도 버튼: 크레이지 선택 → 저장 반영 → 노말 복원
+check('타이틀: 난이도 버튼 4개', await page.evaluate(() => document.querySelectorAll('.diff-btn').length === 4));
+await page.click('.diff-btn[data-diff="crazy"]');
+await page.waitForTimeout(150);
+check('크레이지 선택 반영', await page.evaluate(() =>
+  window.MSL.diff === 'crazy' && document.querySelector('.diff-btn[data-diff="crazy"]').classList.contains('selected')));
+await page.click('.diff-btn[data-diff="normal"]');
+await page.waitForTimeout(150);
+
 // ══ 2. 키보드: 이동 + 공격 + 스킬 게이트 ══
 await page.keyboard.press('Enter');
 await page.waitForTimeout(500);
@@ -108,12 +117,12 @@ await page.screenshot({ path: join(shots, 'shot-shadow.png') });
 // ══ 4. 클리어 흐름 (보스 직접 처치 주입) ══
 await page.evaluate(() => {
   const s = window.MSL._st();
-  s.secIdx = 3; s.bossSpawned = true; s.waveIdx = 0;
-  s.stage.sections[3].waves = [[], []];
+  s.secIdx = s.stage.sections.length - 1; s.bossSpawned = true; s.waveIdx = 0;
+  s.stage.sections[s.secIdx].waves = [[], []];
   s.enemies = [];
 });
 await page.waitForTimeout(500);
-check('보스 격파 → 클리어 화면', await page.evaluate(() =>
+check('중간보스 격파 → 클리어 화면', await page.evaluate(() =>
   window.MSL._dbg().phase === 'clear'));
 await page.waitForTimeout(1600);
 check('승리 화면 표시', await page.evaluate(() =>
@@ -121,9 +130,26 @@ check('승리 화면 표시', await page.evaluate(() =>
 await page.screenshot({ path: join(shots, 'shot-win.png') });
 await page.click('#btn-next');
 await page.waitForTimeout(500);
-check('다음 미션 → M2 + 꼬꼬 합류', await page.evaluate(() => {
+check('다음 스테이지 → M1-2 (아직 나 혼자)', await page.evaluate(() => {
   const d = window.MSL._dbg();
-  return d.mission === 2 && d.b !== null;
+  return d.no === 2 && d.mission === 1 && d.stg === 2 && d.b === null;
+}));
+// M2 진입: 꼬꼬 합류 (no 11 직접 주입 클리어)
+await page.evaluate(() => {
+  const s = window.MSL._st();
+  s.secIdx = s.stage.sections.length - 1; s.bossSpawned = true; s.waveIdx = 0;
+  s.stage.sections[s.secIdx].waves = [[], []];
+  s.enemies = [];
+  window.MSL.save.data.best = 11;                    // M2-1
+});
+await page.waitForTimeout(2200);
+await page.click('#btn-win-title');
+await page.waitForTimeout(300);
+await page.click('#btn-continue');
+await page.waitForTimeout(500);
+check('이어하기 → M2-1 + 꼬꼬 합류', await page.evaluate(() => {
+  const d = window.MSL._dbg();
+  return d.no === 11 && d.mission === 2 && d.b !== null;
 }));
 
 // ══ 5. 일시정지 + 시리즈 버튼 ══

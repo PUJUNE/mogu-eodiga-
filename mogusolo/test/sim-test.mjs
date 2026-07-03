@@ -12,9 +12,9 @@ const run = (st, sec, input) => {
   for (let i = 0; i < Math.round(sec / DT); i++) evs.push(...L.step(st, DT, input || IDLE));
   return evs;
 };
-// 빈 전장 (M1: 꼬꼬 없음 / M2+: 꼬꼬 있음)
-const arena = (mission = 1, exp0 = 0, gear) => {
-  const st = L.create(mission, exp0, gear);
+// 빈 전장 (no: 전체 스테이지 번호 — 1~10 M1 꼬꼬 없음 / 11+ 꼬꼬 있음)
+const arena = (no = 1, exp0 = 0, gear) => {
+  const st = L.create(no, exp0, gear);
   st.enemies = [];
   st.waveIdx = 99;                                   // 웨이브 자동 진행 차단
   st.stage.sections[st.secIdx].waves = [[], []];
@@ -230,7 +230,7 @@ const spawn = (st, dx, type = 'scorp', opt) => {
 {
   const st1 = arena(1);
   check('M1: 꼬꼬 없음 (나 혼자)', st1.b === null);
-  const st2 = arena(2);
+  const st2 = arena(11);                             // no 11 = M2-1
   check('M2: 꼬꼬 합류', !!st2.b && st2.b.hp > 0);
   const foe = spawn(st2, 90, 'snake');
   foe.spd = 0;
@@ -240,7 +240,7 @@ const spawn = (st, dx, type = 'scorp', opt) => {
 
 // 14) 바란: 벼락 경고 → 낙뢰 / 회피 가능
 {
-  const st = arena(5, 2000);
+  const st = arena(41, 2000);                        // no 41 = M5-1
   st.b = null;                                       // 꼬꼬 제외 — 보스 넉다운 노이즈 차단
   st.enemies = [];
   st.bossSpawned = true;
@@ -274,10 +274,10 @@ const spawn = (st, dx, type = 'scorp', opt) => {
 // 15) 클리어 별점: 그림자 3기 + 노데스 = ★3
 {
   const st = arena(1, 1500);
-  st.secIdx = 3;
+  st.secIdx = st.stage.sections.length - 1;
   st.bossSpawned = true;
   st.waveIdx = 0;
-  st.stage.sections[3].waves = [[], []];
+  st.stage.sections[st.secIdx].waves = [[], []];
   for (let i = 0; i < 3; i++) st.shadows.push({ kind: 's', state: 'idle', hp: 10, maxHp: 10, stT: 0, x: st.p.x, z: st.p.z, jy: 0, vy: 0, atkCd: 0, iv: 0, comboT: 99, combo: 0, spd: 50, dmg: 5, w: 15, face: 1, hitDone: false, reviveT: 0 });
   const evs = run(st, 0.1);
   const cl = evs.find((v) => v.type === 'clear');

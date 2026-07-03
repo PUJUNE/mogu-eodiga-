@@ -41,6 +41,10 @@
     box-shadow:0 4px 8px rgba(0,0,0,.4); font-family:inherit; }
   .btn.primary { background:#3aa84f; }
   .btn.series { padding:9px 18px; font-size:13px; background:#2e6da3; }
+  .diff-row { gap:8px; margin-top:12px; }
+  .diff-btn { padding:8px 14px; font-size:13px; background:#3d4a5c; border-color:rgba(255,255,255,.35); }
+  .diff-btn.selected { background:#3aa84f; border-color:#ffd83d; outline:2px solid rgba(255,216,61,.5); }
+  .diff-btn.crazy.selected { background:#c8385a; }
 
   /* ── 승리 / 일시정지 / 게임오버 / 엔딩 ── */
   #win-screen { background:rgba(14,8,26,.88); z-index:20; }
@@ -99,12 +103,18 @@
       <button class="btn primary" id="btn-continue">이어하기</button>
       <button class="btn" id="btn-new">처음부터</button>
     </div>
+    <div class="menu-buttons diff-row">
+      <button class="btn diff-btn" data-diff="easy">이지</button>
+      <button class="btn diff-btn" data-diff="normal">노말</button>
+      <button class="btn diff-btn" data-diff="hard">하드</button>
+      <button class="btn diff-btn crazy" data-diff="crazy">크레이지</button>
+    </div>
     <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
-    <div id="title-hint">←→↑↓ 이동 · Space/Z 베기 · X 점프 · Q절단 W은신 E그림자추출 R권능 (레벨업 해금!)<br>신전에서 되살아난 모구 — 레벨을 올려 악마왕 바란까지 토벌하라! 5개 미션</div>
+    <div id="title-hint">←→↑↓ 이동 · Space/Z 베기 · X 점프 · Q절단 W은신 E그림자추출 R권능 (레벨업 해금!)<br>신전에서 되살아난 모구 — 중간보스를 뚫고 악마왕 바란까지! 5미션 × 10스테이지 = 50</div>
   </div>
 
   <div id="win-screen" class="screen hidden">
-    <div class="big">⚔️ 미션 클리어!!</div>
+    <div class="big" id="win-big">⚔️ 미션 클리어!!</div>
     <div id="win-stars">★★★</div>
     <div id="win-stats"></div>
     <div class="menu-buttons">

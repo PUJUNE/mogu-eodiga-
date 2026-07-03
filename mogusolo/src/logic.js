@@ -28,7 +28,7 @@ function mkFighter(kind, opt) {
 }
 
 M.Logic = {
-  LV_MAX: 12,
+  LV_MAX: 20,
   SKILLS,
   SHADOW_MAX,
   CORPSE_T,
@@ -55,15 +55,15 @@ M.Logic = {
     }
   },
 
-  // gear: { fang: 공격+2, armor: 받는 피해 -2 }
-  create(mission, exp0, gear) {
-    const stage = M.makeStage(mission);
+  // gear: { fang: 공격+2, armor: 받는 피해 -2 } / no: 전체 스테이지 번호 1~50
+  create(no, exp0, gear) {
+    const stage = M.makeStage(no);
     const st = {
-      stage, mission, phase: 'play', t: 0, clearT: 0,
-      rng: M.makeRng(mission * 733 + 91),
+      stage, no: stage.no, mission: stage.mission, stg: stage.stg, phase: 'play', t: 0, clearT: 0,
+      rng: M.makeRng(stage.no * 733 + 91),
       gear: Object.assign({ fang: false, armor: false }, gear),
       p: mkFighter('p', { x: 60, z: 40, hp: 100, maxHp: 100, dmg: 8 }),
-      b: mission >= 2 ? mkFighter('b', { x: 30, z: 55, hp: 80, maxHp: 80, dmg: 7, spd: 88 }) : null,
+      b: stage.mission >= 2 ? mkFighter('b', { x: 30, z: 55, hp: 80, maxHp: 80, dmg: 7, spd: 88 }) : null,
       shadows: [],
       enemies: [], items: [], shots: [], bolts: [],
       secIdx: 0, waveIdx: -1, go: false, bossSpawned: false,
@@ -84,6 +84,7 @@ M.Logic = {
   },
 
   sec(st) { return st.stage.sections[st.secIdx]; },
+  lastSec(st) { return st.stage.sections.length - 1; },
   allies(st) { return [st.p, ...(st.b ? [st.b] : []), ...st.shadows]; },
   skillReady(st, k) {
     return st.lv >= SKILLS[k].lv && st.skillCd[k] <= 0 && st.mp >= SKILLS[k].mp;
@@ -99,7 +100,8 @@ M.Logic = {
         type: w.type, name: E.name, look: E.look, ranged: !!E.ranged, shot: E.shot,
         x: w.side > 0 ? sec.x1 + 30 : Math.max(10, sec.x0 - 30),
         z: w.z, hp: Math.round(E.hp * w.hpMul), maxHp: Math.round(E.hp * w.hpMul),
-        spd: E.spd, dmg: E.dmg, w: E.w, baseAtkCd: E.atkCd, score: E.score,
+        spd: E.spd, dmg: Math.round(E.dmg * (w.dmgMul || 1)), w: E.w,
+        baseAtkCd: E.atkCd * (w.cdMul || 1), score: E.score,
       }));
     }
     st.waveIdx = waveIdx;
@@ -111,7 +113,7 @@ M.Logic = {
     st.enemies.push(mkFighter('e', {
       type: 'boss', name: B.name, look: B.look, boss: true, base: B.base, shot: B.shot,
       x: this.sec(st).x1 - 60, z: 40,
-      hp: B.hp, maxHp: B.hp, spd: B.spd, dmg: B.dmg, w: B.w, baseAtkCd: B.atkCd, score: 1000,
+      hp: B.hp, maxHp: B.hp, spd: B.spd, dmg: B.dmg, w: B.w, baseAtkCd: B.atkCd, score: B.score || 1000,
       boltCd: 2.2, dashCd: 3,
     }));
     st.bossSpawned = true;
@@ -248,7 +250,7 @@ M.Logic = {
         p.x += mx * PSPD * dt;
         p.z = Math.max(M.Z_MIN, Math.min(M.Z_MAX, p.z + mz * ZSPD * dt));
       } else if (p.state === 'walk') p.state = 'idle';
-      const maxX = st.go || st.secIdx >= 3 ? st.stage.length - 14 : sec.x1 - 20;
+      const maxX = st.go || st.secIdx >= this.lastSec(st) ? st.stage.length - 14 : sec.x1 - 20;
       p.x = Math.max(14, Math.min(maxX, p.x));
       if (input.jump && p.jy === 0) { p.vy = JUMP_V; ev.push({ type: 'jump' }); }
       if (input.atk && this._attack(st, p)) ev.push({ type: 'swing', combo: p.combo, air: p.jy > 0 });
@@ -414,7 +416,7 @@ M.Logic = {
       }
       // 구간 밖 후퇴 방지: 게이트가 닫힌 동안 적이 플레이어 도달 범위 밖으로 못 나감
       // (원거리 적이 거리 유지로 게이트 너머까지 물러나면 소프트락)
-      const eHi = st.secIdx >= 3 || st.go ? st.stage.length - 14 : sec.x1 + 18;
+      const eHi = st.secIdx >= this.lastSec(st) || st.go ? st.stage.length - 14 : sec.x1 + 18;
       e.x = Math.max(14, Math.min(eHi, e.x));
       this._atkFrame(st, e, this.allies(st).filter((f) => !(f.kind === 'p' && st.stealth > 0)), ev);
     }
@@ -505,9 +507,9 @@ M.Logic = {
         ev.push({ type: 'bossintro', name: sec2.boss.name });
       } else if (sec2.boss && st.bossSpawned) {
         st.stars = st.deaths === 0 ? (st.shadows.length >= M.Logic.SHADOW_MAX ? 3 : 2) : 1;
-        st.score += 2000;
+        st.score += sec2.boss.final ? 2000 : 800;
         st.phase = 'clear'; st.clearT = 0;
-        ev.push({ type: 'clear', stars: st.stars, mission: st.mission });
+        ev.push({ type: 'clear', stars: st.stars, mission: st.mission, stg: st.stg, no: st.no });
       } else if (st.waveIdx + 1 < sec2.waves.length && sec2.waves[st.waveIdx + 1].length > 0) {
         this._startWave(st, st.secIdx, st.waveIdx + 1);
         ev.push({ type: 'wave' });
@@ -516,7 +518,7 @@ M.Logic = {
         ev.push({ type: 'go' });
       }
     }
-    if (st.go && p.x > sec.x1 - 24 && st.secIdx < 3) {
+    if (st.go && p.x > sec.x1 - 24 && st.secIdx < this.lastSec(st)) {
       st.secIdx++;
       st.go = false;
       this._startWave(st, st.secIdx, 0);

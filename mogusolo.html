@@ -41,6 +41,10 @@
     box-shadow:0 4px 8px rgba(0,0,0,.4); font-family:inherit; }
   .btn.primary { background:#3aa84f; }
   .btn.series { padding:9px 18px; font-size:13px; background:#2e6da3; }
+  .diff-row { gap:8px; margin-top:12px; }
+  .diff-btn { padding:8px 14px; font-size:13px; background:#3d4a5c; border-color:rgba(255,255,255,.35); }
+  .diff-btn.selected { background:#3aa84f; border-color:#ffd83d; outline:2px solid rgba(255,216,61,.5); }
+  .diff-btn.crazy.selected { background:#c8385a; }
 
   /* ── 승리 / 일시정지 / 게임오버 / 엔딩 ── */
   #win-screen { background:rgba(14,8,26,.88); z-index:20; }
@@ -99,12 +103,18 @@
       <button class="btn primary" id="btn-continue">이어하기</button>
       <button class="btn" id="btn-new">처음부터</button>
     </div>
+    <div class="menu-buttons diff-row">
+      <button class="btn diff-btn" data-diff="easy">이지</button>
+      <button class="btn diff-btn" data-diff="normal">노말</button>
+      <button class="btn diff-btn" data-diff="hard">하드</button>
+      <button class="btn diff-btn crazy" data-diff="crazy">크레이지</button>
+    </div>
     <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
-    <div id="title-hint">←→↑↓ 이동 · Space/Z 베기 · X 점프 · Q절단 W은신 E그림자추출 R권능 (레벨업 해금!)<br>신전에서 되살아난 모구 — 레벨을 올려 악마왕 바란까지 토벌하라! 5개 미션</div>
+    <div id="title-hint">←→↑↓ 이동 · Space/Z 베기 · X 점프 · Q절단 W은신 E그림자추출 R권능 (레벨업 해금!)<br>신전에서 되살아난 모구 — 중간보스를 뚫고 악마왕 바란까지! 5미션 × 10스테이지 = 50</div>
   </div>
 
   <div id="win-screen" class="screen hidden">
-    <div class="big">⚔️ 미션 클리어!!</div>
+    <div class="big" id="win-big">⚔️ 미션 클리어!!</div>
     <div id="win-stars">★★★</div>
     <div id="win-stats"></div>
     <div class="menu-buttons">
@@ -182,12 +192,26 @@ M.makeRng = function (seed) {
 }
 /* ── levels.js ── */
 {
-// levels.js — 미션·구간·웨이브 데이터 (5미션, 원작 사건 순서의 오리지널 각색)
+// levels.js — 미션·구간·웨이브 데이터 (5미션 × 10스테이지 = 50, 원작 사건 순서의 오리지널 각색)
 const M = window.MSL;
 
 M.W = 480; M.H = 270;
 M.Z_MIN = 0; M.Z_MAX = 78;
 M.FLOOR_Y = 176;
+
+// 난이도: 적 HP·공격 배율, 크레이지는 웨이브 인원 +1 + 공속 가속
+M.DIFF_ORDER = ['easy', 'normal', 'hard', 'crazy'];
+M.DIFFS = {
+  easy:   { name: '이지',     hpMul: 0.8,  dmgMul: 0.75, cdMul: 1.1 },
+  normal: { name: '노말',     hpMul: 1.0,  dmgMul: 1.0,  cdMul: 1.0 },
+  hard:   { name: '하드',     hpMul: 1.25, dmgMul: 1.2,  cdMul: 0.95 },
+  crazy:  { name: '크레이지', hpMul: 1.5,  dmgMul: 1.45, cdMul: 0.85, extra: 1 },
+};
+M.diff = 'normal';
+
+M.MISSIONS = 5; M.STAGES_PER = 10; M.TOTAL = 50;
+M.mOf = (no) => Math.min(M.MISSIONS, Math.ceil(no / M.STAGES_PER));
+M.sOf = (no) => ((no - 1) % M.STAGES_PER) + 1;
 
 M.THEMES = {
   1: { name: '페널티 존',     sky0: '#e8a850', sky1: '#f4d898', wall: '#b08a50', floor: '#c8a468', floor2: '#b08a50', accent: '#ffd83d' },
@@ -233,39 +257,131 @@ M.BOSSES = {
   5: { name: '악마왕 바란',       look: 'demon', base: 'baran',  hp: 320, spd: 62, dmg: 17, atkCd: 1.0,  w: 30, body: '#38104a', ear: '#6a3a8a', shot: '#b07dff' },
 };
 
-M.makeStage = function (mission) {
-  const m = Math.max(1, Math.min(5, mission));
-  const rng = M.makeRng(m * 7919 + 1201);
+// 중간보스: 미션당 9명 (스테이지 1~9), 스테이지 10은 메인보스
+M.MIDBOSSES = {
+  1: [
+    { name: '모래귀 자칼',        base: 'melee'  },
+    { name: '집게턱 로크',        base: 'melee'  },
+    { name: '사구 도적 카릴',     base: 'ranged' },
+    { name: '가시꼬리 스카라',    base: 'melee'  },
+    { name: '왕전갈 데즈락',      base: 'melee'  },
+    { name: '모래폭풍 진',        base: 'ranged' },
+    { name: '독니 케레브',        base: 'melee'  },
+    { name: '사막 수호자 오람',   base: 'melee'  },
+    { name: '지네왕 근위 무락',   base: 'ranged' },
+  ],
+  2: [
+    { name: '비늘병 참모 사스',   base: 'melee'  },
+    { name: '맹독 나가 실라',     base: 'ranged' },
+    { name: '굴지기 바곤',        base: 'melee'  },
+    { name: '쌍두사 요르',        base: 'melee'  },
+    { name: '독안개 주술사 헤바', base: 'ranged' },
+    { name: '바위비늘 가르곤',    base: 'melee'  },
+    { name: '그림자 살모사 닉스', base: 'melee'  },
+    { name: '독왕 친위대장 라칸', base: 'ranged' },
+    { name: '백사 장로 세프',     base: 'melee'  },
+  ],
+  3: [
+    { name: '서리병 대장 울프릭', base: 'melee'  },
+    { name: '고드름 저격수 옐가', base: 'ranged' },
+    { name: '빙벽 파수꾼 토르그', base: 'melee'  },
+    { name: '눈보라 무희 이리아', base: 'melee'  },
+    { name: '얼음송곳 카이번',    base: 'ranged' },
+    { name: '빙하 거병 몰드',     base: 'melee'  },
+    { name: '서리마법사 에이라',  base: 'ranged' },
+    { name: '설원 기사단장 브란', base: 'melee'  },
+    { name: '빙군주 근위 스칼드', base: 'melee'  },
+  ],
+  4: [
+    { name: '지옥문 문지기 고르',      base: 'melee'  },
+    { name: '화염 임프 두목 잭스',     base: 'ranged' },
+    { name: '가시채찍 파즈',           base: 'melee'  },
+    { name: '용암 투사 마그론',        base: 'melee'  },
+    { name: '지옥 사냥개 조련사 벨',   base: 'ranged' },
+    { name: '흑철 갑주병 크론',        base: 'melee'  },
+    { name: '화염구 술사 이그니스',    base: 'ranged' },
+    { name: '하층 감시자 몰록',        base: 'melee'  },
+    { name: '사육장지기 바르그',       base: 'melee'  },
+  ],
+  5: [
+    { name: '악마 검성 자칸',          base: 'melee'  },
+    { name: '화염 대마귀 프토스',      base: 'ranged' },
+    { name: '어둠 기사 레이번',        base: 'melee'  },
+    { name: '처형인 굴타르',           base: 'melee'  },
+    { name: '마염 술사 베리트',        base: 'ranged' },
+    { name: '공허 감시자 눌',          base: 'melee'  },
+    { name: '왕좌 근위대장 아스몬',    base: 'ranged' },
+    { name: '바란의 오른팔 그림로크',  base: 'melee'  },
+    { name: '심연 대공 말파스',        base: 'melee'  },
+  ],
+};
+
+// 미션별 원거리 투사체 색 (중간보스 ranged용)
+const MB_SHOT = { 1: '#b8e04a', 2: '#7de08a', 3: '#b8e8ff', 4: '#ff9a3d', 5: '#ff6a3d' };
+
+// 중간보스 스탯: 메인보스 대비 스테이지 진행에 따라 47.5% → 91.5% 성장
+M.midBoss = function (m, s) {
+  const B = M.BOSSES[m];
+  const mb = M.MIDBOSSES[m][s - 1];
+  return {
+    name: mb.name, look: B.look, base: mb.base,
+    hp: Math.round(B.hp * (0.42 + 0.055 * s)),
+    spd: B.spd - 8 + s,
+    dmg: Math.round(B.dmg * (0.68 + 0.03 * s)),
+    atkCd: B.atkCd * 1.15,
+    w: B.w - 4,
+    body: B.body, ear: B.ear,
+    shot: mb.base === 'ranged' ? MB_SHOT[m] : undefined,
+    score: 400 + 60 * s,
+  };
+};
+
+// no: 전체 스테이지 번호 1~50 (미션 m의 s번째)
+M.makeStage = function (no) {
+  const n0 = Math.max(1, Math.min(M.TOTAL, no));
+  const m = M.mOf(n0), s = M.sOf(n0);
+  const D = M.DIFFS[M.diff] || M.DIFFS.normal;
+  const rng = M.makeRng(n0 * 7919 + 1201);
   const pool = m === 1 ? ['scorp', 'scorp', 'sting', 'rockscorp']
     : m === 2 ? ['snake', 'snake', 'naga', 'lizard']
     : m === 3 ? ['icesold', 'icesold', 'icicle', 'iceknight']
     : m === 4 ? ['demon', 'imp', 'hdemon', 'demon']
     : ['dblade', 'fmage', 'dknight', 'dblade'];
-  const hpMul = 1 + (m - 1) * 0.15;
+  const hpMul = (1 + (m - 1) * 0.15) * (1 + (s - 1) * 0.06) * D.hpMul;
+  const dmgMul = (1 + (m - 1) * 0.08 + (s - 1) * 0.03) * D.dmgMul;
+  const final = s === M.STAGES_PER;
+  const nCombat = final ? 3 : 2;                    // 중간보스 스테이지는 짧게
 
   const sections = [];
-  for (let s = 0; s < 3; s++) {
+  for (let sc = 0; sc < nCombat; sc++) {
     const waves = [];
     for (let w = 0; w < 2; w++) {
-      const n = Math.min(5, 2 + Math.floor((m - 1) * 0.7) + w);
+      const n = Math.min(6, 2 + Math.floor((m - 1) * 0.7) + w + Math.floor((s - 1) / 3)) + (D.extra || 0);
       const wave = [];
       for (let i = 0; i < n; i++) {
         wave.push({
           type: pool[rng.int(0, pool.length - 1)],
           side: rng.chance(0.6) ? 1 : -1,
           z: rng.range(M.Z_MIN + 8, M.Z_MAX - 8),
-          hpMul,
+          hpMul, dmgMul, cdMul: D.cdMul,
         });
       }
       waves.push(wave);
     }
-    sections.push({ x0: s * 420, x1: s * 420 + 420, waves });
+    sections.push({ x0: sc * 420, x1: sc * 420 + 420, waves });
   }
-  sections.push({ x0: 3 * 420, x1: 3 * 420 + 420, waves: [[{ type: pool[0], side: 1, z: 30, hpMul }], []], boss: M.BOSSES[m] });
+  const B0 = final ? M.BOSSES[m] : M.midBoss(m, s);
+  const boss = Object.assign({}, B0, {
+    hp: Math.round(B0.hp * D.hpMul),
+    dmg: Math.round(B0.dmg * D.dmgMul),
+    atkCd: B0.atkCd * D.cdMul,
+    final,
+  });
+  sections.push({ x0: nCombat * 420, x1: nCombat * 420 + 420, waves: [[{ type: pool[0], side: 1, z: 30, hpMul, dmgMul, cdMul: D.cdMul }], []], boss });
 
   return {
-    mission: m, theme: M.THEMES[m],
-    sections, length: 4 * 420,
+    no: n0, mission: m, stg: s, theme: M.THEMES[m],
+    sections, length: (nCombat + 1) * 420,
     dropP: 0.24,                                    // 물약 드롭 확률 (HP/MP 반반)
   };
 };
@@ -303,7 +419,7 @@ function mkFighter(kind, opt) {
 }
 
 M.Logic = {
-  LV_MAX: 12,
+  LV_MAX: 20,
   SKILLS,
   SHADOW_MAX,
   CORPSE_T,
@@ -330,15 +446,15 @@ M.Logic = {
     }
   },
 
-  // gear: { fang: 공격+2, armor: 받는 피해 -2 }
-  create(mission, exp0, gear) {
-    const stage = M.makeStage(mission);
+  // gear: { fang: 공격+2, armor: 받는 피해 -2 } / no: 전체 스테이지 번호 1~50
+  create(no, exp0, gear) {
+    const stage = M.makeStage(no);
     const st = {
-      stage, mission, phase: 'play', t: 0, clearT: 0,
-      rng: M.makeRng(mission * 733 + 91),
+      stage, no: stage.no, mission: stage.mission, stg: stage.stg, phase: 'play', t: 0, clearT: 0,
+      rng: M.makeRng(stage.no * 733 + 91),
       gear: Object.assign({ fang: false, armor: false }, gear),
       p: mkFighter('p', { x: 60, z: 40, hp: 100, maxHp: 100, dmg: 8 }),
-      b: mission >= 2 ? mkFighter('b', { x: 30, z: 55, hp: 80, maxHp: 80, dmg: 7, spd: 88 }) : null,
+      b: stage.mission >= 2 ? mkFighter('b', { x: 30, z: 55, hp: 80, maxHp: 80, dmg: 7, spd: 88 }) : null,
       shadows: [],
       enemies: [], items: [], shots: [], bolts: [],
       secIdx: 0, waveIdx: -1, go: false, bossSpawned: false,
@@ -359,6 +475,7 @@ M.Logic = {
   },
 
   sec(st) { return st.stage.sections[st.secIdx]; },
+  lastSec(st) { return st.stage.sections.length - 1; },
   allies(st) { return [st.p, ...(st.b ? [st.b] : []), ...st.shadows]; },
   skillReady(st, k) {
     return st.lv >= SKILLS[k].lv && st.skillCd[k] <= 0 && st.mp >= SKILLS[k].mp;
@@ -374,7 +491,8 @@ M.Logic = {
         type: w.type, name: E.name, look: E.look, ranged: !!E.ranged, shot: E.shot,
         x: w.side > 0 ? sec.x1 + 30 : Math.max(10, sec.x0 - 30),
         z: w.z, hp: Math.round(E.hp * w.hpMul), maxHp: Math.round(E.hp * w.hpMul),
-        spd: E.spd, dmg: E.dmg, w: E.w, baseAtkCd: E.atkCd, score: E.score,
+        spd: E.spd, dmg: Math.round(E.dmg * (w.dmgMul || 1)), w: E.w,
+        baseAtkCd: E.atkCd * (w.cdMul || 1), score: E.score,
       }));
     }
     st.waveIdx = waveIdx;
@@ -386,7 +504,7 @@ M.Logic = {
     st.enemies.push(mkFighter('e', {
       type: 'boss', name: B.name, look: B.look, boss: true, base: B.base, shot: B.shot,
       x: this.sec(st).x1 - 60, z: 40,
-      hp: B.hp, maxHp: B.hp, spd: B.spd, dmg: B.dmg, w: B.w, baseAtkCd: B.atkCd, score: 1000,
+      hp: B.hp, maxHp: B.hp, spd: B.spd, dmg: B.dmg, w: B.w, baseAtkCd: B.atkCd, score: B.score || 1000,
       boltCd: 2.2, dashCd: 3,
     }));
     st.bossSpawned = true;
@@ -523,7 +641,7 @@ M.Logic = {
         p.x += mx * PSPD * dt;
         p.z = Math.max(M.Z_MIN, Math.min(M.Z_MAX, p.z + mz * ZSPD * dt));
       } else if (p.state === 'walk') p.state = 'idle';
-      const maxX = st.go || st.secIdx >= 3 ? st.stage.length - 14 : sec.x1 - 20;
+      const maxX = st.go || st.secIdx >= this.lastSec(st) ? st.stage.length - 14 : sec.x1 - 20;
       p.x = Math.max(14, Math.min(maxX, p.x));
       if (input.jump && p.jy === 0) { p.vy = JUMP_V; ev.push({ type: 'jump' }); }
       if (input.atk && this._attack(st, p)) ev.push({ type: 'swing', combo: p.combo, air: p.jy > 0 });
@@ -689,7 +807,7 @@ M.Logic = {
       }
       // 구간 밖 후퇴 방지: 게이트가 닫힌 동안 적이 플레이어 도달 범위 밖으로 못 나감
       // (원거리 적이 거리 유지로 게이트 너머까지 물러나면 소프트락)
-      const eHi = st.secIdx >= 3 || st.go ? st.stage.length - 14 : sec.x1 + 18;
+      const eHi = st.secIdx >= this.lastSec(st) || st.go ? st.stage.length - 14 : sec.x1 + 18;
       e.x = Math.max(14, Math.min(eHi, e.x));
       this._atkFrame(st, e, this.allies(st).filter((f) => !(f.kind === 'p' && st.stealth > 0)), ev);
     }
@@ -780,9 +898,9 @@ M.Logic = {
         ev.push({ type: 'bossintro', name: sec2.boss.name });
       } else if (sec2.boss && st.bossSpawned) {
         st.stars = st.deaths === 0 ? (st.shadows.length >= M.Logic.SHADOW_MAX ? 3 : 2) : 1;
-        st.score += 2000;
+        st.score += sec2.boss.final ? 2000 : 800;
         st.phase = 'clear'; st.clearT = 0;
-        ev.push({ type: 'clear', stars: st.stars, mission: st.mission });
+        ev.push({ type: 'clear', stars: st.stars, mission: st.mission, stg: st.stg, no: st.no });
       } else if (st.waveIdx + 1 < sec2.waves.length && sec2.waves[st.waveIdx + 1].length > 0) {
         this._startWave(st, st.secIdx, st.waveIdx + 1);
         ev.push({ type: 'wave' });
@@ -791,7 +909,7 @@ M.Logic = {
         ev.push({ type: 'go' });
       }
     }
-    if (st.go && p.x > sec.x1 - 24 && st.secIdx < 3) {
+    if (st.go && p.x > sec.x1 - 24 && st.secIdx < this.lastSec(st)) {
       st.secIdx++;
       st.go = false;
       this._startWave(st, st.secIdx, 0);
@@ -1292,7 +1410,8 @@ M.Render = {
     c.font = 'bold 11px sans-serif'; c.textAlign = 'center';
     c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 3;
     c.fillStyle = 'rgba(255,255,255,.92)';
-    const label = `MISSION ${st.mission} · ${st.stage.theme.name}`;
+    const label = `M${st.mission}-${st.stg} · ${st.stage.theme.name}` +
+      (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '');
     c.strokeText(label, W / 2, 18);
     c.fillText(label, W / 2, 18);
   },
@@ -1830,19 +1949,42 @@ const M = window.MSL;
 const $ = (id) => document.getElementById(id);
 
 M.save = {
-  KEY: 'mogusolo-save-v1',
-  data: { best: 1, stars: {}, exp: 0, gear: { fang: false, armor: false } },
+  KEY: 'mogusolo-save-v2',
+  KEY_V1: 'mogusolo-save-v1',
+  data: { best: 1, stars: {}, exp: 0, gear: { fang: false, armor: false }, diff: 'normal' },
   load() {
-    try { const raw = localStorage.getItem(this.KEY); if (raw) this.data = Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
+    try {
+      const raw = localStorage.getItem(this.KEY);
+      if (raw) this.data = Object.assign(this.data, JSON.parse(raw));
+      else {
+        // v1(미션 단위) → v2(스테이지 단위) 마이그레이션
+        const old = localStorage.getItem(this.KEY_V1);
+        if (old) {
+          const d = JSON.parse(old);
+          this.data.best = ((d.best || 1) - 1) * M.STAGES_PER + 1;
+          this.data.exp = d.exp || 0;
+          this.data.gear = Object.assign({ fang: false, armor: false }, d.gear);
+          for (const k of Object.keys(d.stars || {})) this.data.stars[k * M.STAGES_PER] = d.stars[k];
+          this.store();
+        }
+      }
+    } catch (e) {}
     if (!this.data.gear) this.data.gear = { fang: false, armor: false };
+    if (M.DIFFS[this.data.diff]) M.diff = this.data.diff;
     return this.data;
   },
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
   setExp(exp) { this.data.exp = Math.max(this.data.exp || 0, exp); this.store(); },
   setGear(key) { this.data.gear[key] = true; this.store(); },
+  setDiff(d) {
+    if (!M.DIFFS[d]) return;
+    M.diff = d;
+    this.data.diff = d;
+    this.store();
+  },
   record(no, stars) {
     this.data.stars[no] = Math.max(this.data.stars[no] || 0, stars);
-    if (no + 1 > this.data.best) this.data.best = Math.min(5, no + 1);
+    if (no + 1 > this.data.best) this.data.best = Math.min(M.TOTAL, no + 1);
     this.store();
   },
 };
@@ -1853,13 +1995,26 @@ M.ui = {
 
   init() {
     $('title-icon').src = M.ASSETS.mogu;
+    document.querySelectorAll('.diff-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        M.save.setDiff(btn.dataset.diff);
+        this.updateDiffBtns();
+      });
+    });
+    this.updateDiffBtns();
     this.refreshTitle();
+  },
+
+  updateDiffBtns() {
+    document.querySelectorAll('.diff-btn').forEach((btn) => {
+      btn.classList.toggle('selected', btn.dataset.diff === M.diff);
+    });
   },
 
   refreshTitle() {
     const best = M.save.data.best;
     $('btn-continue').style.display = best > 1 ? '' : 'none';
-    $('btn-continue').textContent = `이어하기 — MISSION ${best}`;
+    $('btn-continue').textContent = `이어하기 — M${M.mOf(best)}-${M.sOf(best)}`;
     const total = Object.values(M.save.data.stars).reduce((a, b) => a + b, 0);
     $('title-hi').textContent = total > 0 ? `★ 합계 ${total}` : '';
   },
@@ -1882,11 +2037,14 @@ M.ui = {
   },
 
   showWin(st, gearMsg) {
+    const boss = st.stage.sections[st.stage.sections.length - 1].boss;
+    $('win-big').textContent = boss.final ? '⚔️ 미션 클리어!!' : '⚔️ 스테이지 클리어!';
     $('win-stars').textContent = '★'.repeat(st.stars) + '☆'.repeat(3 - st.stars);
-    $('win-stats').innerHTML = `${st.stage.sections[3].boss.name} 격파! · 점수 ${st.score} · Lv.${st.lv}` +
+    $('win-stats').innerHTML = `M${st.mission}-${st.stg} ${boss.name} 격파! · 점수 ${st.score} · Lv.${st.lv}` +
       (st.deaths === 0 ? '<br><b style="color:#7de08a">노 컨티뉴!</b>' : `<br>컨티뉴 ${st.deaths}회`) +
       (gearMsg ? `<br><b style="color:#b07dff">${gearMsg}</b>` : '');
-    $('btn-next').style.display = st.mission < 5 ? '' : 'none';
+    $('btn-next').style.display = st.no < M.TOTAL ? '' : 'none';
+    $('btn-next').textContent = boss.final ? '다음 미션 →' : '다음 스테이지 →';
     this.show('win-screen');
   },
 
@@ -1912,15 +2070,18 @@ M.ui.init();
 M.Render.init(document.getElementById('game'));
 M.ui.show('title-screen');
 
-function startMission(no) {
+function startStage(no) {
   st = M.Logic.create(no, M.save.data.exp || 0, M.save.data.gear);
   M.Render.fx = [];
   M.Render.camX = 0;
   mode = 'play';
   M.ui.hideAll();
-  M.ui.toast(`MISSION ${no} — ${M.STORY[no]}`, 3.0);
+  const dsuf = M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '';
+  M.ui.toast(st.stg === 1
+    ? `MISSION ${st.mission} — ${M.STORY[st.mission]}${dsuf}`
+    : `M${st.mission}-${st.stg} · ${st.stage.theme.name}${dsuf}`, 3.0);
   M.audio.resume(); M.audio.meow();
-  if (no >= 2) setTimeout(() => M.audio.cluck(), 500);
+  if (st.mission >= 2) setTimeout(() => M.audio.cluck(), 500);
 }
 
 function toTitle() {
@@ -1975,10 +2136,10 @@ function handleEvents(evs) {
       case 'clear': {
         M.save.setExp(st.exp);
         M.audio.clear(e.stars);
-        M.save.record(st.mission, e.stars);
+        M.save.record(st.no, e.stars);
         let gearMsg = null;
-        if (e.mission === 2 && !M.save.data.gear.fang) { M.save.setGear('fang'); gearMsg = '🗡 카사카의 독니 획득! 공격력 +2'; M.audio.gear(); }
-        if (e.mission === 4 && !M.save.data.gear.armor) { M.save.setGear('armor'); gearMsg = '🛡 파수견의 갑주 획득! 받는 피해 -2'; M.audio.gear(); }
+        if (e.no === 20 && !M.save.data.gear.fang) { M.save.setGear('fang'); gearMsg = '🗡 카사카의 독니 획득! 공격력 +2'; M.audio.gear(); }
+        if (e.no === 40 && !M.save.data.gear.armor) { M.save.setGear('armor'); gearMsg = '🛡 파수견의 갑주 획득! 받는 피해 -2'; M.audio.gear(); }
         setTimeout(() => { if (mode === 'play') { mode = 'win'; M.ui.showWin(st, gearMsg); } }, 1400);
         break;
       }
@@ -2013,14 +2174,14 @@ window.addEventListener('keydown', (e) => {
   }
 
   if (mode === 'title') {
-    if (k === 'Enter') startMission(M.save.data.best);
+    if (k === 'Enter') startStage(M.save.data.best);
   } else if (mode === 'play') {
     if (k === 'Escape') { mode = 'pause'; M.ui.show('pause-screen'); }
   } else if (mode === 'pause') {
     if (k === 'Enter' || k === 'Escape') { mode = 'play'; M.ui.hideAll(); }
     if (k === 'm' || k === 'M') toTitle();
   } else if (mode === 'win') {
-    if (k === 'Enter') { if (st.mission < 5) startMission(st.mission + 1); else { mode = 'ending'; M.ui.show('ending-screen'); } }
+    if (k === 'Enter') { if (st.no < M.TOTAL) startStage(st.no + 1); else { mode = 'ending'; M.ui.show('ending-screen'); } }
   } else if (mode === 'over') {
     if (k === 'Enter' || k === ' ') { M.Logic.respawn(st); mode = 'play'; M.ui.hideAll(); }
     if (k === 'Escape') toTitle();
@@ -2035,21 +2196,21 @@ window.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowDown') held.down = false;
 });
 
-$('btn-continue').onclick = () => startMission(M.save.data.best);
+$('btn-continue').onclick = () => startStage(M.save.data.best);
 $('btn-new').onclick = () => {
   M.save.data.exp = 0;
   M.save.data.gear = { fang: false, armor: false };
   M.save.store();
-  startMission(1);
+  startStage(1);
 };
 $('btn-series').onclick = () => {
   location.href = location.pathname.includes('/mogusolo/') ? '../index.html' : 'index.html';
 };
 $('btn-resume').onclick = () => { mode = 'play'; M.ui.hideAll(); };
-$('btn-restage').onclick = () => startMission(st.mission);
+$('btn-restage').onclick = () => startStage(st.no);
 $('btn-title').onclick = () => toTitle();
-$('btn-next').onclick = () => { if (st.mission < 5) startMission(st.mission + 1); else { mode = 'ending'; M.ui.show('ending-screen'); } };
-$('btn-retry').onclick = () => startMission(st.mission);
+$('btn-next').onclick = () => { if (st.no < M.TOTAL) startStage(st.no + 1); else { mode = 'ending'; M.ui.show('ending-screen'); } };
+$('btn-retry').onclick = () => startStage(st.no);
 $('btn-win-title').onclick = () => toTitle();
 $('btn-end-title').onclick = () => toTitle();
 $('btn-over-title').onclick = () => { if (mode === 'over') toTitle(); };
@@ -2094,7 +2255,7 @@ if (isTouch) {
 
 // ── 디버그 훅 (테스트 자동화용) ──
 M._dbg = () => ({
-  mode, mission: st ? st.mission : 0, phase: st ? st.phase : null,
+  mode, mission: st ? st.mission : 0, stg: st ? st.stg : 0, no: st ? st.no : 0, diff: M.diff, phase: st ? st.phase : null,
   sec: st ? st.secIdx : 0, go: st ? st.go : false,
   p: st ? { x: +st.p.x.toFixed(1), z: +st.p.z.toFixed(1), hp: st.p.hp, state: st.p.state } : null,
   b: st && st.b ? { hp: st.b.hp, state: st.b.state } : null,

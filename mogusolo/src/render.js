@@ -467,7 +467,8 @@ M.Render = {
     c.font = 'bold 11px sans-serif'; c.textAlign = 'center';
     c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 3;
     c.fillStyle = 'rgba(255,255,255,.92)';
-    const label = `MISSION ${st.mission} · ${st.stage.theme.name}`;
+    const label = `M${st.mission}-${st.stg} · ${st.stage.theme.name}` +
+      (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '');
     c.strokeText(label, W / 2, 18);
     c.fillText(label, W / 2, 18);
   },

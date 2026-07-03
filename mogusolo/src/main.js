@@ -14,15 +14,18 @@ M.ui.init();
 M.Render.init(document.getElementById('game'));
 M.ui.show('title-screen');
 
-function startMission(no) {
+function startStage(no) {
   st = M.Logic.create(no, M.save.data.exp || 0, M.save.data.gear);
   M.Render.fx = [];
   M.Render.camX = 0;
   mode = 'play';
   M.ui.hideAll();
-  M.ui.toast(`MISSION ${no} — ${M.STORY[no]}`, 3.0);
+  const dsuf = M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '';
+  M.ui.toast(st.stg === 1
+    ? `MISSION ${st.mission} — ${M.STORY[st.mission]}${dsuf}`
+    : `M${st.mission}-${st.stg} · ${st.stage.theme.name}${dsuf}`, 3.0);
   M.audio.resume(); M.audio.meow();
-  if (no >= 2) setTimeout(() => M.audio.cluck(), 500);
+  if (st.mission >= 2) setTimeout(() => M.audio.cluck(), 500);
 }
 
 function toTitle() {
@@ -77,10 +80,10 @@ function handleEvents(evs) {
       case 'clear': {
         M.save.setExp(st.exp);
         M.audio.clear(e.stars);
-        M.save.record(st.mission, e.stars);
+        M.save.record(st.no, e.stars);
         let gearMsg = null;
-        if (e.mission === 2 && !M.save.data.gear.fang) { M.save.setGear('fang'); gearMsg = '🗡 카사카의 독니 획득! 공격력 +2'; M.audio.gear(); }
-        if (e.mission === 4 && !M.save.data.gear.armor) { M.save.setGear('armor'); gearMsg = '🛡 파수견의 갑주 획득! 받는 피해 -2'; M.audio.gear(); }
+        if (e.no === 20 && !M.save.data.gear.fang) { M.save.setGear('fang'); gearMsg = '🗡 카사카의 독니 획득! 공격력 +2'; M.audio.gear(); }
+        if (e.no === 40 && !M.save.data.gear.armor) { M.save.setGear('armor'); gearMsg = '🛡 파수견의 갑주 획득! 받는 피해 -2'; M.audio.gear(); }
         setTimeout(() => { if (mode === 'play') { mode = 'win'; M.ui.showWin(st, gearMsg); } }, 1400);
         break;
       }
@@ -115,14 +118,14 @@ window.addEventListener('keydown', (e) => {
   }
 
   if (mode === 'title') {
-    if (k === 'Enter') startMission(M.save.data.best);
+    if (k === 'Enter') startStage(M.save.data.best);
   } else if (mode === 'play') {
     if (k === 'Escape') { mode = 'pause'; M.ui.show('pause-screen'); }
   } else if (mode === 'pause') {
     if (k === 'Enter' || k === 'Escape') { mode = 'play'; M.ui.hideAll(); }
     if (k === 'm' || k === 'M') toTitle();
   } else if (mode === 'win') {
-    if (k === 'Enter') { if (st.mission < 5) startMission(st.mission + 1); else { mode = 'ending'; M.ui.show('ending-screen'); } }
+    if (k === 'Enter') { if (st.no < M.TOTAL) startStage(st.no + 1); else { mode = 'ending'; M.ui.show('ending-screen'); } }
   } else if (mode === 'over') {
     if (k === 'Enter' || k === ' ') { M.Logic.respawn(st); mode = 'play'; M.ui.hideAll(); }
     if (k === 'Escape') toTitle();
@@ -137,21 +140,21 @@ window.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowDown') held.down = false;
 });
 
-$('btn-continue').onclick = () => startMission(M.save.data.best);
+$('btn-continue').onclick = () => startStage(M.save.data.best);
 $('btn-new').onclick = () => {
   M.save.data.exp = 0;
   M.save.data.gear = { fang: false, armor: false };
   M.save.store();
-  startMission(1);
+  startStage(1);
 };
 $('btn-series').onclick = () => {
   location.href = location.pathname.includes('/mogusolo/') ? '../index.html' : 'index.html';
 };
 $('btn-resume').onclick = () => { mode = 'play'; M.ui.hideAll(); };
-$('btn-restage').onclick = () => startMission(st.mission);
+$('btn-restage').onclick = () => startStage(st.no);
 $('btn-title').onclick = () => toTitle();
-$('btn-next').onclick = () => { if (st.mission < 5) startMission(st.mission + 1); else { mode = 'ending'; M.ui.show('ending-screen'); } };
-$('btn-retry').onclick = () => startMission(st.mission);
+$('btn-next').onclick = () => { if (st.no < M.TOTAL) startStage(st.no + 1); else { mode = 'ending'; M.ui.show('ending-screen'); } };
+$('btn-retry').onclick = () => startStage(st.no);
 $('btn-win-title').onclick = () => toTitle();
 $('btn-end-title').onclick = () => toTitle();
 $('btn-over-title').onclick = () => { if (mode === 'over') toTitle(); };
@@ -196,7 +199,7 @@ if (isTouch) {
 
 // ── 디버그 훅 (테스트 자동화용) ──
 M._dbg = () => ({
-  mode, mission: st ? st.mission : 0, phase: st ? st.phase : null,
+  mode, mission: st ? st.mission : 0, stg: st ? st.stg : 0, no: st ? st.no : 0, diff: M.diff, phase: st ? st.phase : null,
   sec: st ? st.secIdx : 0, go: st ? st.go : false,
   p: st ? { x: +st.p.x.toFixed(1), z: +st.p.z.toFixed(1), hp: st.p.hp, state: st.p.state } : null,
   b: st && st.b ? { hp: st.b.hp, state: st.b.state } : null,
