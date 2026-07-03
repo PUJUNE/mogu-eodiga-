@@ -1,0 +1,117 @@
+// logic.js — 전방 러너: 속도·조향·점프·충돌·시간 (DOM 무의존)
+const M = window.MNG;
+
+const SPD_MIN = 60;
+const ACCEL = 130, BRAKE = 210;
+const STEER = 185;               // 조향 속도 (월드 x /s)
+const JUMP_T = 0.58;             // 점프 체공 시간
+const STUN_T = 1.2;              // 충돌 경직
+const HIT_BAND = 13;             // 판정 깊이 (m)
+
+M.Logic = {
+  create(no) {
+    const stage = M.makeStage(no);
+    return {
+      stage, no, phase: 'run', t: 0, endT: 0,   // run | clear | over
+      dist: 0, spd: SPD_MIN + 40, x: 0,
+      jumpT: 0, stunT: 0,                        // 점프·경직 남은 시간
+      time: stage.time,
+      flags: 0, fish: 0, crashes: 0, score: 0, stars: 0,
+      resolved: new Set(),                       // 처리 완료 오브젝트 인덱스
+    };
+  },
+
+  jy(st) {                                       // 점프 높이 (0~1)
+    if (st.jumpT <= 0) return 0;
+    const p = 1 - st.jumpT / JUMP_T;
+    return 4 * p * (1 - p);
+  },
+
+  step(st, dt, input) {
+    const ev = [];
+    st.t += dt;
+    if (st.phase !== 'run') { st.endT += dt; return ev; }
+
+    // 시간
+    st.time -= dt;
+    if (st.time <= 0) {
+      st.time = 0;
+      st.phase = 'over'; st.endT = 0;
+      ev.push({ type: 'over' });
+      return ev;
+    }
+
+    const stunned = st.stunT > 0;
+    if (stunned) st.stunT -= dt;
+
+    // 속도 (경직 중엔 최저속 고정)
+    if (stunned) {
+      st.spd = SPD_MIN;
+    } else {
+      if (input.up) st.spd += ACCEL * dt;
+      if (input.down) st.spd -= BRAKE * dt;
+      st.spd = Math.max(SPD_MIN, Math.min(st.stage.maxSpd, st.spd));
+    }
+
+    // 점프
+    if (input.jump && st.jumpT <= 0 && !stunned) {
+      st.jumpT = JUMP_T;
+      ev.push({ type: 'jump' });
+    }
+    if (st.jumpT > 0) st.jumpT -= dt;
+
+    // 조향 + 커브 드리프트 (빙판: 커브가 바깥으로 밀어냄)
+    const curve = M.curveAt(st.stage, st.dist);
+    if (!stunned) {
+      if (input.left) st.x -= STEER * dt;
+      if (input.right) st.x += STEER * dt;
+    }
+    st.x += curve * st.spd * 0.55 * dt;
+    st.x = Math.max(-M.TRACK_W, Math.min(M.TRACK_W, st.x));
+
+    // 전진
+    const prev = st.dist;
+    st.dist += st.spd * dt;
+
+    // 오브젝트 판정 (이번 프레임에 지나친 것들)
+    const objs = st.stage.objs;
+    for (let i = 0; i < objs.length; i++) {
+      if (st.resolved.has(i)) continue;
+      const o = objs[i];
+      if (o.d > st.dist) break;                 // d 오름차순 정렬 전제
+      if (o.d <= prev - HIT_BAND) { st.resolved.add(i); continue; }
+      // 통과 판정
+      const lateral = Math.abs(o.x - st.x) < o.w + 15;
+      const airborne = this.jy(st) > 0.32;
+      st.resolved.add(i);
+      if (o.type === 'flag') {
+        if (lateral) { st.flags++; st.score += 100; ev.push({ type: 'flag', n: st.flags }); }
+      } else if (o.type === 'fish') {
+        if (lateral && !airborne) { st.fish++; st.score += 300; ev.push({ type: 'fish' }); }
+      } else if (o.type === 'crev') {
+        if (!airborne) { this._crash(st, ev); }
+      } else {                                   // hole | seal
+        if (lateral && !airborne) { this._crash(st, ev); }
+      }
+    }
+
+    // 도착
+    if (st.dist >= st.stage.length) {
+      const bonus = Math.round(st.time) * 10;
+      st.score += bonus;
+      const allFlags = st.flags >= st.stage.flagsTotal;
+      st.stars = allFlags && st.crashes === 0 ? 3
+        : st.flags >= Math.ceil(st.stage.flagsTotal * 0.7) ? 2 : 1;
+      st.phase = 'clear'; st.endT = 0;
+      ev.push({ type: 'clear', stars: st.stars, bonus });
+    }
+    return ev;
+  },
+
+  _crash(st, ev) {
+    st.crashes++;
+    st.stunT = STUN_T;
+    st.jumpT = 0;
+    ev.push({ type: 'crash' });
+  },
+};
