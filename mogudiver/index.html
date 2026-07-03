@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구 다이버</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#061c30;
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  #app { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  #stage-wrap { position:relative; }
+  canvas { display:block; background:#000; }
+
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10; }
+  .hidden { display:none !important; }
+
+  #hud { position:absolute; inset:0; pointer-events:none; z-index:5; }
+  #hud-toast { position:absolute; top:30%; left:50%; transform:translateX(-50%);
+    color:#fff; font-size:19px; font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
+    opacity:0; transition:opacity .3s; white-space:nowrap; }
+
+  /* ── 타이틀 (깊은 바다 무드) ── */
+  #title-screen { background:linear-gradient(#46c8e8 0%, #0e5a8a 45%, #041e36 100%); }
+  #title-screen .logo { font-size:min(52px, 10vw); font-weight:900; color:#fff; white-space:nowrap;
+    text-shadow:0 0 18px #4ac8f0, 0 5px 0 #0a3a5c, 0 9px 18px rgba(0,0,0,.5); letter-spacing:min(5px, 1.1vw); }
+  #title-screen .sub { margin-top:6px; font-size:17px; color:#b0e0f4; font-weight:700; }
+  #title-icon { width:105px; height:auto; margin:16px 0 4px; animation:bob 1.6s ease-in-out infinite;
+    filter:drop-shadow(0 0 14px rgba(74,200,240,.7)) drop-shadow(0 8px 10px rgba(0,0,0,.4)); }
+  @keyframes bob { 0%,100%{transform:translateY(0) rotate(-3deg)} 50%{transform:translateY(-14px) rotate(3deg)} }
+  #title-hi { margin-top:4px; color:#ffd83d; font-size:14px; font-weight:800; min-height:19px;
+    text-shadow:0 1px 3px rgba(0,0,0,.5); }
+  #title-hint { margin-top:12px; color:rgba(255,255,255,.92); font-size:13px; text-align:center;
+    padding:0 14px; text-shadow:0 1px 3px rgba(0,0,0,.5); line-height:1.7; }
+
+  .menu-buttons { display:flex; gap:12px; margin-top:18px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
+  .btn { pointer-events:auto; padding:12px 24px; font-size:16px; font-weight:800; color:#fff;
+    background:#1a6ac8; border:3px solid rgba(255,255,255,.8); border-radius:12px; cursor:pointer;
+    box-shadow:0 4px 8px rgba(0,0,0,.4); font-family:inherit; }
+  .btn.primary { background:#3aa84f; }
+  .btn.series { padding:9px 18px; font-size:13px; background:#2e6da3; }
+
+  /* ── 승리 / 일시정지 / 엔딩 ── */
+  #win-screen { background:rgba(4,20,38,.88); z-index:20; }
+  #win-screen .big { font-size:min(44px, 10vw); font-weight:900; color:#ffd83d; }
+  #win-stars { font-size:44px; color:#ffd83d; letter-spacing:8px; margin:8px 0 2px; }
+  #win-stats { color:#d8ecf8; font-size:17px; line-height:1.8; text-align:center; }
+  #pause-screen { background:rgba(0,0,0,.6); z-index:20; }
+  #pause-screen .big, #ending-screen .big {
+    font-size:min(42px, 10vw); font-weight:900; color:#fff; white-space:nowrap; }
+  #ending-screen { background:linear-gradient(#46c8e8 0%, #0e5a8a 50%, #041e36 100%); z-index:20; }
+  #ending-screen .big { color:#4ac8f0; text-shadow:0 0 16px rgba(74,200,240,.8); }
+  #ending-screen .msg { margin-top:14px; color:#d8ecf8; font-size:16px; line-height:1.8; text-align:center; padding:0 16px; }
+
+  /* ── 터치 가상 패드 ── */
+  #vpad { position:fixed; inset:0; pointer-events:none; z-index:8; display:none; }
+  body.touch #vpad.on { display:block; }
+  .vbtn { position:absolute; pointer-events:auto; width:64px; height:64px; border-radius:50%;
+    background:rgba(255,255,255,.15); border:2px solid rgba(255,255,255,.5);
+    color:rgba(255,255,255,.92); font-size:22px; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+    touch-action:none; user-select:none; text-shadow:0 2px 3px rgba(0,0,0,.5); }
+  .vbtn.pressed { background:rgba(74,200,240,.4); border-color:#4ac8f0; }
+  #vbtn-left  { left:calc(12px + env(safe-area-inset-left)); bottom:calc(52px + env(safe-area-inset-bottom)); }
+  #vbtn-right { left:calc(148px + env(safe-area-inset-left)); bottom:calc(52px + env(safe-area-inset-bottom)); }
+  #vbtn-up    { left:calc(80px + env(safe-area-inset-left)); bottom:calc(108px + env(safe-area-inset-bottom)); }
+  #vbtn-down  { left:calc(80px + env(safe-area-inset-left)); bottom:calc(12px + env(safe-area-inset-bottom)); }
+  #vbtn-dash  { right:calc(14px + env(safe-area-inset-right)); bottom:calc(96px + env(safe-area-inset-bottom)); }
+  #vbtn-atk   { right:calc(88px + env(safe-area-inset-right)); bottom:calc(24px + env(safe-area-inset-bottom)); width:76px; height:76px; font-size:26px; }
+  #vbtn-pause { right:calc(12px + env(safe-area-inset-right)); top:calc(10px + env(safe-area-inset-top));
+    width:44px; height:44px; font-size:17px; border-radius:12px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage-wrap">
+    <canvas id="game" width="480" height="270"></canvas>
+    <div id="hud" class="hidden"><div id="hud-toast"></div></div>
+  </div>
+
+  <div id="title-screen" class="screen">
+    <div class="logo">모구 다이버</div>
+    <div class="sub">~ 냥냥 잠수 사냥꾼 ~</div>
+    <img id="title-icon" alt="모구">
+    <div id="title-hi"></div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-continue">이어하기</button>
+      <button class="btn" id="btn-new">처음부터</button>
+    </div>
+    <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
+    <div id="title-hint">←→↑↓ 헤엄 · Space/Z 발톱 · X 대시<br>발톱으로 잡고, 물고, 보트로! 산소가 다하기 전에 — 6스테이지 보스 사냥</div>
+  </div>
+
+  <div id="win-screen" class="screen hidden">
+    <div class="big">🌊 스테이지 클리어!!</div>
+    <div id="win-stars">★★★</div>
+    <div id="win-stats"></div>
+    <div class="menu-buttons">
+      <button class="btn" id="btn-retry">다시 도전</button>
+      <button class="btn" id="btn-win-title">타이틀로</button>
+      <button class="btn primary" id="btn-next">다음 바다 →</button>
+    </div>
+  </div>
+
+  <div id="pause-screen" class="screen hidden">
+    <div class="big">일시정지</div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-resume">계속</button>
+      <button class="btn" id="btn-restage">재시작</button>
+      <button class="btn" id="btn-title">타이틀로</button>
+    </div>
+  </div>
+
+  <div id="ending-screen" class="screen hidden">
+    <div class="big">🌊 모든 바다를 정복!!</div>
+    <div class="msg">심연의 크라켄까지 잡아낸 전설의 냥다이버.<br>오늘 저녁은 만선이다 — 🐟🐟🐟</div>
+    <div class="menu-buttons"><button class="btn primary" id="btn-end-title">타이틀로</button></div>
+  </div>
+
+  <div id="vpad">
+    <div class="vbtn" id="vbtn-left">◀</div>
+    <div class="vbtn" id="vbtn-right">▶</div>
+    <div class="vbtn" id="vbtn-up">▲</div>
+    <div class="vbtn" id="vbtn-down">▼</div>
+    <div class="vbtn" id="vbtn-atk">🐾</div>
+    <div class="vbtn" id="vbtn-dash">💨</div>
+    <div class="vbtn" id="vbtn-pause">⏸</div>
+  </div>
+</div>
+
+<script>window.MDV = { ASSETS: { mogu: "../game/assets/mogu-icon.png" } };</script>
+<script src="src/rng.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/render.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
