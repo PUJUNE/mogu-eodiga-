@@ -16,6 +16,7 @@ const SKILLS = {
 };
 const RULER_R = 90, RULER_DMG = 24;
 const SHADOW_MAX = 3, EXTRACT_R = 80;
+const CORPSE_T = 30;             // 시체 유지 시간 — 그림자 추출 여유
 
 function mkFighter(kind, opt) {
   return Object.assign({
@@ -30,6 +31,7 @@ M.Logic = {
   LV_MAX: 12,
   SKILLS,
   SHADOW_MAX,
+  CORPSE_T,
   expNeed(lv) { return 50 + (lv - 1) * 30; },
   atkMul(lv) { return 1 + 0.05 * (lv - 1); },
   maxMp(lv) { return 40 + 4 * (lv - 1); },
@@ -430,7 +432,7 @@ M.Logic = {
         }
       }
     }
-    st.enemies = st.enemies.filter((e) => !(e.state === 'dead' && e.stT > 1.6));
+    st.enemies = st.enemies.filter((e) => !(e.state === 'dead' && e.stT > CORPSE_T));
 
     // 플레이어 사망 → 컨티뉴
     if (p.hp <= 0 && (p.state === 'dead' || (p.state === 'down' && p.stT > 1.0)) && st.phase === 'play') {

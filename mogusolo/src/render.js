@@ -112,9 +112,9 @@ M.Render = {
       c.beginPath(); c.arc(x - Math.sign(sh.vx) * 2, y - 1, 1.2, 0, Math.PI * 2); c.fill();
     }
 
-    // 엔티티 (깊이 정렬)
+    // 엔티티 (깊이 정렬) — 적 시체는 CORPSE_T 동안 유지 (그림자 추출 대상)
     const ents = [st.p, ...(st.b ? [st.b] : []), ...st.shadows, ...st.enemies]
-      .filter((f) => f.state !== 'dead' || f.stT < 1.6);
+      .filter((f) => f.state !== 'dead' || (f.kind === 'e' ? f.stT < M.Logic.CORPSE_T : f.stT < 1.6));
     ents.sort((a, b2) => a.z - b2.z);
     for (const f of ents) this.drawFighter(st, f, t);
 
@@ -516,7 +516,16 @@ M.Render = {
     c.save();
     c.translate(x, y);
     if (f.face < 0) c.scale(-1, 1);
-    if (dead) c.globalAlpha = Math.max(0, 1 - (f.stT - 0.8) / 0.8);
+    if (dead) {
+      if (f.kind === 'e') {
+        // 적 시체: 빠르게 흐려진 뒤 반투명 유지, 소멸 직전 2초 페이드아웃
+        const hold = 0.55;
+        const endFade = Math.max(0, Math.min(1, (M.Logic.CORPSE_T - f.stT) / 2));
+        c.globalAlpha = (f.stT < 0.6 ? hold + (1 - f.stT / 0.6) * (1 - hold) : hold) * endFade;
+      } else {
+        c.globalAlpha = Math.max(0, 1 - (f.stT - 0.8) / 0.8);
+      }
+    }
     if (isP && st.stealth > 0) c.globalAlpha = 0.35;
     if (down) { c.rotate(-Math.PI / 2); c.translate(4, 12); }
     if (hurt) { c.translate(Math.sin(t * 40) * 1.5, 0); c.rotate(-0.12); }

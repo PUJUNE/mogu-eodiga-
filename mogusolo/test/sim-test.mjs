@@ -134,6 +134,21 @@ const spawn = (st, dx, type = 'scorp', opt) => {
   check('컨티뉴 → 그림자 해산', st.shadows.length === 0 && st.phase === 'play');
 }
 
+// 6b) 시체 30초 유지: 여유 있게 추출 가능
+{
+  const st = arena(1, 1500);
+  const e = spawn(st, 30, 'scorp');
+  e.state = 'dead'; e.hp = 0; e.stT = 0; e.counted = true;
+  run(st, 5);
+  check('시체 5초 후에도 유지', st.enemies.includes(e) && e.state === 'dead');
+  const evs = run(st, 0.05, { e: true });
+  check('오래된 시체도 추출 가능', evs.some((v) => v.type === 'extract'));
+  const e2 = spawn(st, 30, 'scorp');
+  e2.state = 'dead'; e2.hp = 0; e2.stT = L.CORPSE_T - 0.2; e2.counted = true;
+  run(st, 0.5);
+  check(`시체 ${L.CORPSE_T}초 후 소멸`, !st.enemies.includes(e2));
+}
+
 // 7) E 실패: 시체 없음
 {
   const st = arena(1, 1500);
