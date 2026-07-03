@@ -41,6 +41,10 @@
     box-shadow:0 4px 8px rgba(0,0,0,.4); font-family:inherit; }
   .btn.primary { background:#3aa84f; }
   .btn.series { padding:9px 18px; font-size:13px; background:#2e6da3; }
+  .diff-row { gap:8px; margin-top:12px; }
+  .diff-btn { padding:8px 14px; font-size:13px; background:#3d4a5c; border-color:rgba(255,255,255,.35); }
+  .diff-btn.selected { background:#3aa84f; border-color:#ffd83d; outline:2px solid rgba(255,216,61,.5); }
+  .diff-btn.crazy.selected { background:#c8385a; }
 
   /* ── 승리 / 일시정지 / 게임오버 / 엔딩 ── */
   #win-screen { background:rgba(8,30,16,.85); z-index:20; }
@@ -93,8 +97,14 @@
       <button class="btn primary" id="btn-continue">이어하기</button>
       <button class="btn" id="btn-new">처음부터</button>
     </div>
+    <div class="menu-buttons diff-row">
+      <button class="btn diff-btn" data-diff="easy">이지</button>
+      <button class="btn diff-btn" data-diff="normal">노말</button>
+      <button class="btn diff-btn" data-diff="hard">하드</button>
+      <button class="btn diff-btn crazy" data-diff="crazy">크레이지</button>
+    </div>
     <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
-    <div id="title-hint">←→ 조향 · ↑↓ 가속/감속 · Space 점프 (크레바스를 뛰어넘어라!)<br>깃발을 모으며 제한시간 안에 남극 기지 10곳을 순회하라!</div>
+    <div id="title-hint">←→ 조향 · ↑↓ 가속/감속 · Space 점프, 공중 연타 = 파닥 호버! (D 난이도)<br>크레바스의 바다사자는 점프+옆으로 피하기! 깃발 모으며 남극 기지 10곳 순회!</div>
   </div>
 
   <div id="win-screen" class="screen hidden">

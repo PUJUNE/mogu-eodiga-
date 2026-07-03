@@ -37,6 +37,13 @@ await page.click('#card-mogunamgeuk');
 await page.waitForTimeout(900);
 check('런처 → 남극 대모험 타이틀', await page.evaluate(() =>
   !!window.MNG && !document.getElementById('title-screen').classList.contains('hidden')));
+// 난이도 버튼
+check('난이도 버튼 4개', await page.evaluate(() => document.querySelectorAll('.diff-btn').length === 4));
+await page.click('.diff-btn[data-diff="hard"]');
+await page.waitForTimeout(150);
+check('하드 선택 + 저장', await page.evaluate(() => window.MNG.diff === 'hard' && JSON.parse(localStorage.getItem('mogunamgeuk-save-v1')).diff === 'hard'));
+await page.click('.diff-btn[data-diff="normal"]');
+await page.waitForTimeout(150);
 await page.screenshot({ path: join(shots, 'shot-title.png') });
 
 // ══ 2. 키보드: 가속 → 조향 → 점프 ══

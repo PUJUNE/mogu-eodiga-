@@ -154,6 +154,36 @@ M.Render = {
         c.lineTo(x1, y + hh / 2);
         for (let px = x1; px > x0; px -= 26) c.lineTo(px - 13, y + hh / 2 + (((px / 26) % 2) ? -2 : 2) * s * 3);
         c.closePath(); c.fill();
+        if (o.pop) {
+          // 크레바스 바다사자: 접근할수록 솟아오름 (측면 회피 예고)
+          const rise = Math.max(0.25, Math.min(1, 1 - (z - 30) / 200));
+          const sx = this.gx(st, Math.max(NEAR_Z, z), o.px, curve);
+          const bh = 44 * s * 1.9 * rise;                 // 몸통 높이
+          const bw = 20 * s * 1.9;
+          const sway = Math.sin(t * 5 + o.d) * 0.08;
+          c.save();
+          c.translate(sx, y);
+          c.rotate(sway * rise);
+          c.fillStyle = '#6a7484';
+          c.beginPath(); c.ellipse(0, -bh * 0.5, bw, bh * 0.62, 0, 0, Math.PI * 2); c.fill();
+          c.fillStyle = '#8a96a8';
+          c.beginPath(); c.ellipse(0, -bh * 0.36, bw * 0.62, bh * 0.44, 0, 0, Math.PI * 2); c.fill();
+          // 지느러미
+          c.fillStyle = '#5a6474';
+          c.beginPath(); c.ellipse(-bw * 0.95, -bh * 0.42, bw * 0.34, bh * 0.2, -0.6, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.ellipse(bw * 0.95, -bh * 0.42, bw * 0.34, bh * 0.2, 0.6, 0, Math.PI * 2); c.fill();
+          // 얼굴: 눈·코·수염
+          c.fillStyle = '#141c28';
+          c.beginPath(); c.arc(-bw * 0.3, -bh * 0.86, 2.6 * s * 1.9, 0, Math.PI * 2);
+          c.arc(bw * 0.3, -bh * 0.86, 2.6 * s * 1.9, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.arc(0, -bh * 0.74, 2.2 * s * 1.9, 0, Math.PI * 2); c.fill();
+          c.strokeStyle = 'rgba(230,236,244,.75)'; c.lineWidth = Math.max(0.8, 1.2 * s * 1.9);
+          for (const wy of [-bh * 0.74, -bh * 0.68]) {
+            c.beginPath(); c.moveTo(-bw * 0.5, wy); c.lineTo(-bw * 1.05, wy - 2 * s); c.stroke();
+            c.beginPath(); c.moveTo(bw * 0.5, wy); c.lineTo(bw * 1.05, wy - 2 * s); c.stroke();
+          }
+          c.restore();
+        }
       } else if (o.type === 'hole') {
         c.fillStyle = '#1c3a58';
         c.beginPath(); c.ellipse(x, y, 34 * s * 1.9, 13 * s * 1.9, 0, 0, Math.PI * 2); c.fill();
@@ -239,7 +269,14 @@ M.Render = {
     c.save();
     c.translate(x, y);
     if (st.stunT > 0) {
-      c.rotate(Math.sin(st.stunT * 26) * 0.5);          // 넘어져 버둥
+      // 충돌 비틀거림: 옆으로 탁·탁·탁 끊기며 밀려나는 스텝 + 버둥 회전
+      const hop = (Math.floor(st.stunT * 9) % 2 ? 1 : -1) * 4 * (st.stunT / 1.2);
+      c.translate(hop, -Math.abs(Math.sin(st.stunT * 14)) * 4);
+      c.rotate(Math.sin(st.stunT * 26) * 0.5 + st.tumbleDir * 0.12);
+    } else if (st.flapT > 0 && jy > 0) {
+      // 공중 파닥임: 좌우로 빠르게 몸 흔들기
+      c.rotate(Math.sin(t * 46) * 0.3);
+      c.translate(0, -2);
     } else {
       const wf = 2.8 + st.spd * 0.016;                  // 느긋한 뒤뚱
       const waddle = Math.sin(t * wf) * 0.13;
@@ -278,7 +315,8 @@ M.Render = {
     // 하단 스테이지 라벨
     c.font = 'bold 10px sans-serif'; c.textAlign = 'center';
     c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = 3;
-    const label = `STAGE ${st.no} · ${st.stage.from} → ${st.stage.to} (${(Math.max(0, st.stage.length - st.dist) / 1000).toFixed(1)}km)`;
+    const label = `STAGE ${st.no} · ${st.stage.from} → ${st.stage.to} (${(Math.max(0, st.stage.length - st.dist) / 1000).toFixed(1)}km)` +
+      (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '');
     c.strokeText(label, W / 2, H - 8);
     c.fillStyle = 'rgba(255,255,255,.92)';
     c.fillText(label, W / 2, H - 8);

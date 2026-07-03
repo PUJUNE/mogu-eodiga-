@@ -9,13 +9,26 @@ M.STATIONS = [
   '스콧', '맥머도', '아문센-스콧', '보스토크', '쇼와 (귀환)',
 ];
 
+// ── 난이도 모드 (모구 어디가 문법) ──
+// mult(최고 속도 배율): 제한시간이 같은 식으로 재계산되므로 어떤 배율에서도 클리어 가능.
+// 크레이지 추가 노브: densityMul(장애물 밀도), popMul(크레바스 바다사자 출현률)
+M.DIFF_ORDER = ['easy', 'normal', 'hard', 'crazy'];
+M.DIFFS = {
+  easy:   { name: '이지',     mult: 0.85 },
+  normal: { name: '노말',     mult: 1.0 },
+  hard:   { name: '하드',     mult: 1.2 },
+  crazy:  { name: '크레이지', mult: 1.42, densityMul: 1.3, popMul: 1.7 },
+};
+M.diff = 'normal';
+
 M.makeStage = function (no) {
   const s = Math.max(1, Math.min(10, no));
   const rng = M.makeRng(s * 7919 + 3301);
   const t = (s - 1) / 9;
+  const D = M.DIFFS[M.diff] || M.DIFFS.normal;
 
   const length = Math.round(8000 + t * 6000);          // 8 → 14 km (약 1분 주행)
-  const maxSpd = Math.round(190 + t * 90);             // 190 → 280 m/s
+  const maxSpd = Math.round((190 + t * 90) * D.mult);  // 190 → 280 m/s × 난이도 배율
   const time = Math.round(length / (maxSpd * 0.7));    // 풀가속 70% 효율 기준 빠듯하게
 
   // 커브 구간: 직선-좌-직선-우 … 시드 결정적
@@ -30,12 +43,16 @@ M.makeStage = function (no) {
 
   // 장애물: 진행 간격 결정적 배치 (점프 체공 거리보다 넉넉한 최소 간격)
   const objs = [];
-  const hazMin = 170 - t * 40;                         // 170 → 130 m
+  const hazMin = (170 - t * 40) / (D.densityMul || 1); // 170 → 130 m (크레이지는 촘촘)
+  const popP = Math.min(0.8, (0.22 + t * 0.28) * (D.popMul || 1));   // 크레바스 바다사자 출현률
   d = 300;
   while (d < length - 300) {
     const r = rng.next();
     if (r < 0.34) {
-      objs.push({ d, x: 0, type: 'crev', w: M.TRACK_W });          // 전폭 크레바스
+      // 전폭 크레바스 — 일부는 바다사자가 튀어나옴 (점프 + 측면 회피 필요)
+      const px = rng.range(-140, 140);
+      const pop = rng.chance(popP);
+      objs.push({ d, x: 0, type: 'crev', w: M.TRACK_W, pop, px });
     } else if (r < 0.68) {
       objs.push({ d, x: rng.range(-150, 150), type: 'hole', w: 34 });
     } else {

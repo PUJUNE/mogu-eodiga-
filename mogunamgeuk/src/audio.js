@@ -45,6 +45,7 @@ const A = {
 
   // ── 효과음 ──
   jump()    { this.tone(300, 0.14, 'square', 0.16, 560); },
+  flap()    { this.noise(0.07, 0.12, 1800, 1.2); this.tone(480, 0.06, 'triangle', 0.1, 640); },
   land()    { this.tone(180, 0.07, 'square', 0.1, 120); },
   flag()    { [660, 880].forEach((f, i) => this.tone(f, 0.09, 'square', 0.16, null, i * 0.07)); },
   fish()    { [520, 700, 920].forEach((f, i) => this.tone(f, 0.08, 'square', 0.14, null, i * 0.06)); },

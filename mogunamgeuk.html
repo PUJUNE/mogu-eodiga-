@@ -41,6 +41,10 @@
     box-shadow:0 4px 8px rgba(0,0,0,.4); font-family:inherit; }
   .btn.primary { background:#3aa84f; }
   .btn.series { padding:9px 18px; font-size:13px; background:#2e6da3; }
+  .diff-row { gap:8px; margin-top:12px; }
+  .diff-btn { padding:8px 14px; font-size:13px; background:#3d4a5c; border-color:rgba(255,255,255,.35); }
+  .diff-btn.selected { background:#3aa84f; border-color:#ffd83d; outline:2px solid rgba(255,216,61,.5); }
+  .diff-btn.crazy.selected { background:#c8385a; }
 
   /* ── 승리 / 일시정지 / 게임오버 / 엔딩 ── */
   #win-screen { background:rgba(8,30,16,.85); z-index:20; }
@@ -93,8 +97,14 @@
       <button class="btn primary" id="btn-continue">이어하기</button>
       <button class="btn" id="btn-new">처음부터</button>
     </div>
+    <div class="menu-buttons diff-row">
+      <button class="btn diff-btn" data-diff="easy">이지</button>
+      <button class="btn diff-btn" data-diff="normal">노말</button>
+      <button class="btn diff-btn" data-diff="hard">하드</button>
+      <button class="btn diff-btn crazy" data-diff="crazy">크레이지</button>
+    </div>
     <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
-    <div id="title-hint">←→ 조향 · ↑↓ 가속/감속 · Space 점프 (크레바스를 뛰어넘어라!)<br>깃발을 모으며 제한시간 안에 남극 기지 10곳을 순회하라!</div>
+    <div id="title-hint">←→ 조향 · ↑↓ 가속/감속 · Space 점프, 공중 연타 = 파닥 호버! (D 난이도)<br>크레바스의 바다사자는 점프+옆으로 피하기! 깃발 모으며 남극 기지 10곳 순회!</div>
   </div>
 
   <div id="win-screen" class="screen hidden">
@@ -182,13 +192,26 @@ M.STATIONS = [
   '스콧', '맥머도', '아문센-스콧', '보스토크', '쇼와 (귀환)',
 ];
 
+// ── 난이도 모드 (모구 어디가 문법) ──
+// mult(최고 속도 배율): 제한시간이 같은 식으로 재계산되므로 어떤 배율에서도 클리어 가능.
+// 크레이지 추가 노브: densityMul(장애물 밀도), popMul(크레바스 바다사자 출현률)
+M.DIFF_ORDER = ['easy', 'normal', 'hard', 'crazy'];
+M.DIFFS = {
+  easy:   { name: '이지',     mult: 0.85 },
+  normal: { name: '노말',     mult: 1.0 },
+  hard:   { name: '하드',     mult: 1.2 },
+  crazy:  { name: '크레이지', mult: 1.42, densityMul: 1.3, popMul: 1.7 },
+};
+M.diff = 'normal';
+
 M.makeStage = function (no) {
   const s = Math.max(1, Math.min(10, no));
   const rng = M.makeRng(s * 7919 + 3301);
   const t = (s - 1) / 9;
+  const D = M.DIFFS[M.diff] || M.DIFFS.normal;
 
   const length = Math.round(8000 + t * 6000);          // 8 → 14 km (약 1분 주행)
-  const maxSpd = Math.round(190 + t * 90);             // 190 → 280 m/s
+  const maxSpd = Math.round((190 + t * 90) * D.mult);  // 190 → 280 m/s × 난이도 배율
   const time = Math.round(length / (maxSpd * 0.7));    // 풀가속 70% 효율 기준 빠듯하게
 
   // 커브 구간: 직선-좌-직선-우 … 시드 결정적
@@ -203,12 +226,16 @@ M.makeStage = function (no) {
 
   // 장애물: 진행 간격 결정적 배치 (점프 체공 거리보다 넉넉한 최소 간격)
   const objs = [];
-  const hazMin = 170 - t * 40;                         // 170 → 130 m
+  const hazMin = (170 - t * 40) / (D.densityMul || 1); // 170 → 130 m (크레이지는 촘촘)
+  const popP = Math.min(0.8, (0.22 + t * 0.28) * (D.popMul || 1));   // 크레바스 바다사자 출현률
   d = 300;
   while (d < length - 300) {
     const r = rng.next();
     if (r < 0.34) {
-      objs.push({ d, x: 0, type: 'crev', w: M.TRACK_W });          // 전폭 크레바스
+      // 전폭 크레바스 — 일부는 바다사자가 튀어나옴 (점프 + 측면 회피 필요)
+      const px = rng.range(-140, 140);
+      const pop = rng.chance(popP);
+      objs.push({ d, x: 0, type: 'crev', w: M.TRACK_W, pop, px });
     } else if (r < 0.68) {
       objs.push({ d, x: rng.range(-150, 150), type: 'hole', w: 34 });
     } else {
@@ -256,25 +283,30 @@ const STEER_ACC = 950;           // 조향 가속 (빙판 관성)
 const VX_MAX = 215;              // 최대 횡속도
 const ICE_DRAG = 1.1;            // 무입력 시 감쇠 (빙판이라 낮음)
 const JUMP_T = 0.58;             // 점프 체공 시간
+const FLAP_ADD = 0.16;           // 공중 연타 1회당 체공 연장
+const FLAP_MAX = 3;              // 연타 연장 최대 횟수
 const STUN_T = 1.2;              // 충돌 경직
+const TUMBLE_V = 110;            // 충돌 비틀거림 횡이동 속도 (탁탁탁)
 const HIT_BAND = 13;             // 판정 깊이 (m)
 
 M.Logic = {
+  FLAP_MAX,
   create(no) {
     const stage = M.makeStage(no);
     return {
       stage, no, phase: 'run', t: 0, endT: 0,   // run | clear | over
       dist: 0, spd: SPD_MIN + 40, x: 0, vx: 0, skidT: 0,
-      jumpT: 0, stunT: 0,                        // 점프·경직 남은 시간
+      jumpT: 0, airDur: JUMP_T, flapN: 0, flapT: 0,   // 점프·연타 호버 상태
+      stunT: 0, tumbleDir: 1,                    // 경직·비틀거림 방향
       time: stage.time,
       flags: 0, fish: 0, crashes: 0, score: 0, stars: 0,
       resolved: new Set(),                       // 처리 완료 오브젝트 인덱스
     };
   },
 
-  jy(st) {                                       // 점프 높이 (0~1)
+  jy(st) {                                       // 점프 높이 (0~1) — 연타 시 airDur이 늘어나 호버
     if (st.jumpT <= 0) return 0;
-    const p = 1 - st.jumpT / JUMP_T;
+    const p = 1 - st.jumpT / (st.airDur || JUMP_T);
     return 4 * p * (1 - p);
   },
 
@@ -293,7 +325,12 @@ M.Logic = {
     }
 
     const stunned = st.stunT > 0;
-    if (stunned) st.stunT -= dt;
+    if (stunned) {
+      st.stunT -= dt;
+      // 비틀거림: 경직 동안 옆으로 탁탁탁 밀려남 (점점 잦아듦)
+      st.x += st.tumbleDir * TUMBLE_V * (st.stunT / STUN_T) * dt;
+      st.x = Math.max(-M.TRACK_W, Math.min(M.TRACK_W, st.x));
+    }
 
     // 속도 (경직 중엔 최저속 고정)
     if (stunned) {
@@ -304,12 +341,19 @@ M.Logic = {
       st.spd = Math.max(SPD_MIN, Math.min(st.stage.maxSpd, st.spd));
     }
 
-    // 점프
-    if (input.jump && st.jumpT <= 0 && !stunned) {
-      st.jumpT = JUMP_T;
-      ev.push({ type: 'jump' });
+    // 점프 + 공중 연타 호버 (몸을 파닥여 체공 연장)
+    if (input.jump && !stunned) {
+      if (st.jumpT <= 0) {
+        st.jumpT = JUMP_T; st.airDur = JUMP_T; st.flapN = 0;
+        ev.push({ type: 'jump' });
+      } else if (st.flapN < FLAP_MAX) {
+        st.jumpT += FLAP_ADD; st.airDur += FLAP_ADD;
+        st.flapN++; st.flapT = 0.22;
+        ev.push({ type: 'flap', n: st.flapN });
+      }
     }
     if (st.jumpT > 0) st.jumpT -= dt;
+    if (st.flapT > 0) st.flapT -= dt;
 
     // 조향: 빙판 관성 — 가속으로 횡속도를 만들고, 반대 입력 시 미끄러지며 전환
     const curve = M.curveAt(st.stage, st.dist);
@@ -351,6 +395,10 @@ M.Logic = {
         if (lateral && !airborne) { st.fish++; st.score += 300; ev.push({ type: 'fish' }); }
       } else if (o.type === 'crev') {
         if (!airborne) { this._crash(st, ev); }
+        else if (o.pop && Math.abs(o.px - st.x) < 34 + 15) {
+          // 크레바스에서 튀어나온 바다사자 — 점프해도 정면이면 부딪힘 (측면 회피 필요)
+          this._crash(st, ev, true);
+        }
       } else {                                   // hole | seal
         if (lateral && !airborne) { this._crash(st, ev); }
       }
@@ -369,11 +417,14 @@ M.Logic = {
     return ev;
   },
 
-  _crash(st, ev) {
+  _crash(st, ev, seal) {
     st.crashes++;
     st.stunT = STUN_T;
-    st.jumpT = 0;
-    ev.push({ type: 'crash' });
+    st.jumpT = 0; st.airDur = JUMP_T; st.flapN = 0; st.flapT = 0;
+    // 비틀거림 방향: 미끄러지던 쪽, 정지 상태면 트랙 안쪽으로
+    st.tumbleDir = Math.abs(st.vx) > 20 ? Math.sign(st.vx) : (st.x > 0 ? -1 : 1);
+    st.vx = 0;
+    ev.push({ type: 'crash', seal: !!seal });
   },
 };
 
@@ -536,6 +587,36 @@ M.Render = {
         c.lineTo(x1, y + hh / 2);
         for (let px = x1; px > x0; px -= 26) c.lineTo(px - 13, y + hh / 2 + (((px / 26) % 2) ? -2 : 2) * s * 3);
         c.closePath(); c.fill();
+        if (o.pop) {
+          // 크레바스 바다사자: 접근할수록 솟아오름 (측면 회피 예고)
+          const rise = Math.max(0.25, Math.min(1, 1 - (z - 30) / 200));
+          const sx = this.gx(st, Math.max(NEAR_Z, z), o.px, curve);
+          const bh = 44 * s * 1.9 * rise;                 // 몸통 높이
+          const bw = 20 * s * 1.9;
+          const sway = Math.sin(t * 5 + o.d) * 0.08;
+          c.save();
+          c.translate(sx, y);
+          c.rotate(sway * rise);
+          c.fillStyle = '#6a7484';
+          c.beginPath(); c.ellipse(0, -bh * 0.5, bw, bh * 0.62, 0, 0, Math.PI * 2); c.fill();
+          c.fillStyle = '#8a96a8';
+          c.beginPath(); c.ellipse(0, -bh * 0.36, bw * 0.62, bh * 0.44, 0, 0, Math.PI * 2); c.fill();
+          // 지느러미
+          c.fillStyle = '#5a6474';
+          c.beginPath(); c.ellipse(-bw * 0.95, -bh * 0.42, bw * 0.34, bh * 0.2, -0.6, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.ellipse(bw * 0.95, -bh * 0.42, bw * 0.34, bh * 0.2, 0.6, 0, Math.PI * 2); c.fill();
+          // 얼굴: 눈·코·수염
+          c.fillStyle = '#141c28';
+          c.beginPath(); c.arc(-bw * 0.3, -bh * 0.86, 2.6 * s * 1.9, 0, Math.PI * 2);
+          c.arc(bw * 0.3, -bh * 0.86, 2.6 * s * 1.9, 0, Math.PI * 2); c.fill();
+          c.beginPath(); c.arc(0, -bh * 0.74, 2.2 * s * 1.9, 0, Math.PI * 2); c.fill();
+          c.strokeStyle = 'rgba(230,236,244,.75)'; c.lineWidth = Math.max(0.8, 1.2 * s * 1.9);
+          for (const wy of [-bh * 0.74, -bh * 0.68]) {
+            c.beginPath(); c.moveTo(-bw * 0.5, wy); c.lineTo(-bw * 1.05, wy - 2 * s); c.stroke();
+            c.beginPath(); c.moveTo(bw * 0.5, wy); c.lineTo(bw * 1.05, wy - 2 * s); c.stroke();
+          }
+          c.restore();
+        }
       } else if (o.type === 'hole') {
         c.fillStyle = '#1c3a58';
         c.beginPath(); c.ellipse(x, y, 34 * s * 1.9, 13 * s * 1.9, 0, 0, Math.PI * 2); c.fill();
@@ -621,7 +702,14 @@ M.Render = {
     c.save();
     c.translate(x, y);
     if (st.stunT > 0) {
-      c.rotate(Math.sin(st.stunT * 26) * 0.5);          // 넘어져 버둥
+      // 충돌 비틀거림: 옆으로 탁·탁·탁 끊기며 밀려나는 스텝 + 버둥 회전
+      const hop = (Math.floor(st.stunT * 9) % 2 ? 1 : -1) * 4 * (st.stunT / 1.2);
+      c.translate(hop, -Math.abs(Math.sin(st.stunT * 14)) * 4);
+      c.rotate(Math.sin(st.stunT * 26) * 0.5 + st.tumbleDir * 0.12);
+    } else if (st.flapT > 0 && jy > 0) {
+      // 공중 파닥임: 좌우로 빠르게 몸 흔들기
+      c.rotate(Math.sin(t * 46) * 0.3);
+      c.translate(0, -2);
     } else {
       const wf = 2.8 + st.spd * 0.016;                  // 느긋한 뒤뚱
       const waddle = Math.sin(t * wf) * 0.13;
@@ -660,7 +748,8 @@ M.Render = {
     // 하단 스테이지 라벨
     c.font = 'bold 10px sans-serif'; c.textAlign = 'center';
     c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = 3;
-    const label = `STAGE ${st.no} · ${st.stage.from} → ${st.stage.to} (${(Math.max(0, st.stage.length - st.dist) / 1000).toFixed(1)}km)`;
+    const label = `STAGE ${st.no} · ${st.stage.from} → ${st.stage.to} (${(Math.max(0, st.stage.length - st.dist) / 1000).toFixed(1)}km)` +
+      (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '');
     c.strokeText(label, W / 2, H - 8);
     c.fillStyle = 'rgba(255,255,255,.92)';
     c.fillText(label, W / 2, H - 8);
@@ -717,6 +806,7 @@ const A = {
 
   // ── 효과음 ──
   jump()    { this.tone(300, 0.14, 'square', 0.16, 560); },
+  flap()    { this.noise(0.07, 0.12, 1800, 1.2); this.tone(480, 0.06, 'triangle', 0.1, 640); },
   land()    { this.tone(180, 0.07, 'square', 0.1, 120); },
   flag()    { [660, 880].forEach((f, i) => this.tone(f, 0.09, 'square', 0.16, null, i * 0.07)); },
   fish()    { [520, 700, 920].forEach((f, i) => this.tone(f, 0.08, 'square', 0.14, null, i * 0.06)); },
@@ -743,9 +833,16 @@ M.save = {
   data: { best: 1, stars: {} },
   load() {
     try { const raw = localStorage.getItem(this.KEY); if (raw) this.data = Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
+    if (M.DIFFS[this.data.diff]) M.diff = this.data.diff;
     return this.data;
   },
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
+  setDiff(d) {
+    if (!M.DIFFS[d]) return;
+    M.diff = d;
+    this.data.diff = d;
+    this.store();
+  },
   record(no, stars) {
     this.data.stars[no] = Math.max(this.data.stars[no] || 0, stars);
     if (no + 1 > this.data.best) this.data.best = Math.min(10, no + 1);
@@ -759,7 +856,20 @@ M.ui = {
 
   init() {
     $('title-icon').src = M.ASSETS.mogu;
+    document.querySelectorAll('.diff-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        M.save.setDiff(btn.dataset.diff);
+        this.updateDiffBtns();
+      });
+    });
+    this.updateDiffBtns();
     this.refreshTitle();
+  },
+
+  updateDiffBtns() {
+    document.querySelectorAll('.diff-btn').forEach((btn) => {
+      btn.classList.toggle('selected', btn.dataset.diff === M.diff);
+    });
   },
 
   refreshTitle() {
@@ -821,7 +931,8 @@ function startStage(no) {
   M.Render.fx = [];
   mode = 'play';
   M.ui.hideAll();
-  M.ui.toast(`STAGE ${no} — ${st.stage.from} 출발! 목표 ${st.stage.to}`, 2.2);
+  M.ui.toast(`STAGE ${no} — ${st.stage.from} 출발! 목표 ${st.stage.to}` +
+    (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : ''), 2.2);
   M.audio.resume(); M.audio.meow();
 }
 
@@ -835,10 +946,11 @@ function handleEvents(evs) {
   for (const e of evs) {
     switch (e.type) {
       case 'jump': M.audio.jump(); break;
+      case 'flap': M.audio.flap(); break;
       case 'skid': M.audio.skid(); break;
       case 'flag': M.audio.flag(); break;
       case 'fish': M.audio.fish(); M.ui.toast('🐟 +300!', 0.9); break;
-      case 'crash': M.audio.crash(); M.ui.toast('꽈당!!', 1.0); break;
+      case 'crash': M.audio.crash(); M.ui.toast(e.seal ? '🦭 바다사자!!' : '꽈당!!', 1.0); break;
       case 'clear':
         M.audio.clear(e.stars);
         M.save.record(st.no, e.stars);
@@ -871,6 +983,11 @@ window.addEventListener('keydown', (e) => {
 
   if (mode === 'title') {
     if (k === 'Enter') startStage(M.save.data.best);
+    if (k === 'd' || k === 'D') {
+      const next = M.DIFF_ORDER[(M.DIFF_ORDER.indexOf(M.diff) + 1) % M.DIFF_ORDER.length];
+      M.save.setDiff(next);
+      M.ui.updateDiffBtns();
+    }
   } else if (mode === 'play') {
     if (k === 'Escape') { mode = 'pause'; M.ui.show('pause-screen'); }
     if (k === 'r' || k === 'R') startStage(st.no);

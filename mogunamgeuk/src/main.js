@@ -18,7 +18,8 @@ function startStage(no) {
   M.Render.fx = [];
   mode = 'play';
   M.ui.hideAll();
-  M.ui.toast(`STAGE ${no} — ${st.stage.from} 출발! 목표 ${st.stage.to}`, 2.2);
+  M.ui.toast(`STAGE ${no} — ${st.stage.from} 출발! 목표 ${st.stage.to}` +
+    (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : ''), 2.2);
   M.audio.resume(); M.audio.meow();
 }
 
@@ -32,10 +33,11 @@ function handleEvents(evs) {
   for (const e of evs) {
     switch (e.type) {
       case 'jump': M.audio.jump(); break;
+      case 'flap': M.audio.flap(); break;
       case 'skid': M.audio.skid(); break;
       case 'flag': M.audio.flag(); break;
       case 'fish': M.audio.fish(); M.ui.toast('🐟 +300!', 0.9); break;
-      case 'crash': M.audio.crash(); M.ui.toast('꽈당!!', 1.0); break;
+      case 'crash': M.audio.crash(); M.ui.toast(e.seal ? '🦭 바다사자!!' : '꽈당!!', 1.0); break;
       case 'clear':
         M.audio.clear(e.stars);
         M.save.record(st.no, e.stars);
@@ -68,6 +70,11 @@ window.addEventListener('keydown', (e) => {
 
   if (mode === 'title') {
     if (k === 'Enter') startStage(M.save.data.best);
+    if (k === 'd' || k === 'D') {
+      const next = M.DIFF_ORDER[(M.DIFF_ORDER.indexOf(M.diff) + 1) % M.DIFF_ORDER.length];
+      M.save.setDiff(next);
+      M.ui.updateDiffBtns();
+    }
   } else if (mode === 'play') {
     if (k === 'Escape') { mode = 'pause'; M.ui.show('pause-screen'); }
     if (k === 'r' || k === 'R') startStage(st.no);

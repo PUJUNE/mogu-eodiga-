@@ -146,5 +146,72 @@ const clean = (no) => {
     ea.length === eb.length);
 }
 
+// 10) 난이도: 속도 배율·밀도·바다사자 출현·결정성
+{
+  const mk = (d) => { M.diff = d; const s = M.makeStage(5); M.diff = 'normal'; return s; };
+  const n = mk('normal'), cz = mk('crazy'), ez = mk('easy');
+  check(`난이도 속도 배율 (이지 ${ez.maxSpd} < 노말 ${n.maxSpd} < 크레이지 ${cz.maxSpd})`,
+    ez.maxSpd < n.maxSpd && n.maxSpd < cz.maxSpd);
+  const haz = (s) => s.objs.filter((o) => o.type !== 'flag' && o.type !== 'fish').length;
+  check(`크레이지 장애물 밀도 증가 (${haz(n)} → ${haz(cz)})`, haz(cz) > haz(n));
+  const pops = (s) => s.objs.filter((o) => o.type === 'crev' && o.pop).length;
+  check(`크레이지 바다사자 출현 증가 (${pops(n)} → ${pops(cz)})`, pops(cz) >= pops(n) && pops(cz) > 0);
+  check('크레이지 제한시간 물리 가능', cz.time * cz.maxSpd >= cz.length * 1.25);
+  M.diff = 'crazy';
+  const a = M.makeStage(3), b = M.makeStage(3);
+  M.diff = 'normal';
+  check('난이도별 결정성', JSON.stringify(a.objs) === JSON.stringify(b.objs));
+}
+
+// 11) 점프 연타 호버: 체공 연장 + 상한
+{
+  const air = (flaps) => {
+    const st = clean(1);
+    let frames = 0, pressed = 0;
+    L.step(st, DT, { jump: true });
+    for (let i = 1; i < 600; i++) {
+      let inp = IDLE;
+      if (pressed < flaps && i % 12 === 0 && st.jumpT > 0) { inp = { jump: true }; pressed++; }
+      L.step(st, DT, inp);
+      if (L.jy(st) > 0) frames++;
+      if (st.jumpT <= 0 && i > 20) break;
+    }
+    return frames;
+  };
+  const single = air(0), triple = air(3), over = air(8);
+  check(`연타 호버 체공 연장 (${single} → ${triple} 프레임)`, triple > single + 30);
+  check(`연장 상한 ${L.FLAP_MAX}회 (연타 8회 = ${over} 프레임)`, over <= triple + 8);
+}
+
+// 12) 충돌 비틀거림: 미끄러지던 방향으로 탁탁탁 밀려남
+{
+  const st = clean(1);
+  st.stage.objs = [{ d: 200, x: 0, type: 'hole', w: 34 }];
+  st.dist = 170; st.x = 0; st.vx = 150;
+  run(st, 0.6);
+  check(`충돌 비틀 횡밀림 (x → ${st.x.toFixed(0)}, dir ${st.tumbleDir})`,
+    st.crashes === 1 && st.tumbleDir === 1 && st.x > 15);
+}
+
+// 13) 크레바스 바다사자: 점프+정면 → 충돌 / 점프+측면 → 통과
+{
+  const mk = (px, x0) => {
+    const st = clean(1);
+    run(st, 3, { up: true });
+    st.stage.objs = [{ d: st.dist + 60, x: 0, type: 'crev', w: M.TRACK_W, pop: true, px }];
+    st.x = x0;
+    const crevD = st.stage.objs[0].d;
+    let jumped = false;
+    const evs = [];
+    for (let i = 0; i < 600 && st.dist < crevD + 80; i++) {
+      const inJump = st.dist > crevD - 45 && !jumped ? (jumped = true) : false;
+      evs.push(...L.step(st, DT, { jump: inJump }));
+    }
+    return evs;
+  };
+  check('바다사자 정면 점프 → 충돌', mk(0, 0).some((e) => e.type === 'crash' && e.seal));
+  check('바다사자 측면 회피 → 통과', !mk(120, -60).some((e) => e.type === 'crash'));
+}
+
 console.log(fail === 0 ? '\n✅ 시뮬레이션 전체 통과' : `\n❌ 실패 ${fail}건`);
 process.exit(fail === 0 ? 0 : 1);

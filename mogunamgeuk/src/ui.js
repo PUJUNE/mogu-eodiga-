@@ -7,9 +7,16 @@ M.save = {
   data: { best: 1, stars: {} },
   load() {
     try { const raw = localStorage.getItem(this.KEY); if (raw) this.data = Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
+    if (M.DIFFS[this.data.diff]) M.diff = this.data.diff;
     return this.data;
   },
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
+  setDiff(d) {
+    if (!M.DIFFS[d]) return;
+    M.diff = d;
+    this.data.diff = d;
+    this.store();
+  },
   record(no, stars) {
     this.data.stars[no] = Math.max(this.data.stars[no] || 0, stars);
     if (no + 1 > this.data.best) this.data.best = Math.min(10, no + 1);
@@ -23,7 +30,20 @@ M.ui = {
 
   init() {
     $('title-icon').src = M.ASSETS.mogu;
+    document.querySelectorAll('.diff-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        M.save.setDiff(btn.dataset.diff);
+        this.updateDiffBtns();
+      });
+    });
+    this.updateDiffBtns();
     this.refreshTitle();
+  },
+
+  updateDiffBtns() {
+    document.querySelectorAll('.diff-btn').forEach((btn) => {
+      btn.classList.toggle('selected', btn.dataset.diff === M.diff);
+    });
   },
 
   refreshTitle() {
