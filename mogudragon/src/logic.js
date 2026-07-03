@@ -16,7 +16,26 @@ function mkFighter(kind, opt) {
 }
 
 M.Logic = {
-  create(mission) {
+  LV_MAX: 10,
+  expNeed(lv) { return 100 + (lv - 1) * 80; },      // 해당 레벨 → 다음 레벨 필요 경험치
+  atkMul(lv) { return 1 + 0.1 * (lv - 1); },
+
+  _gainExp(st, n, ev) {
+    st.exp += n;
+    if (st.lv >= this.LV_MAX) return;
+    st.expInto += n;
+    while (st.lv < this.LV_MAX && st.expInto >= this.expNeed(st.lv)) {
+      st.expInto -= this.expNeed(st.lv);
+      st.lv++;
+      st.p.maxHp = 100 + 8 * (st.lv - 1);
+      st.b.maxHp = 80 + 6 * (st.lv - 1);
+      st.p.hp = Math.min(st.p.maxHp, st.p.hp + 20);
+      if (st.b.hp > 0) st.b.hp = Math.min(st.b.maxHp, st.b.hp + 15);
+      ev.push({ type: 'levelup', lv: st.lv });
+    }
+  },
+
+  create(mission, exp0) {
     const stage = M.makeStage(mission);
     const st = {
       stage, mission, phase: 'play', t: 0, clearT: 0,
@@ -26,7 +45,12 @@ M.Logic = {
       enemies: [], items: [],
       secIdx: 0, waveIdx: -1, go: false, bossSpawned: false,
       score: 0, deaths: 0, buddyDowns: 0, stars: 0,
+      exp: 0, lv: 1, expInto: 0,
     };
+    if (exp0 > 0) {                              // 세이브 경험치 시딩 (이어하기 성장 유지)
+      this._gainExp(st, exp0, []);
+      st.p.hp = st.p.maxHp; st.b.hp = st.b.maxHp;
+    }
     this._startWave(st, 0, 0);
     return st;
   },
@@ -123,7 +147,8 @@ M.Logic = {
     f.hitDone = true;
     const jump = f.jy > 0;
     const third = f.combo === 3;
-    const dmg = jump ? 12 : third ? 13 : f.dmg;
+    const lvMul = (f.kind === 'p' || f.kind === 'b') ? this.atkMul(st.lv) : 1;
+    const dmg = Math.round((jump ? 12 : third ? 13 : f.dmg) * lvMul);
     this._applyHit(st, f, targets, ev, { dmg, kd: jump || third });
   },
 
@@ -225,6 +250,7 @@ M.Logic = {
         e.counted = true;
         st.score += e.score || 100;
         ev.push({ type: 'edown', name: e.name, score: e.score || 100 });
+        this._gainExp(st, Math.round((e.score || 100) / 10), ev);
         if (st.rng.chance(st.stage.churP)) {
           st.items.push({ x: e.x, z: e.z, ttl: 10 });
           ev.push({ type: 'chur' });

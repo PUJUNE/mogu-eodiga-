@@ -199,6 +199,39 @@ const spawn = (st, x, z, hp = 24) => {
   check('화살 명중 → 피격', evs.some((v) => v.type === 'arrowhit' && v.who === 'p') && st.p.hp < st.p.maxHp);
 }
 
+// LV) 레벨업 시스템: 처치 경험치 → 레벨업(공격력·HP 상승·회복) → 시딩 유지
+{
+  const st = arena();
+  const e1 = spawn(st, st.p.x + 26, st.p.z, 6);
+  st.p.face = 1;
+  run(st, 0.3, { atk: true });
+  run(st, 1.3);                                  // 다운 → 사망 → edown 집계
+  check(`처치 → 경험치 획득 (exp ${st.exp})`, st.exp > 0);
+
+  const st2 = arena();
+  const evs = [];
+  L._gainExp(st2, 100, evs);                     // Lv1 필요치 = 100
+  check(`경험치 100 → 레벨업 이벤트 (Lv.${st2.lv}, maxHp ${st2.p.maxHp})`,
+    evs.some((v) => v.type === 'levelup' && v.lv === 2) && st2.lv === 2 &&
+    st2.p.maxHp === 108 && st2.b.maxHp === 86);
+
+  // 공격력 상승: 같은 적을 Lv1 vs Lv5로 타격해 잔여 HP 비교
+  const hitHp = (lv) => {
+    const s = arena();
+    s.lv = lv;
+    const e = spawn(s, s.p.x + 26, s.p.z, 100);
+    s.p.face = 1;
+    run(s, 0.3, { atk: true });
+    return e.hp;
+  };
+  const h1 = hitHp(1), h5 = hitHp(5);
+  check(`레벨 공격력 반영 (Lv1 잔여 ${h1} > Lv5 잔여 ${h5})`, h5 < h1);
+
+  const st3 = L.create(1, 500);                  // 시딩: 100+180+260 = 540 > 500 → Lv.3~4
+  check(`세이브 경험치 시딩 (exp 500 → Lv.${st3.lv}, 풀피)`,
+    st3.lv >= 3 && st3.p.hp === st3.p.maxHp && st3.exp === 500);
+}
+
 // 11) 결정성
 {
   const a = L.create(2), b = L.create(2);

@@ -4,12 +4,13 @@ const $ = (id) => document.getElementById(id);
 
 M.save = {
   KEY: 'mogusamguk-save-v1',
-  data: { best: 1, stars: {} },
+  data: { best: 1, stars: {}, exp: 0 },
   load() {
     try { const raw = localStorage.getItem(this.KEY); if (raw) this.data = Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
     return this.data;
   },
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
+  setExp(exp) { this.data.exp = Math.max(this.data.exp || 0, exp); this.store(); },
   record(no, stars) {
     this.data.stars[no] = Math.max(this.data.stars[no] || 0, stars);
     if (no + 1 > this.data.best) this.data.best = Math.min(5, no + 1);

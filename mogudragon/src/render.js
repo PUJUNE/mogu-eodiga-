@@ -317,6 +317,21 @@ M.Render = {
     const c = this.ctx;
     this.portraitBar(10, 8, 120, st.p.hp / st.p.maxHp, '#58c85c', 'mogu');
     this.portraitBar(10, 32, 92, Math.max(0, st.b.hp) / st.b.maxHp, '#ffd83d', 'chick');
+    // 레벨 배지 + 경험치 게이지
+    c.font = 'bold 9px sans-serif'; c.textAlign = 'left';
+    c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 3;
+    c.strokeText(`Lv.${st.lv}`, 10, 61);
+    c.fillStyle = '#ffd83d';
+    c.fillText(`Lv.${st.lv}`, 10, 61);
+    if (st.lv < M.Logic.LV_MAX) {
+      c.fillStyle = 'rgba(0,0,0,.5)';
+      c.fillRect(38, 55, 52, 5);
+      c.fillStyle = '#b07dff';
+      c.fillRect(39, 56, 50 * Math.min(1, st.expInto / M.Logic.expNeed(st.lv)), 3);
+    } else {
+      c.fillStyle = '#b07dff';
+      c.fillText('MAX', 38, 61);
+    }
     const boss = st.enemies.find((e) => e.boss && M.Logic.alive(e));
     if (boss) {
       c.fillStyle = 'rgba(0,0,0,.5)';

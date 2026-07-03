@@ -58,6 +58,7 @@ const A = {
   clear(n)  { const seq = n >= 3 ? [523, 659, 784, 1047, 1319] : [523, 659, 784, 1047];
               seq.forEach((f, i) => this.tone(f, 0.16, 'square', 0.18, null, i * 0.1)); },
   over()    { [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.26, 'triangle', 0.2, null, i * 0.2)); },
+  levelup() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.1, 'square', 0.16, null, i * 0.07)); },
   meow()    { this.tone(700, 0.28, 'sawtooth', 0.1, 420); },
   cluck()   { [620, 780, 620].forEach((f, i) => this.tone(f, 0.07, 'square', 0.12, null, i * 0.07)); },
 };

@@ -14,7 +14,7 @@ M.Render.init(document.getElementById('game'));
 M.ui.show('title-screen');
 
 function startMission(no) {
-  st = M.Logic.create(no);
+  st = M.Logic.create(no, M.save.data.exp || 0);
   M.Render.fx = [];
   M.Render.camX = 0;
   mode = 'play';
@@ -43,6 +43,11 @@ function handleEvents(evs) {
         M.Render.addSpark(e.x, M.Render.sy(e.z, 20), e.kd);
         break;
       case 'kd': M.audio.kd(); break;
+      case 'levelup':
+        M.audio.levelup();
+        M.ui.toast(`⬆ LEVEL UP! Lv.${e.lv} — 공격력·체력 상승!`, 1.8);
+        M.save.setExp(st.exp);
+        break;
       case 'edown': M.audio.edown(); break;
       case 'chur': break;
       case 'pickup': M.audio.pickup(); M.ui.toast('🍡 츄르! +30', 1.2); break;
@@ -53,6 +58,7 @@ function handleEvents(evs) {
       case 'buddydown': M.ui.toast('꼬꼬가 쓰러졌다…!', 1.6); break;
       case 'buddyup': M.audio.buddyup(); M.audio.cluck(); M.ui.toast('🐔 꼬꼬 부활!', 1.4); break;
       case 'clear':
+        M.save.setExp(st.exp);
         M.audio.clear(e.stars);
         M.save.record(st.mission, e.stars);
         setTimeout(() => { if (mode === 'play') { mode = 'win'; M.ui.showWin(st); } }, 1400);
@@ -110,7 +116,7 @@ window.addEventListener('keyup', (e) => {
 });
 
 $('btn-continue').onclick = () => startMission(M.save.data.best);
-$('btn-new').onclick = () => startMission(1);
+$('btn-new').onclick = () => { M.save.data.exp = 0; M.save.store(); startMission(1); };
 $('btn-series').onclick = () => {
   location.href = location.pathname.includes('/mogudragon/') ? '../index.html' : 'index.html';
 };
@@ -166,7 +172,7 @@ M._dbg = () => ({
   p: st ? { x: +st.p.x.toFixed(1), z: +st.p.z.toFixed(1), hp: st.p.hp, state: st.p.state } : null,
   b: st ? { hp: st.b.hp, state: st.b.state } : null,
   enemies: st ? st.enemies.filter((e) => M.Logic.alive(e)).length : 0,
-  score: st ? st.score : 0, stars: st ? st.stars : 0, deaths: st ? st.deaths : 0,
+  score: st ? st.score : 0, lv: st ? st.lv : 1, exp: st ? st.exp : 0, stars: st ? st.stars : 0, deaths: st ? st.deaths : 0,
 });
 M._st = () => st;
 
