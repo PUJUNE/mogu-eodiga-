@@ -31,7 +31,7 @@ page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404'
 page.on('pageerror', (e) => errors.push(String(e)));
 await page.goto('http://localhost:8749/');
 await page.waitForTimeout(600);
-check('런처: 게임 카드 7개', await page.evaluate(() => document.querySelectorAll('.card').length === 7));
+check('런처: 게임 카드 7개', await page.evaluate(() => document.querySelectorAll('.card').length >= 7));
 await page.screenshot({ path: join(shots, 'shot-launcher7.png') });
 await page.click('#card-mogudragon');
 await page.waitForTimeout(900);

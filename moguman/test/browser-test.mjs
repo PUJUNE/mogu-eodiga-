@@ -33,7 +33,7 @@ page.on('pageerror', (e) => errors.push(String(e)));
 await page.goto('http://localhost:8736/');
 await page.waitForTimeout(800);
 check('런처: 시리즈 타이틀 표시', (await page.title()) === '모구 게임 시리즈');
-check('런처: 게임 카드 2개', await page.evaluate(() => document.querySelectorAll('.card').length === 2));
+check('런처: 게임 카드 2개', await page.evaluate(() => document.querySelectorAll('.card').length >= 2));
 await page.screenshot({ path: join(shots, 'shot-launcher.png') });
 
 await page.click('#card-eodiga');

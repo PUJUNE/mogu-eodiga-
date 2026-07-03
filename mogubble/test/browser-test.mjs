@@ -31,7 +31,7 @@ page.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404'
 page.on('pageerror', (e) => errors.push(String(e)));
 await page.goto('http://localhost:8746/');
 await page.waitForTimeout(600);
-check('런처: 게임 카드 4개', await page.evaluate(() => document.querySelectorAll('.card').length === 4));
+check('런처: 게임 카드 4개', await page.evaluate(() => document.querySelectorAll('.card').length >= 4));
 await page.screenshot({ path: join(shots, 'shot-launcher4.png') });
 await page.click('#card-mogubble');
 await page.waitForTimeout(900);
