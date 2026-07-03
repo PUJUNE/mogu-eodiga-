@@ -67,9 +67,12 @@
     display:flex; align-items:center; justify-content:center;
     touch-action:none; user-select:none; text-shadow:0 2px 3px rgba(0,0,0,.5); }
   .vbtn.pressed { background:rgba(255,255,255,.38); border-color:#ffd83d; }
-  #vbtn-left  { left:calc(16px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
-  #vbtn-right { left:calc(108px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
-  #vbtn-fire  { right:calc(18px + env(safe-area-inset-right)); bottom:calc(22px + env(safe-area-inset-bottom)); width:88px; height:88px; font-size:30px; }
+  .vbtn { width:66px; height:66px; font-size:22px; }
+  #vbtn-left  { left:calc(14px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #vbtn-right { left:calc(92px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #vbtn-up    { right:calc(104px + env(safe-area-inset-right)); bottom:calc(96px + env(safe-area-inset-bottom)); }
+  #vbtn-down  { right:calc(104px + env(safe-area-inset-right)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #vbtn-fire  { right:calc(14px + env(safe-area-inset-right)); bottom:calc(48px + env(safe-area-inset-bottom)); width:84px; height:84px; font-size:30px; }
   #vbtn-pause { right:calc(12px + env(safe-area-inset-right)); top:calc(10px + env(safe-area-inset-top));
     width:44px; height:44px; font-size:17px; border-radius:12px; }
 </style>
@@ -91,7 +94,7 @@
       <button class="btn" id="btn-new">처음부터</button>
     </div>
     <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
-    <div id="title-hint">←→ 포신 각도 · Space 꾹 = 파워 충전 → 놓으면 발사 뻥!<br>턴마다 바뀌는 바람을 읽고 12명의 포병을 격파하라!</div>
+    <div id="title-hint">←→ 이동(연료) · ↑↓ 포신 각도 · Space 꾹 = 파워 → 놓으면 발사 뻥!<br>턴마다 바뀌는 바람을 읽고 12명의 포병을 격파하라!</div>
   </div>
 
   <div id="win-screen" class="screen hidden">
@@ -130,6 +133,8 @@
   <div id="vpad">
     <div class="vbtn" id="vbtn-left">◀</div>
     <div class="vbtn" id="vbtn-right">▶</div>
+    <div class="vbtn" id="vbtn-up">▲</div>
+    <div class="vbtn" id="vbtn-down">▼</div>
     <div class="vbtn" id="vbtn-fire">🔥</div>
     <div class="vbtn" id="vbtn-pause">⏸</div>
   </div>
@@ -244,6 +249,9 @@ const WIND_ACC = 9;              // 바람 1당 수평 가속
 const POWER_RATE = 62;           // 파워 게이지 상승 속도 (/s)
 const V_MAX = 330;               // 파워 100 발사 속도
 const CRATER_R = 26;
+const FUEL_MAX = 100;            // 턴당 이동 연료 (px)
+const MOVE_SPD = 44;             // 이동 속도 (px/s)
+const SLOPE_MAX = 10;            // 오를 수 있는 경사 (컬럼당 px)
 const DMG_R = 42;
 
 M.Logic = {
@@ -257,6 +265,7 @@ M.Logic = {
       e: { col: stage.eCol, hp: stage.enemy.hp, maxHp: stage.enemy.hp, angle: 120, face: -1 },
       turn: 0,                                   // 0 = 플레이어
       wind: 0, power: 0, wasCharging: false,
+      fuel: FUEL_MAX, eMoved: false,
       proj: null, effectT: 0, enemyThinkT: 0,
       shots: 0, hitsTaken: 0, stars: 0, lastShot: null,
     };
@@ -267,7 +276,34 @@ M.Logic = {
   _newWind(st) { st.wind = Math.round(st.rng.range(-6, 6) * 10) / 10; },
 
   tankX(st, who) { return who.col * M.TCOL + M.TCOL / 2; },
-  tankY(st, who) { return st.terrain[who.col]; },
+  tankY(st, who) { return st.terrain[Math.round(who.col)]; },
+
+  // 이동: 연료 소모 + 경사 차단. 성공 시 이동한 px 반환
+  moveTank(st, who, dir, dt, lo, hi) {
+    if (st.fuel <= 0) return 0;
+    const px = Math.min(MOVE_SPD * dt, st.fuel);
+    const from = Math.round(who.col);
+    let colF = who.col + (dir * px) / M.TCOL;
+    colF = Math.max(lo, Math.min(hi, colF));
+    const to = Math.round(colF);
+    // 경사 검사 (한 컬럼씩)
+    const stepDir = Math.sign(to - from);
+    let cur = from;
+    while (cur !== to) {
+      const nxt = cur + stepDir;
+      if (Math.abs(st.terrain[nxt] - st.terrain[cur]) > SLOPE_MAX) {
+        colF = cur;                            // 경사에 막힘
+        break;
+      }
+      cur = nxt;
+    }
+    const moved = Math.abs(colF - who.col) * M.TCOL;
+    if (moved > 0.01) {
+      who.col = colF;
+      st.fuel -= moved;
+    }
+    return moved;
+  },
 
   // 발사 (who: st.p 또는 st.e)
   _fire(st, who, angle, power, ev) {
@@ -335,6 +371,7 @@ M.Logic = {
     st.turn = 1 - st.turn;
     this._newWind(st);
     ev.push({ type: 'turn', turn: st.turn, wind: st.wind });
+    st.fuel = FUEL_MAX; st.eMoved = false;
     if (st.turn === 0) { st.phase = 'aim'; st.power = 0; st.wasCharging = false; }
     else { st.phase = 'enemy'; st.enemyThinkT = 0; }
   },
@@ -370,9 +407,14 @@ M.Logic = {
     if (st.phase === 'win' || st.phase === 'over') { st.endT += dt; return ev; }
 
     if (st.phase === 'aim' || st.phase === 'charge') {
-      // 각도 조절 (10°~170°)
-      if (input.left) st.p.angle = Math.min(170, st.p.angle + 55 * dt);
-      if (input.right) st.p.angle = Math.max(10, st.p.angle - 55 * dt);
+      // 각도 조절 (↑↓, 10°~170°)
+      if (input.up) st.p.angle = Math.min(170, st.p.angle + 55 * dt);
+      if (input.down) st.p.angle = Math.max(10, st.p.angle - 55 * dt);
+      // 이동 (←→, 조준 중에만 — 충전 중 불가, 연료·경사 제한)
+      if (st.phase === 'aim' && !input.charge && (input.left || input.right)) {
+        const moved = this.moveTank(st, st.p, input.right ? 1 : -1, dt, 5, Math.floor(M.NCOL * 0.46));
+        if (moved > 0) ev.push({ type: 'move' });
+      }
       // 파워: 꾹 → 충전, 놓으면 발사
       if (input.charge) {
         st.phase = 'charge';
@@ -389,7 +431,21 @@ M.Logic = {
 
     } else if (st.phase === 'enemy') {
       st.enemyThinkT += dt;
-      if (st.enemyThinkT > 1.1) {
+      // 사격 전 이동 (턴당 1회, 시드 결정적 목표로 슬라이드)
+      if (!st.eMoved) {
+        if (st.eMoveTarget === undefined || st.eMoveTarget === null) {
+          st.eMoveTarget = Math.max(Math.ceil(M.NCOL * 0.54), Math.min(M.NCOL - 5,
+            Math.round(st.e.col) + st.rng.int(-13, 13)));
+        }
+        const dir = Math.sign(st.eMoveTarget - st.e.col);
+        if (dir === 0 || Math.abs(st.eMoveTarget - st.e.col) < 0.4 || st.fuel <= 0) {
+          st.eMoved = true; st.eMoveTarget = null;
+        } else {
+          const moved = this.moveTank(st, st.e, dir, dt, Math.ceil(M.NCOL * 0.54), M.NCOL - 5);
+          if (moved <= 0.01) { st.eMoved = true; st.eMoveTarget = null; }
+        }
+      }
+      if (st.enemyThinkT > 1.1 && st.eMoved) {
         const shot = this._aiShot(st);
         st.e.angle = shot.angle;
         this._fire(st, st.e, shot.angle, shot.power, ev);
@@ -426,6 +482,7 @@ M.Logic = {
           st.turn = 1 - st.turn;
           this._newWind(st);
           ev.push({ type: 'turn', turn: st.turn, wind: st.wind });
+          st.fuel = FUEL_MAX; st.eMoved = false;
           if (st.turn === 0) { st.phase = 'aim'; st.power = 0; st.wasCharging = false; }
           else { st.phase = 'enemy'; st.enemyThinkT = 0; }
           return ev;
@@ -647,6 +704,11 @@ M.Render = {
       c.strokeRect(x - 26, y - 52, 52, 7);
       c.font = 'bold 9px sans-serif'; c.textAlign = 'center'; c.fillStyle = '#fff';
       c.fillText(`${Math.round(who.angle)}°`, x, y - 56);
+      // 연료 게이지
+      c.fillStyle = 'rgba(0,0,0,.5)';
+      c.fillRect(x - 26, y - 43, 52, 4);
+      c.fillStyle = '#5db8ff';
+      c.fillRect(x - 25, y - 42.5, 50 * Math.max(0, st.fuel / 100), 3);
     }
   },
 
@@ -850,7 +912,7 @@ const $ = (id) => document.getElementById(id);
 
 let mode = 'title';            // title | play | pause | win | over | ending
 let st = null;
-const held = { left: false, right: false, charge: false };
+const held = { left: false, right: false, up: false, down: false, charge: false };
 let overCount = 10, overAcc = 0, chargeTick = 0;
 
 M.save.load();
@@ -907,9 +969,11 @@ function handleEvents(evs) {
 window.addEventListener('keydown', (e) => {
   M.audio.resume();
   const k = e.key;
-  if ([' ', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
+  if ([' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(k)) e.preventDefault();
   if (k === 'ArrowLeft') held.left = true;
   if (k === 'ArrowRight') held.right = true;
+  if (k === 'ArrowUp') held.up = true;
+  if (k === 'ArrowDown') held.down = true;
   if (k === ' ' && mode === 'play') held.charge = true;
 
   if (mode === 'title') {
@@ -933,6 +997,8 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowLeft') held.left = false;
   if (e.key === 'ArrowRight') held.right = false;
+  if (e.key === 'ArrowUp') held.up = false;
+  if (e.key === 'ArrowDown') held.down = false;
   if (e.key === ' ') held.charge = false;
 });
 
@@ -955,7 +1021,7 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 const vpad = document.getElementById('vpad');
 if (isTouch) {
   document.body.classList.add('touch');
-  $('title-hint').textContent = '◀▶ 각도 · 🔥 꾹 눌러 파워 → 놓으면 발사! 바람을 읽어라';
+  $('title-hint').textContent = '◀▶ 이동 · ▲▼ 각도 · 🔥 꾹 눌러 파워 → 놓으면 발사!';
   const bindHold = (id, on, off) => {
     const el = document.getElementById(id);
     const setOn = (e) => { e.preventDefault(); M.audio.resume(); on(); el.classList.add('pressed'); };
@@ -967,6 +1033,8 @@ if (isTouch) {
   };
   bindHold('vbtn-left', () => { held.left = true; }, () => { held.left = false; });
   bindHold('vbtn-right', () => { held.right = true; }, () => { held.right = false; });
+  bindHold('vbtn-up', () => { held.up = true; }, () => { held.up = false; });
+  bindHold('vbtn-down', () => { held.down = true; }, () => { held.down = false; });
   bindHold('vbtn-fire', () => { if (mode === 'play') held.charge = true; }, () => { held.charge = false; });
   document.getElementById('vbtn-pause').addEventListener('pointerdown', (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -987,6 +1055,7 @@ M._dbg = () => ({
   mode, no: st ? st.no : 0, phase: st ? st.phase : null,
   pHp: st ? st.p.hp : 0, eHp: st ? st.e.hp : 0,
   angle: st ? +st.p.angle.toFixed(1) : 0, power: st ? +st.power.toFixed(1) : 0,
+  col: st ? +st.p.col.toFixed(1) : 0, fuel: st ? +st.fuel.toFixed(0) : 0,
   wind: st ? st.wind : 0, turn: st ? st.turn : 0,
   proj: st && st.proj ? { x: +st.proj.x.toFixed(1), y: +st.proj.y.toFixed(1) } : null,
   stars: st ? st.stars : 0,
@@ -1002,7 +1071,7 @@ function frame(now) {
   if (isTouch) vpad.classList.toggle('on', mode === 'play');
 
   if (mode === 'play' && st) {
-    handleEvents(M.Logic.step(st, dt, { left: held.left, right: held.right, charge: held.charge }));
+    handleEvents(M.Logic.step(st, dt, { left: held.left, right: held.right, up: held.up, down: held.down, charge: held.charge }));
     if (st.phase === 'charge') {
       chargeTick += dt;
       if (chargeTick > 0.09) { chargeTick = 0; M.audio.charge(); }

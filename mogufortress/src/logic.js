@@ -6,6 +6,9 @@ const WIND_ACC = 9;              // 바람 1당 수평 가속
 const POWER_RATE = 62;           // 파워 게이지 상승 속도 (/s)
 const V_MAX = 330;               // 파워 100 발사 속도
 const CRATER_R = 26;
+const FUEL_MAX = 100;            // 턴당 이동 연료 (px)
+const MOVE_SPD = 44;             // 이동 속도 (px/s)
+const SLOPE_MAX = 10;            // 오를 수 있는 경사 (컬럼당 px)
 const DMG_R = 42;
 
 M.Logic = {
@@ -19,6 +22,7 @@ M.Logic = {
       e: { col: stage.eCol, hp: stage.enemy.hp, maxHp: stage.enemy.hp, angle: 120, face: -1 },
       turn: 0,                                   // 0 = 플레이어
       wind: 0, power: 0, wasCharging: false,
+      fuel: FUEL_MAX, eMoved: false,
       proj: null, effectT: 0, enemyThinkT: 0,
       shots: 0, hitsTaken: 0, stars: 0, lastShot: null,
     };
@@ -29,7 +33,34 @@ M.Logic = {
   _newWind(st) { st.wind = Math.round(st.rng.range(-6, 6) * 10) / 10; },
 
   tankX(st, who) { return who.col * M.TCOL + M.TCOL / 2; },
-  tankY(st, who) { return st.terrain[who.col]; },
+  tankY(st, who) { return st.terrain[Math.round(who.col)]; },
+
+  // 이동: 연료 소모 + 경사 차단. 성공 시 이동한 px 반환
+  moveTank(st, who, dir, dt, lo, hi) {
+    if (st.fuel <= 0) return 0;
+    const px = Math.min(MOVE_SPD * dt, st.fuel);
+    const from = Math.round(who.col);
+    let colF = who.col + (dir * px) / M.TCOL;
+    colF = Math.max(lo, Math.min(hi, colF));
+    const to = Math.round(colF);
+    // 경사 검사 (한 컬럼씩)
+    const stepDir = Math.sign(to - from);
+    let cur = from;
+    while (cur !== to) {
+      const nxt = cur + stepDir;
+      if (Math.abs(st.terrain[nxt] - st.terrain[cur]) > SLOPE_MAX) {
+        colF = cur;                            // 경사에 막힘
+        break;
+      }
+      cur = nxt;
+    }
+    const moved = Math.abs(colF - who.col) * M.TCOL;
+    if (moved > 0.01) {
+      who.col = colF;
+      st.fuel -= moved;
+    }
+    return moved;
+  },
 
   // 발사 (who: st.p 또는 st.e)
   _fire(st, who, angle, power, ev) {
@@ -97,6 +128,7 @@ M.Logic = {
     st.turn = 1 - st.turn;
     this._newWind(st);
     ev.push({ type: 'turn', turn: st.turn, wind: st.wind });
+    st.fuel = FUEL_MAX; st.eMoved = false;
     if (st.turn === 0) { st.phase = 'aim'; st.power = 0; st.wasCharging = false; }
     else { st.phase = 'enemy'; st.enemyThinkT = 0; }
   },
@@ -132,9 +164,14 @@ M.Logic = {
     if (st.phase === 'win' || st.phase === 'over') { st.endT += dt; return ev; }
 
     if (st.phase === 'aim' || st.phase === 'charge') {
-      // 각도 조절 (10°~170°)
-      if (input.left) st.p.angle = Math.min(170, st.p.angle + 55 * dt);
-      if (input.right) st.p.angle = Math.max(10, st.p.angle - 55 * dt);
+      // 각도 조절 (↑↓, 10°~170°)
+      if (input.up) st.p.angle = Math.min(170, st.p.angle + 55 * dt);
+      if (input.down) st.p.angle = Math.max(10, st.p.angle - 55 * dt);
+      // 이동 (←→, 조준 중에만 — 충전 중 불가, 연료·경사 제한)
+      if (st.phase === 'aim' && !input.charge && (input.left || input.right)) {
+        const moved = this.moveTank(st, st.p, input.right ? 1 : -1, dt, 5, Math.floor(M.NCOL * 0.46));
+        if (moved > 0) ev.push({ type: 'move' });
+      }
       // 파워: 꾹 → 충전, 놓으면 발사
       if (input.charge) {
         st.phase = 'charge';
@@ -151,7 +188,21 @@ M.Logic = {
 
     } else if (st.phase === 'enemy') {
       st.enemyThinkT += dt;
-      if (st.enemyThinkT > 1.1) {
+      // 사격 전 이동 (턴당 1회, 시드 결정적 목표로 슬라이드)
+      if (!st.eMoved) {
+        if (st.eMoveTarget === undefined || st.eMoveTarget === null) {
+          st.eMoveTarget = Math.max(Math.ceil(M.NCOL * 0.54), Math.min(M.NCOL - 5,
+            Math.round(st.e.col) + st.rng.int(-13, 13)));
+        }
+        const dir = Math.sign(st.eMoveTarget - st.e.col);
+        if (dir === 0 || Math.abs(st.eMoveTarget - st.e.col) < 0.4 || st.fuel <= 0) {
+          st.eMoved = true; st.eMoveTarget = null;
+        } else {
+          const moved = this.moveTank(st, st.e, dir, dt, Math.ceil(M.NCOL * 0.54), M.NCOL - 5);
+          if (moved <= 0.01) { st.eMoved = true; st.eMoveTarget = null; }
+        }
+      }
+      if (st.enemyThinkT > 1.1 && st.eMoved) {
         const shot = this._aiShot(st);
         st.e.angle = shot.angle;
         this._fire(st, st.e, shot.angle, shot.power, ev);
@@ -188,6 +239,7 @@ M.Logic = {
           st.turn = 1 - st.turn;
           this._newWind(st);
           ev.push({ type: 'turn', turn: st.turn, wind: st.wind });
+          st.fuel = FUEL_MAX; st.eMoved = false;
           if (st.turn === 0) { st.phase = 'aim'; st.power = 0; st.wasCharging = false; }
           else { st.phase = 'enemy'; st.enemyThinkT = 0; }
           return ev;

@@ -67,9 +67,12 @@
     display:flex; align-items:center; justify-content:center;
     touch-action:none; user-select:none; text-shadow:0 2px 3px rgba(0,0,0,.5); }
   .vbtn.pressed { background:rgba(255,255,255,.38); border-color:#ffd83d; }
-  #vbtn-left  { left:calc(16px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
-  #vbtn-right { left:calc(108px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
-  #vbtn-fire  { right:calc(18px + env(safe-area-inset-right)); bottom:calc(22px + env(safe-area-inset-bottom)); width:88px; height:88px; font-size:30px; }
+  .vbtn { width:66px; height:66px; font-size:22px; }
+  #vbtn-left  { left:calc(14px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #vbtn-right { left:calc(92px + env(safe-area-inset-left)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #vbtn-up    { right:calc(104px + env(safe-area-inset-right)); bottom:calc(96px + env(safe-area-inset-bottom)); }
+  #vbtn-down  { right:calc(104px + env(safe-area-inset-right)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #vbtn-fire  { right:calc(14px + env(safe-area-inset-right)); bottom:calc(48px + env(safe-area-inset-bottom)); width:84px; height:84px; font-size:30px; }
   #vbtn-pause { right:calc(12px + env(safe-area-inset-right)); top:calc(10px + env(safe-area-inset-top));
     width:44px; height:44px; font-size:17px; border-radius:12px; }
 </style>
@@ -91,7 +94,7 @@
       <button class="btn" id="btn-new">처음부터</button>
     </div>
     <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
-    <div id="title-hint">←→ 포신 각도 · Space 꾹 = 파워 충전 → 놓으면 발사 뻥!<br>턴마다 바뀌는 바람을 읽고 12명의 포병을 격파하라!</div>
+    <div id="title-hint">←→ 이동(연료) · ↑↓ 포신 각도 · Space 꾹 = 파워 → 놓으면 발사 뻥!<br>턴마다 바뀌는 바람을 읽고 12명의 포병을 격파하라!</div>
   </div>
 
   <div id="win-screen" class="screen hidden">
@@ -130,6 +133,8 @@
   <div id="vpad">
     <div class="vbtn" id="vbtn-left">◀</div>
     <div class="vbtn" id="vbtn-right">▶</div>
+    <div class="vbtn" id="vbtn-up">▲</div>
+    <div class="vbtn" id="vbtn-down">▼</div>
     <div class="vbtn" id="vbtn-fire">🔥</div>
     <div class="vbtn" id="vbtn-pause">⏸</div>
   </div>

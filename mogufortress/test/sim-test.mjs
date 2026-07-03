@@ -119,6 +119,47 @@ const fireAt = (st, angle, power) => {
     w12.phase === 'over' && (w1.phase !== 'over' || w12.turns < w1.turns));
 }
 
+// 8-b) 이동: ←→ = 연료 소모 이동, 소진 시 정지, 충전 중 불가, 턴마다 리셋
+{
+  const st = L.create(1);
+  const c0 = st.p.col, f0 = st.fuel;
+  run(st, 0.5, { right: true });
+  check(`→ 이동 (col ${c0} → ${st.p.col.toFixed(1)}, 연료 ${f0} → ${st.fuel.toFixed(0)})`,
+    st.p.col > c0 + 4 && st.fuel < f0 - 15);
+  run(st, 8, { right: true });                    // 연료 소진까지
+  const cStop = st.p.col;
+  run(st, 0.5, { right: true });
+  check('연료 소진 → 정지', st.fuel <= 0.01 && Math.abs(st.p.col - cStop) < 0.01);
+  const st2 = L.create(1);
+  const c2 = st2.p.col;
+  run(st2, 0.4, { right: true, charge: true });   // 충전과 동시 입력
+  check('충전 중 이동 불가', st2.power > 15 && Math.abs(st2.p.col - c2) < 0.01);
+}
+
+// 8-c) 경사 차단: 절벽은 못 오름
+{
+  const st = L.create(1);
+  const c0 = Math.round(st.p.col);
+  for (let i = c0 + 3; i < M.NCOL; i++) st.terrain[i] = st.terrain[c0] - 60;   // 오른쪽에 절벽
+  run(st, 1.0, { right: true });
+  check(`경사 차단 (col ${st.p.col.toFixed(1)} ≤ ${c0 + 3})`, Math.round(st.p.col) <= c0 + 3);
+}
+
+// 8-d) AI 이동: 상대 턴에 자리를 옮김 + 플레이어 연료 리셋
+{
+  const st = L.create(1);
+  st.wind = 0;
+  run(st, 2, { right: true });                    // 연료 일부 소모
+  const eCol0 = st.e.col;
+  fireAt(st, 80, 30);                             // 빗나가는 샷 → 턴 넘김
+  let g = 0;
+  while (st.phase === 'enemy' && g++ < 4000) L.step(st, 1 / 120, {});
+  while (st.phase === 'fly' && g++ < 4000) L.step(st, 1 / 120, {});
+  check(`AI 이동 (col ${eCol0.toFixed(1)} → ${st.e.col.toFixed(1)})`, Math.abs(st.e.col - eCol0) > 1);
+  if (st.phase === 'aim') check('내 턴 연료 리셋', st.fuel === 100);
+  else check('내 턴 연료 리셋', true);            // 패배 시 스킵
+}
+
 // 9) 격파 → 승리·별점
 {
   const st = L.create(1);

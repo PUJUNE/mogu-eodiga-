@@ -195,6 +195,11 @@ M.Render = {
       c.strokeRect(x - 26, y - 52, 52, 7);
       c.font = 'bold 9px sans-serif'; c.textAlign = 'center'; c.fillStyle = '#fff';
       c.fillText(`${Math.round(who.angle)}°`, x, y - 56);
+      // 연료 게이지
+      c.fillStyle = 'rgba(0,0,0,.5)';
+      c.fillRect(x - 26, y - 43, 52, 4);
+      c.fillStyle = '#5db8ff';
+      c.fillRect(x - 25, y - 42.5, 50 * Math.max(0, st.fuel / 100), 3);
     }
   },
 

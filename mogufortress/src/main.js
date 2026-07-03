@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 
 let mode = 'title';            // title | play | pause | win | over | ending
 let st = null;
-const held = { left: false, right: false, charge: false };
+const held = { left: false, right: false, up: false, down: false, charge: false };
 let overCount = 10, overAcc = 0, chargeTick = 0;
 
 M.save.load();
@@ -61,9 +61,11 @@ function handleEvents(evs) {
 window.addEventListener('keydown', (e) => {
   M.audio.resume();
   const k = e.key;
-  if ([' ', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
+  if ([' ', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(k)) e.preventDefault();
   if (k === 'ArrowLeft') held.left = true;
   if (k === 'ArrowRight') held.right = true;
+  if (k === 'ArrowUp') held.up = true;
+  if (k === 'ArrowDown') held.down = true;
   if (k === ' ' && mode === 'play') held.charge = true;
 
   if (mode === 'title') {
@@ -87,6 +89,8 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
   if (e.key === 'ArrowLeft') held.left = false;
   if (e.key === 'ArrowRight') held.right = false;
+  if (e.key === 'ArrowUp') held.up = false;
+  if (e.key === 'ArrowDown') held.down = false;
   if (e.key === ' ') held.charge = false;
 });
 
@@ -109,7 +113,7 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 const vpad = document.getElementById('vpad');
 if (isTouch) {
   document.body.classList.add('touch');
-  $('title-hint').textContent = '◀▶ 각도 · 🔥 꾹 눌러 파워 → 놓으면 발사! 바람을 읽어라';
+  $('title-hint').textContent = '◀▶ 이동 · ▲▼ 각도 · 🔥 꾹 눌러 파워 → 놓으면 발사!';
   const bindHold = (id, on, off) => {
     const el = document.getElementById(id);
     const setOn = (e) => { e.preventDefault(); M.audio.resume(); on(); el.classList.add('pressed'); };
@@ -121,6 +125,8 @@ if (isTouch) {
   };
   bindHold('vbtn-left', () => { held.left = true; }, () => { held.left = false; });
   bindHold('vbtn-right', () => { held.right = true; }, () => { held.right = false; });
+  bindHold('vbtn-up', () => { held.up = true; }, () => { held.up = false; });
+  bindHold('vbtn-down', () => { held.down = true; }, () => { held.down = false; });
   bindHold('vbtn-fire', () => { if (mode === 'play') held.charge = true; }, () => { held.charge = false; });
   document.getElementById('vbtn-pause').addEventListener('pointerdown', (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -141,6 +147,7 @@ M._dbg = () => ({
   mode, no: st ? st.no : 0, phase: st ? st.phase : null,
   pHp: st ? st.p.hp : 0, eHp: st ? st.e.hp : 0,
   angle: st ? +st.p.angle.toFixed(1) : 0, power: st ? +st.power.toFixed(1) : 0,
+  col: st ? +st.p.col.toFixed(1) : 0, fuel: st ? +st.fuel.toFixed(0) : 0,
   wind: st ? st.wind : 0, turn: st ? st.turn : 0,
   proj: st && st.proj ? { x: +st.proj.x.toFixed(1), y: +st.proj.y.toFixed(1) } : null,
   stars: st ? st.stars : 0,
@@ -156,7 +163,7 @@ function frame(now) {
   if (isTouch) vpad.classList.toggle('on', mode === 'play');
 
   if (mode === 'play' && st) {
-    handleEvents(M.Logic.step(st, dt, { left: held.left, right: held.right, charge: held.charge }));
+    handleEvents(M.Logic.step(st, dt, { left: held.left, right: held.right, up: held.up, down: held.down, charge: held.charge }));
     if (st.phase === 'charge') {
       chargeTick += dt;
       if (chargeTick > 0.09) { chargeTick = 0; M.audio.charge(); }
