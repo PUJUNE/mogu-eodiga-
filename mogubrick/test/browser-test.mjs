@@ -140,6 +140,31 @@ await mp.evaluate(() => {                              // 좌표 주입으로 �
 });
 await mp.waitForTimeout(300);
 check('터치 드래그 → 바 이동', await mp.evaluate(() => window.MBK._dbg().paddle.x < 160));
+// 조종간: 표시 + 오른쪽 기울임 → 바 우측 이동, 놓으면 정지
+check('조종간 표시', await mp.evaluate(() => getComputedStyle(document.getElementById('vstick')).display === 'block'));
+const pj0 = await mp.evaluate(() => window.MBK._dbg().paddle.x);
+await mp.evaluate(() => {
+  const el = document.getElementById('vstick');
+  const r = el.getBoundingClientRect();
+  el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch', pointerId: 7, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
+  el.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'touch', pointerId: 7, clientX: r.left + r.width - 4, clientY: r.top + r.height / 2 }));
+});
+await mp.waitForTimeout(600);
+await mp.evaluate(() => {
+  document.getElementById('vstick').dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerType: 'touch', pointerId: 7 }));
+});
+const pj1 = await mp.evaluate(() => window.MBK._dbg().paddle.x);
+check(`조종간 우측 기울임 → 바 이동 (x ${pj0} → ${pj1})`, pj1 > pj0 + 60);
+await mp.waitForTimeout(400);
+const pj2 = await mp.evaluate(() => window.MBK._dbg().paddle.x);
+check('조종간 해제 → 정지', Math.abs(pj2 - pj1) < 2);
+// 🚀 발사 버튼
+await mp.evaluate(() => { const s = window.MBK._st(); s.ball.stuck = true; s.ball.vx = 0; s.ball.vy = 0; });
+await mp.evaluate(() => {
+  document.getElementById('vbtn-launch').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerType: 'touch', pointerId: 8 }));
+});
+await mp.waitForTimeout(250);
+check('🚀 버튼 → 발사', await mp.evaluate(() => !window.MBK._dbg().ball.stuck));
 await mp.screenshot({ path: join(shots, 'shot-touch.png') });
 await mp.close();
 

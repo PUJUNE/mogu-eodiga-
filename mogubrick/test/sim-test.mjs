@@ -39,6 +39,28 @@ const arena = (no = 1, keeper = true) => {
   check('드래그 좌측 경계', st.paddle.x >= st.paddle.w / 2 + 2 - 0.01);
 }
 
+// 1b) 조종간 아날로그: 기울인 만큼 비례 이동
+{
+  const st = arena();
+  const x0 = st.paddle.x;
+  run(st, 0.5, { ax: 1 });
+  const full = st.paddle.x - x0;
+  const st2 = arena();
+  run(st2, 0.5, { ax: 0.4 });
+  const part = st2.paddle.x - x0;
+  check(`조종간 풀 기울임 (${full.toFixed(0)}px)`, full > 120);
+  check(`조종간 40% 기울임 → 비례 (${part.toFixed(0)} ≈ ${(full * 0.4).toFixed(0)})`, Math.abs(part - full * 0.4) < 3);
+  const st3 = arena();
+  run(st3, 0.3, { ax: -1 });
+  check('조종간 좌측 이동', st3.paddle.x < x0 - 60);
+  run(st3, 3, { ax: -1 });
+  check('조종간 좌측 경계', st3.paddle.x >= st3.paddle.w / 2 + 2 - 0.01);
+  const st4 = arena();
+  run(st4, 0.3, { ax: 5 });                          // 범위 밖 값 클램프
+  const over = st4.paddle.x - x0;
+  check(`ax 클램프 (${over.toFixed(0)} ≤ ${(full * 0.62).toFixed(0)})`, over <= full * 0.62);
+}
+
 // 2) 발사: 스턱 → 발사 → 상승
 {
   const st = arena();

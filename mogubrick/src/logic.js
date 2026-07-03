@@ -57,11 +57,12 @@ M.Logic = {
     st.t += dt;
     const p = st.paddle, ball = st.ball;
 
-    // ── 바 이동 (키보드 or 직접 좌표) ──
+    // ── 바 이동 (직접 좌표 > 조종간 아날로그 > 키보드) ──
     if (typeof input.px === 'number') p.x = input.px;
     else {
       if (input.left) p.x -= PSPD * dt;
       if (input.right) p.x += PSPD * dt;
+      if (input.ax) p.x += Math.max(-1, Math.min(1, input.ax)) * PSPD * dt;
     }
     p.x = clamp(p.x, p.w / 2 + 2, M.W - p.w / 2 - 2);
 

@@ -115,7 +115,7 @@ const cv = document.getElementById('game');
 const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (isTouch) {
   document.body.classList.add('touch');
-  $('title-hint').textContent = '드래그로 바 이동 · 탭으로 발사 — 모구 벽돌을 깨고 낙하하는 모구를 받아줘!';
+  $('title-hint').textContent = '조종간으로 바 이동 · 🚀 또는 탭으로 발사 — 낙하하는 모구를 받아줘!';
 }
 function canvasX(e) {
   const r = cv.getBoundingClientRect();
@@ -142,6 +142,51 @@ $('tbtn-pause').addEventListener('pointerdown', (e) => {
   if (mode === 'play') { mode = 'pause'; M.ui.show('pause-screen'); }
 });
 
+// ── 터치 조종간: 큰 원 안의 조종간을 기울인 만큼 바 이동 ──
+const stick = { on: false, id: null, ax: 0 };
+const vsBase = $('vstick'), vsKnob = $('vstick-knob');
+function moveStick(e) {
+  const r = vsBase.getBoundingClientRect();
+  const rad = r.width / 2 - 24;
+  let dx = e.clientX - (r.left + r.width / 2);
+  let dy = e.clientY - (r.top + r.height / 2);
+  const d = Math.hypot(dx, dy) || 1;
+  const cl = Math.min(d, rad);
+  dx = dx / d * cl; dy = dy / d * cl;
+  vsKnob.style.transform = `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px))`;
+  stick.ax = Math.max(-1, Math.min(1, dx / rad));
+  pointerX = null;                                   // 조종간 사용 중엔 드래그 좌표 해제
+}
+function endStick(e) {
+  if (stick.id !== null && e.pointerId !== stick.id) return;
+  stick.on = false; stick.id = null; stick.ax = 0;
+  vsKnob.style.transform = 'translate(-50%, -50%)';
+}
+vsBase.addEventListener('pointerdown', (e) => {
+  e.preventDefault(); e.stopPropagation();
+  M.audio.resume();
+  stick.on = true; stick.id = e.pointerId;
+  try { vsBase.setPointerCapture(e.pointerId); } catch (err) {}
+  moveStick(e);
+});
+vsBase.addEventListener('pointermove', (e) => {
+  if (!stick.on || e.pointerId !== stick.id) return;
+  e.preventDefault();
+  moveStick(e);
+});
+vsBase.addEventListener('pointerup', endStick);
+vsBase.addEventListener('pointercancel', endStick);
+
+// 발사 버튼
+$('vbtn-launch').addEventListener('pointerdown', (e) => {
+  e.preventDefault(); e.stopPropagation();
+  M.audio.resume();
+  $('vbtn-launch').classList.add('pressed');
+  if (mode === 'play') launchQueued = true;
+});
+$('vbtn-launch').addEventListener('pointerup', () => $('vbtn-launch').classList.remove('pressed'));
+$('vbtn-launch').addEventListener('pointercancel', () => $('vbtn-launch').classList.remove('pressed'));
+
 // ── 디버그 훅 (테스트 자동화용) ──
 M._dbg = () => ({
   mode, no: st ? st.no : 0, phase: st ? st.phase : null,
@@ -161,13 +206,19 @@ function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
-  if (isTouch) $('tbtn-pause').classList.toggle('on', mode === 'play');
+  if (isTouch) {
+    const on = mode === 'play';
+    $('tbtn-pause').classList.toggle('on', on);
+    $('vstick').classList.toggle('on', on);
+    $('vbtn-launch').classList.toggle('on', on);
+  }
 
   if (mode === 'play' && st) {
     handleEvents(M.Logic.step(st, dt, {
       left: held.left, right: held.right,
       launch: launchQueued,
-      px: pointerX,
+      px: stick.on ? null : pointerX,
+      ax: stick.on ? stick.ax : 0,
     }));
   }
   launchQueued = false;

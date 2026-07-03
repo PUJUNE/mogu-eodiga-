@@ -27,6 +27,25 @@
     color:rgba(255,255,255,.92); align-items:center; justify-content:center; pointer-events:auto; }
   body.touch #tbtn-pause.on { display:flex; }
 
+  /* ── 터치 조종간 + 발사 버튼 ── */
+  #vstick { position:fixed; left:calc(20px + env(safe-area-inset-left)); bottom:calc(24px + env(safe-area-inset-bottom));
+    width:120px; height:120px; border-radius:50%; z-index:8; display:none;
+    background:rgba(255,255,255,.12); border:2px solid rgba(255,255,255,.45);
+    touch-action:none; pointer-events:auto; }
+  body.touch #vstick.on { display:block; }
+  #vstick-knob { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:52px; height:52px; border-radius:50%; pointer-events:none;
+    background:rgba(255,138,176,.55); border:2px solid rgba(255,255,255,.8);
+    box-shadow:0 3px 8px rgba(0,0,0,.4); }
+  #vbtn-launch { position:fixed; right:calc(24px + env(safe-area-inset-right)); bottom:calc(40px + env(safe-area-inset-bottom));
+    width:76px; height:76px; border-radius:50%; z-index:8; display:none;
+    background:rgba(255,255,255,.15); border:2px solid rgba(255,255,255,.5);
+    color:rgba(255,255,255,.92); font-size:26px; font-weight:800;
+    align-items:center; justify-content:center;
+    touch-action:none; pointer-events:auto; user-select:none; text-shadow:0 2px 3px rgba(0,0,0,.5); }
+  body.touch #vbtn-launch.on { display:flex; }
+  #vbtn-launch.pressed { background:rgba(255,138,176,.4); border-color:#ff8ab0; }
+
   /* ── 타이틀 (벽돌 성 무드) ── */
   #title-screen { background:linear-gradient(#3a1a4a 0%, #6a2a5a 55%, #241030 100%); }
   #title-screen .logo { font-size:min(44px, 8.6vw); font-weight:900; color:#fff; white-space:nowrap;
@@ -119,6 +138,8 @@
   </div>
 
   <div id="tbtn-pause">⏸</div>
+  <div id="vstick"><div id="vstick-knob"></div></div>
+  <div id="vbtn-launch">🚀</div>
 </div>
 
 <script>window.MBK = { ASSETS: { mogu: "../game/assets/mogu-icon.png" } };</script>
