@@ -3,7 +3,9 @@ const M = window.MNG;
 
 const SPD_MIN = 60;
 const ACCEL = 130, BRAKE = 210;
-const STEER = 185;               // 조향 속도 (월드 x /s)
+const STEER_ACC = 950;           // 조향 가속 (빙판 관성)
+const VX_MAX = 215;              // 최대 횡속도
+const ICE_DRAG = 1.1;            // 무입력 시 감쇠 (빙판이라 낮음)
 const JUMP_T = 0.58;             // 점프 체공 시간
 const STUN_T = 1.2;              // 충돌 경직
 const HIT_BAND = 13;             // 판정 깊이 (m)
@@ -13,7 +15,7 @@ M.Logic = {
     const stage = M.makeStage(no);
     return {
       stage, no, phase: 'run', t: 0, endT: 0,   // run | clear | over
-      dist: 0, spd: SPD_MIN + 40, x: 0,
+      dist: 0, spd: SPD_MIN + 40, x: 0, vx: 0, skidT: 0,
       jumpT: 0, stunT: 0,                        // 점프·경직 남은 시간
       time: stage.time,
       flags: 0, fish: 0, crashes: 0, score: 0, stars: 0,
@@ -60,13 +62,23 @@ M.Logic = {
     }
     if (st.jumpT > 0) st.jumpT -= dt;
 
-    // 조향 + 커브 드리프트 (빙판: 커브가 바깥으로 밀어냄)
+    // 조향: 빙판 관성 — 가속으로 횡속도를 만들고, 반대 입력 시 미끄러지며 전환
     const curve = M.curveAt(st.stage, st.dist);
-    if (!stunned) {
-      if (input.left) st.x -= STEER * dt;
-      if (input.right) st.x += STEER * dt;
+    const dir = stunned ? 0 : (input.left ? -1 : 0) + (input.right ? 1 : 0);
+    if (st.skidT > 0) st.skidT -= dt;
+    if (dir !== 0) {
+      if (st.vx * dir < -40 && st.skidT <= 0) {   // 달리던 반대로 꺾음 → 스키드
+        st.skidT = 0.3;
+        ev.push({ type: 'skid' });
+      }
+      if (st.vx * dir < 0) st.skidT = Math.max(st.skidT, 0.12);
+      st.vx += dir * STEER_ACC * dt;
+    } else {
+      st.vx -= st.vx * Math.min(1, ICE_DRAG * dt);   // 빙판: 천천히 감쇠
     }
-    st.x += curve * st.spd * 0.55 * dt;
+    st.vx = Math.max(-VX_MAX, Math.min(VX_MAX, st.vx));
+    st.x += st.vx * dt + curve * st.spd * 0.55 * dt;
+    if (st.x <= -M.TRACK_W || st.x >= M.TRACK_W) st.vx = 0;   // 가장자리 눈더미
     st.x = Math.max(-M.TRACK_W, Math.min(M.TRACK_W, st.x));
 
     // 전진

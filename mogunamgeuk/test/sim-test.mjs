@@ -40,6 +40,17 @@ const clean = (no) => {
   check(`트랙 경계 클램프 (${st.x} = ${M.TRACK_W})`, st.x === M.TRACK_W);
 }
 
+// 2-b) 빙판 관성: 입력을 놓아도 미끄러지고, 반대로 꺾으면 스키드
+{
+  const st = clean(1);
+  run(st, 0.6, { right: true });
+  const x1 = st.x;
+  run(st, 0.4);                                  // 입력 없음 — 관성으로 계속 미끄러짐
+  check(`관성 활주 (x ${x1.toFixed(0)} → ${st.x.toFixed(0)})`, st.x > x1 + 20);
+  const evs = run(st, 0.5, { left: true });      // 반대로 꺾기
+  check('방향 전환 → 스키드 이벤트', evs.some((e) => e.type === 'skid') && st.skidT !== undefined);
+}
+
 // 3) 커브 드리프트: 조향 없으면 바깥으로 밀림
 {
   const st = clean(1);

@@ -48,6 +48,7 @@ const A = {
   land()    { this.tone(180, 0.07, 'square', 0.1, 120); },
   flag()    { [660, 880].forEach((f, i) => this.tone(f, 0.09, 'square', 0.16, null, i * 0.07)); },
   fish()    { [520, 700, 920].forEach((f, i) => this.tone(f, 0.08, 'square', 0.14, null, i * 0.06)); },
+  skid()    { this.noise(0.16, 0.1, 2400, 1.5); },
   crash()   { this.noise(0.3, 0.3, 700, 0.7); this.tone(140, 0.3, 'sawtooth', 0.22, 60); },
   tick()    { this.tone(880, 0.05, 'square', 0.1); },
   clear(n)  { const seq = n >= 3 ? [523, 659, 784, 1047, 1319] : [523, 659, 784, 1047];

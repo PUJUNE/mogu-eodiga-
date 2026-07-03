@@ -23,6 +23,12 @@ M.Render = {
     s = s >= 2 ? Math.floor(s) : Math.max(0.6, s * 0.97);
     this.cv.style.width = W * s + 'px';
     this.cv.style.height = H * s + 'px';
+    // 고해상도: 내부 버퍼를 표시 배율×DPR로 키우고 논리 좌표(480×270)는 유지
+    const res = Math.min(4, Math.max(1, s * (window.devicePixelRatio || 1)));
+    this.cv.width = Math.round(W * res);
+    this.cv.height = Math.round(H * res);
+    this.ctx.setTransform(res, 0, 0, res, 0, 0);
+    this.ctx.imageSmoothingQuality = 'high';
   },
 
   scale(z) { return Math.pow(NEAR_Z / z, 0.9); },
@@ -200,6 +206,29 @@ M.Render = {
     const s = this.scale(PLAYER_Z) * 1.9;
     const x = W / 2 + st.x * 0.45 * s;
     const gy = this.gy(PLAYER_Z) + 6;
+    // 스키드 스프레이 (방향 전환 미끄러짐: 진행 반대쪽으로 눈보라)
+    const skidding = st.skidT > 0 && jy === 0 && st.stunT <= 0;
+    if (skidding) {
+      for (let i = 0; i < 4; i++) {
+        this.fx.push({
+          x: x - Math.sign(st.vx) * (10 + Math.random() * 8),
+          y: gy - 2 - Math.random() * 5,
+          vx: -Math.sign(st.vx) * (30 + Math.random() * 70),
+          vy: -(20 + Math.random() * 55),
+          r: 1.5 + Math.random() * 2.6,
+          t: 0, ttl: 0.3 + Math.random() * 0.2,
+        });
+      }
+    }
+    this.fx = this.fx.filter((f) => f.t < f.ttl);
+    for (const f of this.fx) {
+      f.t += 1 / 60;
+      f.x += f.vx / 60; f.y += f.vy / 60; f.vy += 140 / 60;
+      c.globalAlpha = (1 - f.t / f.ttl) * 0.8;
+      c.fillStyle = '#eef6fc';
+      c.beginPath(); c.arc(f.x, f.y, f.r, 0, Math.PI * 2); c.fill();
+    }
+    c.globalAlpha = 1;
     // 그림자
     c.fillStyle = `rgba(30,60,90,${0.25 - jy * 0.12})`;
     c.beginPath(); c.ellipse(x, gy, 24 * (1 - jy * 0.25), 7 * (1 - jy * 0.25), 0, 0, Math.PI * 2); c.fill();
@@ -212,11 +241,13 @@ M.Render = {
     if (st.stunT > 0) {
       c.rotate(Math.sin(st.stunT * 26) * 0.5);          // 넘어져 버둥
     } else {
-      const waddle = Math.sin(t * (6 + st.spd * 0.045)) * 0.11;   // 뒤뚱
-      c.rotate(waddle);
-      c.translate(0, Math.abs(Math.sin(t * (6 + st.spd * 0.045))) * -3);
+      const wf = 2.8 + st.spd * 0.016;                  // 느긋한 뒤뚱
+      const waddle = Math.sin(t * wf) * 0.13;
+      c.rotate(waddle - st.vx * 0.0011);                // 미끄러질 땐 몸이 기울어짐
+      c.translate(0, Math.abs(Math.sin(t * wf)) * -3);
     }
-    c.drawImage(this.mogu, -hh * a / 2, -hh, hh * a, hh);
+    // 엉덩이가 그림자에 닿도록 내려 그림 (꼬리는 그림자 뒤로 살짝 내려감)
+    c.drawImage(this.mogu, -hh * a / 2, -hh * 0.84, hh * a, hh);
     c.restore();
   },
 

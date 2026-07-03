@@ -32,6 +32,7 @@ function handleEvents(evs) {
   for (const e of evs) {
     switch (e.type) {
       case 'jump': M.audio.jump(); break;
+      case 'skid': M.audio.skid(); break;
       case 'flag': M.audio.flag(); break;
       case 'fish': M.audio.fish(); M.ui.toast('🐟 +300!', 0.9); break;
       case 'crash': M.audio.crash(); M.ui.toast('꽈당!!', 1.0); break;
@@ -142,7 +143,7 @@ if (isTouch) {
 M._dbg = () => ({
   mode, no: st ? st.no : 0, phase: st ? st.phase : null,
   dist: st ? +st.dist.toFixed(1) : 0, spd: st ? +st.spd.toFixed(1) : 0,
-  x: st ? +st.x.toFixed(1) : 0, jump: st ? +st.jumpT.toFixed(2) : 0,
+  x: st ? +st.x.toFixed(1) : 0, vx: st ? +st.vx.toFixed(1) : 0, jump: st ? +st.jumpT.toFixed(2) : 0,
   time: st ? +st.time.toFixed(1) : 0, flags: st ? st.flags : 0,
   crashes: st ? st.crashes : 0, score: st ? st.score : 0, stars: st ? st.stars : 0,
 });
