@@ -751,7 +751,10 @@ M.Render = {
     if (f.kind === 'p') {
       if (this.mogu) {
         const a = this.mogu.width / this.mogu.height, hh = 25;
-        c.drawImage(this.mogu, -hh * a / 2, -64, hh * a, hh);   // 원본이 오른쪽을 봄
+        c.save();
+        c.scale(-1, 1);                   // 원본 사진이 왼쪽을 봄 → 로컬(오른쪽 향) 반전
+        c.drawImage(this.mogu, -hh * a / 2, -64, hh * a, hh);
+        c.restore();
       }
       // 그림자 군주 오라 (은신 아닐 때 은은한 보라 입자)
       if (st.stealth <= 0) {

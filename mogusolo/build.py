@@ -9,12 +9,12 @@ OUT = HERE.parent / "mogusolo.html"
 
 html = (HERE / "index.html").read_text(encoding="utf-8")
 
-# 1) 에셋 → base64 데이터 URI (슈퍼모구 누끼 이미지 재사용)
+# 1) 에셋 → base64 데이터 URI (모구삼국지와 동일한 얼굴 아이콘 재사용)
 def data_uri(p):
     b = (HERE.parent / p).read_bytes()
     return "data:image/png;base64," + base64.b64encode(b).decode()
 
-assets_js = 'window.MSL = { ASSETS: { mogu: "%s" } };' % data_uri("supermogu/assets/mogu-super.png")
+assets_js = 'window.MSL = { ASSETS: { mogu: "%s" } };' % data_uri("game/assets/mogu-icon.png")
 html = re.sub(
     r'<script>window\.MSL = \{ ASSETS: .*?\};</script>',
     lambda m: "<script>" + assets_js + "</script>",
