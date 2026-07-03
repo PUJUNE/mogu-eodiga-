@@ -1,0 +1,74 @@
+// audio.js — WebAudio 합성 효과음 (외부 파일 없음, 시리즈 공통 방식)
+const M = window.MSL;
+
+const A = {
+  ctx: null, master: null,
+
+  init() {
+    if (this.ctx) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    this.ctx = new Ctx();
+    this.master = this.ctx.createGain();
+    this.master.gain.value = 0.4;
+    this.master.connect(this.ctx.destination);
+  },
+  resume() { this.init(); if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+
+  tone(freq, dur, type = 'square', vol = 0.22, slideTo = null, when = 0) {
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime + when;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type; o.frequency.setValueAtTime(freq, t0);
+    if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(30, slideTo), t0 + dur);
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    o.connect(g); g.connect(this.master);
+    o.start(t0); o.stop(t0 + dur + 0.02);
+  },
+
+  noise(dur, vol = 0.25, freq = 900, q = 1, when = 0) {
+    if (!this.ctx) return;
+    const t0 = this.ctx.currentTime + when;
+    const len = Math.ceil(this.ctx.sampleRate * dur);
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(vol, t0);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+    src.connect(f); f.connect(g); g.connect(this.master);
+    src.start(t0); src.stop(t0 + dur + 0.02);
+  },
+
+  // ── 효과음 ──
+  swing()   { this.noise(0.09, 0.16, 2600, 1.2); this.tone(900, 0.05, 'sawtooth', 0.05, 1400); },
+  slash()   { this.noise(0.12, 0.22, 3200, 1.4); this.tone(600, 0.1, 'sawtooth', 0.14, 1600); },
+  stealth() { this.tone(880, 0.24, 'sine', 0.14, 220); this.noise(0.2, 0.08, 1400, 0.6); },
+  extract() { [180, 240, 320].forEach((f, i) => this.tone(f, 0.22, 'sawtooth', 0.13, f * 0.6, i * 0.07)); this.tone(660, 0.3, 'sine', 0.08, 1320, 0.1); },
+  ruler()   { this.noise(0.3, 0.3, 700, 0.8); [260, 380, 520].forEach((f, i) => this.tone(f, 0.16, 'sawtooth', 0.2, f * 1.7, i * 0.06)); },
+  boltwarn(){ this.tone(1200, 0.09, 'square', 0.08, 900); },
+  bolt()    { this.noise(0.25, 0.34, 2400, 0.5); this.tone(140, 0.3, 'sawtooth', 0.24, 50); },
+  shot()    { this.noise(0.08, 0.12, 3000, 1.6); },
+  hit()     { this.tone(160, 0.07, 'square', 0.22, 110); this.noise(0.06, 0.2, 900, 1); },
+  kd()      { this.tone(120, 0.16, 'square', 0.26, 60); this.noise(0.14, 0.26, 500, 0.8); },
+  hurt()    { this.tone(280, 0.14, 'sawtooth', 0.18, 120); },
+  jump()    { this.tone(260, 0.1, 'triangle', 0.1, 420); },
+  edown()   { this.tone(440, 0.09, 'square', 0.15, 660); this.tone(660, 0.1, 'square', 0.12, 880, 0.06); },
+  pickup()  { [880, 1320].forEach((f, i) => this.tone(f, 0.09, 'square', 0.15, null, i * 0.06)); },
+  gear()    { [523, 659, 784, 988, 1175].forEach((f, i) => this.tone(f, 0.13, 'square', 0.16, null, i * 0.09)); },
+  wave()    { this.tone(330, 0.14, 'sawtooth', 0.16, 220); },
+  go()      { [523, 659].forEach((f, i) => this.tone(f, 0.12, 'square', 0.16, null, i * 0.08)); },
+  bossintro(){ [220, 220, 180].forEach((f, i) => this.tone(f, 0.22, 'sawtooth', 0.22, 140, i * 0.24)); },
+  buddyup() { [660, 880, 1100].forEach((f, i) => this.tone(f, 0.09, 'square', 0.14, null, i * 0.06)); },
+  clear(n)  { const seq = n >= 3 ? [523, 659, 784, 1047, 1319] : [523, 659, 784, 1047];
+              seq.forEach((f, i) => this.tone(f, 0.16, 'square', 0.18, null, i * 0.1)); },
+  over()    { [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.26, 'triangle', 0.2, null, i * 0.2)); },
+  levelup() { [523, 659, 784, 1047].forEach((f, i) => this.tone(f, 0.1, 'square', 0.16, null, i * 0.07)); },
+  meow()    { this.tone(700, 0.28, 'sawtooth', 0.1, 420); },
+  cluck()   { [620, 780, 620].forEach((f, i) => this.tone(f, 0.07, 'square', 0.12, null, i * 0.07)); },
+};
+
+M.audio = A;

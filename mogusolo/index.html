@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구 혼자 레벨업</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0c1018;
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  #app { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  #stage-wrap { position:relative; }
+  canvas { display:block; background:#000; }
+
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10; }
+  .hidden { display:none !important; }
+
+  #hud { position:absolute; inset:0; pointer-events:none; z-index:5; }
+  #hud-toast { position:absolute; top:30%; left:50%; transform:translateX(-50%);
+    color:#fff; font-size:19px; font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
+    opacity:0; transition:opacity .3s; white-space:nowrap; }
+
+  /* ── 타이틀 (그림자 군주 보라 무드) ── */
+  #title-screen { background:linear-gradient(#0e0a1e 0%, #38205c 55%, #14101e 100%); }
+  #title-screen .logo { font-size:min(52px, 10vw); font-weight:900; color:#fff; white-space:nowrap;
+    text-shadow:0 0 18px #b07dff, 0 5px 0 #38205c, 0 9px 18px rgba(0,0,0,.5); letter-spacing:min(5px, 1.1vw); }
+  #title-screen .sub { margin-top:6px; font-size:17px; color:#c8b0f0; font-weight:700; }
+  #title-icon { width:105px; height:auto; margin:16px 0 4px; animation:bob 1.5s ease-in-out infinite;
+    filter:drop-shadow(0 0 14px rgba(176,125,255,.7)) drop-shadow(0 8px 10px rgba(0,0,0,.4)); }
+  @keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+  #title-hi { margin-top:4px; color:#ffd83d; font-size:14px; font-weight:800; min-height:19px;
+    text-shadow:0 1px 3px rgba(0,0,0,.5); }
+  #title-hint { margin-top:12px; color:rgba(255,255,255,.92); font-size:13px; text-align:center;
+    padding:0 14px; text-shadow:0 1px 3px rgba(0,0,0,.5); line-height:1.7; }
+
+  .menu-buttons { display:flex; gap:12px; margin-top:18px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
+  .btn { pointer-events:auto; padding:12px 24px; font-size:16px; font-weight:800; color:#fff;
+    background:#6a48c8; border:3px solid rgba(255,255,255,.8); border-radius:12px; cursor:pointer;
+    box-shadow:0 4px 8px rgba(0,0,0,.4); font-family:inherit; }
+  .btn.primary { background:#3aa84f; }
+  .btn.series { padding:9px 18px; font-size:13px; background:#2e6da3; }
+
+  /* ── 승리 / 일시정지 / 게임오버 / 엔딩 ── */
+  #win-screen { background:rgba(14,8,26,.88); z-index:20; }
+  #win-screen .big { font-size:min(44px, 10vw); font-weight:900; color:#ffd83d; }
+  #win-stars { font-size:44px; color:#ffd83d; letter-spacing:8px; margin:8px 0 2px; }
+  #win-stats { color:#e2dcf5; font-size:17px; line-height:1.8; text-align:center; }
+  #pause-screen { background:rgba(0,0,0,.6); z-index:20; }
+  #pause-screen .big, #over-screen .big, #ending-screen .big {
+    font-size:min(42px, 10vw); font-weight:900; color:#fff; white-space:nowrap; }
+  #over-screen { background:rgba(0,0,0,.85); z-index:20; }
+  #over-screen .big { color:#ff5252; letter-spacing:5px; }
+  #over-count { font-size:70px; font-weight:900; color:#fff; margin-top:8px; text-shadow:0 4px 10px rgba(0,0,0,.8); }
+  #over-screen .hint { margin-top:10px; font-size:16px; color:#ffd83d; font-weight:700; padding:0 14px; text-align:center; }
+  #ending-screen { background:linear-gradient(#0e0a1e 0%, #38205c 50%, #101828 100%); z-index:20; }
+  #ending-screen .big { color:#b07dff; text-shadow:0 0 16px rgba(176,125,255,.8); }
+  #ending-screen .msg { margin-top:14px; color:#e2dcf5; font-size:16px; line-height:1.8; text-align:center; padding:0 16px; }
+
+  /* ── 터치 가상 패드 ── */
+  #vpad { position:fixed; inset:0; pointer-events:none; z-index:8; display:none; }
+  body.touch #vpad.on { display:block; }
+  .vbtn { position:absolute; pointer-events:auto; width:64px; height:64px; border-radius:50%;
+    background:rgba(255,255,255,.15); border:2px solid rgba(255,255,255,.5);
+    color:rgba(255,255,255,.92); font-size:22px; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+    touch-action:none; user-select:none; text-shadow:0 2px 3px rgba(0,0,0,.5); }
+  .vbtn.pressed { background:rgba(176,125,255,.4); border-color:#b07dff; }
+  #vbtn-left  { left:calc(12px + env(safe-area-inset-left)); bottom:calc(52px + env(safe-area-inset-bottom)); }
+  #vbtn-right { left:calc(148px + env(safe-area-inset-left)); bottom:calc(52px + env(safe-area-inset-bottom)); }
+  #vbtn-up    { left:calc(80px + env(safe-area-inset-left)); bottom:calc(108px + env(safe-area-inset-bottom)); }
+  #vbtn-down  { left:calc(80px + env(safe-area-inset-left)); bottom:calc(12px + env(safe-area-inset-bottom)); }
+  #vbtn-jump  { right:calc(14px + env(safe-area-inset-right)); bottom:calc(96px + env(safe-area-inset-bottom)); }
+  #vbtn-atk   { right:calc(88px + env(safe-area-inset-right)); bottom:calc(24px + env(safe-area-inset-bottom)); width:76px; height:76px; font-size:26px; }
+  .vbtn.skill { width:46px; height:46px; font-size:16px; border-radius:12px;
+    background:rgba(106,72,200,.28); border-color:rgba(176,125,255,.65); }
+  #vbtn-q { right:calc(178px + env(safe-area-inset-right)); bottom:calc(130px + env(safe-area-inset-bottom)); }
+  #vbtn-w { right:calc(126px + env(safe-area-inset-right)); bottom:calc(154px + env(safe-area-inset-bottom)); }
+  #vbtn-e { right:calc(74px + env(safe-area-inset-right)); bottom:calc(168px + env(safe-area-inset-bottom)); }
+  #vbtn-r { right:calc(20px + env(safe-area-inset-right)); bottom:calc(172px + env(safe-area-inset-bottom)); }
+  #vbtn-pause { right:calc(12px + env(safe-area-inset-right)); top:calc(10px + env(safe-area-inset-top));
+    width:44px; height:44px; font-size:17px; border-radius:12px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage-wrap">
+    <canvas id="game" width="480" height="300"></canvas>
+    <div id="hud" class="hidden"><div id="hud-toast"></div></div>
+  </div>
+
+  <div id="title-screen" class="screen">
+    <div class="logo">모구 혼자 레벨업</div>
+    <div class="sub">~ 되살아난 E급 헌터의 성장기 ~</div>
+    <img id="title-icon" alt="모구">
+    <div id="title-hi"></div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-continue">이어하기</button>
+      <button class="btn" id="btn-new">처음부터</button>
+    </div>
+    <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
+    <div id="title-hint">←→↑↓ 이동 · Space/Z 베기 · X 점프 · Q절단 W은신 E그림자추출 R권능 (레벨업 해금!)<br>신전에서 되살아난 모구 — 레벨을 올려 악마왕 바란까지 토벌하라! 5개 미션</div>
+  </div>
+
+  <div id="win-screen" class="screen hidden">
+    <div class="big">⚔️ 미션 클리어!!</div>
+    <div id="win-stars">★★★</div>
+    <div id="win-stats"></div>
+    <div class="menu-buttons">
+      <button class="btn" id="btn-retry">다시 도전</button>
+      <button class="btn" id="btn-win-title">타이틀로</button>
+      <button class="btn primary" id="btn-next">다음 미션 →</button>
+    </div>
+  </div>
+
+  <div id="pause-screen" class="screen hidden">
+    <div class="big">일시정지</div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-resume">계속</button>
+      <button class="btn" id="btn-restage">재시작</button>
+      <button class="btn" id="btn-title">타이틀로</button>
+    </div>
+  </div>
+
+  <div id="over-screen" class="screen hidden">
+    <div class="big">CONTINUE?</div>
+    <div id="over-count">10</div>
+    <div class="hint">Enter 또는 화면 터치 = 이 구간부터 계속 (레벨 유지!)</div>
+    <div class="menu-buttons"><button class="btn" id="btn-over-title">타이틀로</button></div>
+  </div>
+
+  <div id="ending-screen" class="screen hidden">
+    <div class="big">👑 악마왕 바란 격파!!</div>
+    <div class="msg">악마성 최상층에 정적이 내려앉았다.<br>그러나 모구의 레벨업은 끝나지 않는다… 💜🐱</div>
+    <div class="menu-buttons"><button class="btn primary" id="btn-end-title">타이틀로</button></div>
+  </div>
+
+  <div id="vpad">
+    <div class="vbtn" id="vbtn-left">◀</div>
+    <div class="vbtn" id="vbtn-right">▶</div>
+    <div class="vbtn" id="vbtn-up">▲</div>
+    <div class="vbtn" id="vbtn-down">▼</div>
+    <div class="vbtn" id="vbtn-atk">🗡</div>
+    <div class="vbtn" id="vbtn-jump">⬆</div>
+    <div class="vbtn skill" id="vbtn-q">Q</div>
+    <div class="vbtn skill" id="vbtn-w">W</div>
+    <div class="vbtn skill" id="vbtn-e">E</div>
+    <div class="vbtn skill" id="vbtn-r">R</div>
+    <div class="vbtn" id="vbtn-pause">⏸</div>
+  </div>
+</div>
+
+<script>window.MSL = { ASSETS: { mogu: "../supermogu/assets/mogu-super.png" } };</script>
+<script src="src/rng.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/render.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
