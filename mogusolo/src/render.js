@@ -116,7 +116,13 @@ M.Render = {
     const ents = [st.p, ...(st.b ? [st.b] : []), ...st.shadows, ...st.enemies]
       .filter((f) => f.state !== 'dead' || (f.kind === 'e' ? f.stT < M.Logic.CORPSE_T : f.stT < 1.6));
     ents.sort((a, b2) => a.z - b2.z);
-    for (const f of ents) this.drawFighter(st, f, t);
+    for (const f of ents) {
+      this.drawFighter(st, f, t);
+      // 추출 가능 시체(E 해금 후): 검은 아지랑이
+      if (f.kind === 'e' && f.state === 'dead' && !f.boss && !f.extracted && st.lv >= M.Logic.SKILLS.e.lv) {
+        this.drawShadowHaze(f, t);
+      }
+    }
 
     // FX
     this.fx = this.fx.filter((f) => f.t < (f.kind === 'ruler' ? 0.5 : f.kind === 'bolt' ? 0.35 : f.kind === 'extract' ? 0.6 : 0.3));
@@ -493,6 +499,31 @@ M.Render = {
     c.fillRect(x + 24, y + 6, Math.max(0, (w2 - 2) * Math.min(1, ratio)), 7);
     c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 1;
     c.strokeRect(x + 23, y + 5, w2, 9);
+  },
+
+  // 추출 가능 시체 위 검은 아지랑이 (상승 루프 연기)
+  drawShadowHaze(f, t) {
+    const c = this.ctx;
+    const x = f.x - this.camX, y = this.sy(f.z, 0);
+    if (x < -40 || x > W + 40) return;
+    const endFade = Math.max(0, Math.min(1, (M.Logic.CORPSE_T - f.stT) / 2));
+    if (endFade <= 0) return;
+    const seed = (f.x % 7) * 0.13;
+    for (let i = 0; i < 4; i++) {
+      const ph = (t * 0.55 + i * 0.27 + seed) % 1;             // 0→1 상승 루프
+      const hx = x + (i - 1.5) * 6 + Math.sin(t * 2.6 + i * 2.1 + f.x) * (3 + ph * 8);
+      const hy = y - 4 - ph * 36;
+      c.globalAlpha = (1 - ph) * (0.28 + 0.18 * Math.sin(t * 5 + i)) * endFade;
+      c.fillStyle = i % 2 ? '#140e20' : '#2a1a3e';
+      c.beginPath();
+      c.ellipse(hx, hy, 3.4 - ph * 1.6, 7.5 - ph * 3, Math.sin(t * 2 + i * 1.4) * 0.45, 0, Math.PI * 2);
+      c.fill();
+    }
+    // 발밑 옅은 보라 웅덩이 기운
+    c.globalAlpha = (0.16 + 0.08 * Math.sin(t * 4 + f.x)) * endFade;
+    c.fillStyle = '#4a2a6a';
+    c.beginPath(); c.ellipse(x, y + 2, 17, 5, 0, 0, Math.PI * 2); c.fill();
+    c.globalAlpha = 1;
   },
 
   // ── 캐릭터 ──
