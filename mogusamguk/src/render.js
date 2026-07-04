@@ -139,6 +139,23 @@ M.Render = {
       f.t += dt;
       if (f.kind === 'musou') {
         const p2 = f.t / 0.5, x2 = f.x - cam;
+        // 전체 화면 방사 섬광 (원작 분석 — 필살기가 화면을 덮음)
+        if (p2 < 0.45) {
+          const fg2 = c.createRadialGradient(x2, f.y, 10, x2, f.y, W * 0.75);
+          fg2.addColorStop(0, `rgba(255,240,160,${0.5 * (1 - p2 / 0.45)})`);
+          fg2.addColorStop(0.55, `rgba(255,150,40,${0.32 * (1 - p2 / 0.45)})`);
+          fg2.addColorStop(1, 'rgba(255,80,20,0)');
+          c.fillStyle = fg2; c.fillRect(0, 0, W, H);
+          c.globalAlpha = 1 - p2 / 0.45;
+          c.strokeStyle = 'rgba(255,220,120,.55)'; c.lineWidth = 3;
+          for (let k = 0; k < 10; k++) {
+            const a2 = (k / 10) * Math.PI * 2 + p2 * 3;
+            c.beginPath();
+            c.moveTo(x2 + Math.cos(a2) * 30, f.y + Math.sin(a2) * 30);
+            c.lineTo(x2 + Math.cos(a2) * (90 + p2 * 260), f.y + Math.sin(a2) * (90 + p2 * 260));
+            c.stroke();
+          }
+        }
         c.globalAlpha = 1 - p2;
         c.strokeStyle = '#ffd83d'; c.lineWidth = 4;
         c.beginPath(); c.ellipse(x2, f.y, 20 + p2 * 70, 8 + p2 * 24, 0, 0, Math.PI * 2); c.stroke();
@@ -565,13 +582,22 @@ M.Render = {
         const x = i * 80 - (cam % 80);
         c.beginPath(); c.moveTo(x, M.FLOOR_Y + 4); c.lineTo(x - 20, H); c.stroke();
       }
-      for (let i = -1; i < 4; i++) {
-        const seg = Math.floor(cam / 260) + i;
-        const x = seg * 260 - cam + 120;
-        const y = M.FLOOR_Y + 34;
-        c.strokeStyle = 'rgba(0,0,0,.14)'; c.lineWidth = 2;
-        c.beginPath(); c.ellipse(x, y, 26, 11, 0, 0, Math.PI * 2); c.stroke();
-        c.beginPath(); c.ellipse(x, y, 15, 6.5, 0, 0, Math.PI * 2); c.stroke();
+      for (let i = -1; i < 3; i++) {                 // 대형 원형 석문양 (원작 분석 — 바닥이 캔버스)
+        const seg = Math.floor(cam / 300) + i;
+        const x = seg * 300 - cam + 140;
+        const y = M.FLOOR_Y + 40;
+        c.strokeStyle = 'rgba(0,0,0,.16)'; c.lineWidth = 2.5;
+        c.beginPath(); c.ellipse(x, y, 58, 24, 0, 0, Math.PI * 2); c.stroke();
+        c.beginPath(); c.ellipse(x, y, 40, 16.5, 0, 0, Math.PI * 2); c.stroke();
+        c.beginPath(); c.ellipse(x, y, 20, 8.5, 0, 0, Math.PI * 2); c.stroke();
+        c.beginPath(); c.arc(x, y, 1, 0, Math.PI * 2); c.stroke();
+        for (let k = 0; k < 8; k++) {                // 방사 살
+          const a = (k / 8) * Math.PI * 2;
+          c.beginPath();
+          c.moveTo(x + Math.cos(a) * 22, y + Math.sin(a) * 9);
+          c.lineTo(x + Math.cos(a) * 56, y + Math.sin(a) * 23);
+          c.stroke();
+        }
       }
     } else {
       // 왕좌의 방: 붉은 카펫 + 금 테 + 마름모 문양

@@ -1016,13 +1016,13 @@ M.Render = {
       // 악당 아지트: 사암 석벽 + 횃불 + 붉은 현수막 (원작 분석 — 밝은 사암 + 붉은 카펫)
       c.fillStyle = th.wall;
       c.fillRect(0, wallTop, W, wallH);
-      c.strokeStyle = 'rgba(70,42,16,.4)'; c.lineWidth = 1.5;
-      for (let ry = 0; ry < wallH; ry += 16) {
+      c.strokeStyle = 'rgba(70,42,16,.45)'; c.lineWidth = 2;
+      for (let ry = 0; ry < wallH; ry += 26) {       // 큰 사암 블록 (원작 스케일)
         c.beginPath(); c.moveTo(0, wallTop + ry); c.lineTo(W, wallTop + ry); c.stroke();
-        const off = (ry / 16) % 2 ? 20 : 0;
-        for (let bx = -40; bx < W + 40; bx += 40) {
-          const x = bx + off - ((cam * 0.6) % 40);
-          c.beginPath(); c.moveTo(x, wallTop + ry); c.lineTo(x, wallTop + ry + 16); c.stroke();
+        const off = (ry / 26) % 2 ? 30 : 0;
+        for (let bx = -60; bx < W + 60; bx += 60) {
+          const x = bx + off - ((cam * 0.6) % 60);
+          c.beginPath(); c.moveTo(x, wallTop + ry); c.lineTo(x, wallTop + ry + 26); c.stroke();
         }
       }
       // 석조 부조 명판 (상부 밴드)
@@ -1081,8 +1081,8 @@ M.Render = {
     fg.addColorStop(1, this.shade(th.floor, 0.8));
     c.fillStyle = fg;
     c.fillRect(0, M.FLOOR_Y, W, H - M.FLOOR_Y);
-    if (m === 4) {                      // 아지트: 붉은 카펫 러너 + 금 테
-      c.fillStyle = '#8e2430';
+    if (m === 4) {                      // 아지트: 붉은 카펫 러너 + 금 테 (원작 분석 — 카펫 빨강 상향)
+      c.fillStyle = '#c81808';
       c.fillRect(0, M.FLOOR_Y + 10, W, H - M.FLOOR_Y - 16);
       c.fillStyle = '#d8b83a';
       c.fillRect(0, M.FLOOR_Y + 10, W, 2.5);
@@ -1116,6 +1116,30 @@ M.Render = {
       for (const zz of [22, 46, 68]) {
         const y = M.FLOOR_Y + zz * ZS + 1.6;
         c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke();
+      }
+    }
+    // 플레이필드 드럼통 무리 (골목 — 바닥 위 소품, 원작 문법)
+    if (m === 1) {
+      for (let i = -1; i < 3; i++) {
+        const seg = Math.floor(cam / 380) + i;
+        const x = seg * 380 - cam + 90;
+        const h2 = (seg * 92821 + 3) >>> 4;
+        if (h2 % 3 === 0) continue;
+        const zz = 18 + (h2 % 34);
+        const y = M.FLOOR_Y + zz * ZS;
+        for (let k = 0; k < 2 + (h2 % 2); k++) {
+          const bx2 = x + k * 21, by2 = y - 30 - (k % 2) * 5;
+          c.fillStyle = 'rgba(0,0,0,.25)';
+          c.beginPath(); c.ellipse(bx2 + 9, y + 2 + (k % 2) * -4, 13, 4, 0, 0, Math.PI * 2); c.fill();
+          c.fillStyle = k % 2 ? '#a05a30' : '#8e4c28';
+          c.beginPath(); c.roundRect(bx2, by2, 19, 30, 3); c.fill();
+          c.fillStyle = 'rgba(255,255,255,.18)';
+          c.fillRect(bx2 + 2, by2 + 3, 4, 24);
+          c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 1;
+          for (const ry of [8, 16, 24]) { c.beginPath(); c.moveTo(bx2, by2 + ry); c.lineTo(bx2 + 19, by2 + ry); c.stroke(); }
+          c.fillStyle = 'rgba(30,20,14,.85)';
+          c.beginPath(); c.ellipse(bx2 + 9.5, by2, 9.5, 3, 0, 0, Math.PI * 2); c.fill();
+        }
       }
     }
     // 바닥 균열·맨홀 (해시 데칼)
