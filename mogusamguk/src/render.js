@@ -12,6 +12,14 @@ M.Render = {
     const img = new Image();
     img.onload = () => { this.mogu = img; };
     img.src = M.ASSETS.mogu;
+    // CC0 에셋 (OGA 아시아 도시 타일셋, 퍼블릭 도메인): 상점 정면·기둥·간판·석상·등롱
+    this.imgs = {};
+    for (const k of ['bldDark', 'shopRed', 'colRed', 'signCat1', 'signCat2', 'statue', 'lantern2']) {
+      if (!M.ASSETS[k]) continue;
+      const im2 = new Image();
+      im2.onload = () => { this.imgs[k] = im2; };
+      im2.src = M.ASSETS[k];
+    }
     this.resize();
     window.addEventListener('resize', () => this.resize());
   },
@@ -496,6 +504,34 @@ M.Render = {
         c.fillRect(x + sway - 3, wallTop + 32, 6, 3);
         c.fillRect(x + sway - 3, wallTop + 54, 6, 3);
       }
+      // CC0 상점 정면 행 (아시아 도시 타일셋 — 픽셀 크리스프)
+      if (this.imgs && this.imgs.shopRed && this.imgs.bldDark) {
+        c.imageSmoothingEnabled = false;
+        for (let i = -1; i < 5; i++) {
+          const seg = Math.floor(cam * 0.6 / 130) + i;
+          const x = seg * 130 - cam * 0.6;
+          const im2 = (seg % 2 === 0) ? this.imgs.shopRed : this.imgs.bldDark;
+          const sc = (seg % 2 === 0) ? 1.55 : 1.9;
+          const wI = im2.width * sc, hI = im2.height * sc;
+          c.drawImage(im2, x, M.FLOOR_Y - hI, wI, hI);
+          if (this.imgs.colRed) {
+            const cw2 = this.imgs.colRed.width * 1.55, ch2 = this.imgs.colRed.height * 1.55;
+            c.drawImage(this.imgs.colRed, x + wI + (130 - wI - cw2) / 2, M.FLOOR_Y - ch2, cw2, ch2);
+          }
+        }
+        // 고양이 간판 (흔들림)
+        for (let i = -1; i < 4; i++) {
+          const seg = Math.floor(cam * 0.6 / 170) + i;
+          const sg2 = (seg % 2 === 0) ? this.imgs.signCat1 : this.imgs.signCat2;
+          if (!sg2) continue;
+          const x = seg * 170 - cam * 0.6 + 84;
+          const sway = Math.sin(t * 1.8 + seg) * 2;
+          c.strokeStyle = '#3a2418'; c.lineWidth = 1.4;
+          c.beginPath(); c.moveTo(x + 15, wallTop + 4); c.lineTo(x + 15 + sway, wallTop + 14); c.stroke();
+          c.drawImage(sg2, x + sway, wallTop + 14, 30, 29);
+        }
+        c.imageSmoothingEnabled = true;
+      }
     } else {
       // 왕좌의 방: 붉은 기둥 + 금장 문양 + 옥좌 휘장
       c.fillStyle = this.shade(th.wall, 0.7);
@@ -519,6 +555,17 @@ M.Render = {
         c.fillRect((i * 137 + 40) % W, wallTop + 10 + (i * 43) % 70, 2, 2);
       }
       c.globalAlpha = 1;
+      // CC0 석상 (기둥 사이 수호상)
+      if (this.imgs && this.imgs.statue) {
+        c.imageSmoothingEnabled = false;
+        for (let i = -1; i < 3; i++) {
+          const x = i * 260 - ((cam * 0.6) % 260) + 75;
+          const im2 = this.imgs.statue;
+          const hI = 96, wI = im2.width * (hI / im2.height);
+          c.drawImage(im2, x, M.FLOOR_Y - hI, wI, hI);
+        }
+        c.imageSmoothingEnabled = true;
+      }
     }
 
     // ── 표면 질감 (명암 얼룩 — 회화 패스) ──

@@ -14,7 +14,19 @@ def data_uri(p):
     b = (HERE.parent / p).read_bytes()
     return "data:image/png;base64," + base64.b64encode(b).decode()
 
-assets_js = 'window.MSG = { ASSETS: { mogu: "%s" } };' % data_uri("game/assets/mogu-icon.png")
+# CC0 에셋 (OGA "American/Asian/European City Tilesets" — 퍼블릭 도메인) + 모구 아이콘
+ASSETS = {
+    "mogu": "game/assets/mogu-icon.png",
+    "bldDark": "mogusamguk/assets/bld_dark.png",
+    "shopRed": "mogusamguk/assets/shop_red.png",
+    "colRed": "mogusamguk/assets/col_red.png",
+    "signCat1": "mogusamguk/assets/sign_cat1.png",
+    "signCat2": "mogusamguk/assets/sign_cat2.png",
+    "statue": "mogusamguk/assets/statue.png",
+    "lantern2": "mogusamguk/assets/lantern2.png",
+}
+pairs = ", ".join('%s: "%s"' % (k, data_uri(v)) for k, v in ASSETS.items())
+assets_js = "window.MSG = { ASSETS: { %s } };" % pairs
 html = re.sub(
     r'<script>window\.MSG = \{ ASSETS: .*?\};</script>',
     lambda m: "<script>" + assets_js + "</script>",
