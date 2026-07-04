@@ -12,6 +12,14 @@ M.Render = {
     const img = new Image();
     img.onload = () => { this.mogu = img; };
     img.src = M.ASSETS.mogu;
+    // CC0 에셋 (OGA "City Platform", 퍼블릭 도메인): 원경 건물·구름·상자
+    this.imgs = {};
+    for (const k of ['bld1', 'bld3', 'bld4', 'cloud', 'crate']) {
+      if (!M.ASSETS[k]) continue;
+      const im2 = new Image();
+      im2.onload = () => { this.imgs[k] = im2; };
+      im2.src = M.ASSETS[k];
+    }
     this.resize();
     window.addEventListener('resize', () => this.resize());
   },
@@ -147,26 +155,55 @@ M.Render = {
   // ── 미션별 배경 (황혼 도시 무드 — 하늘 띠 0~62px에 원경을 얹음) ──
   drawBackground(st, t, cam) {
     const c = this.ctx, th = st.stage.theme, m = st.mission;
-    // 하늘: 지붕 위 얇은 띠만 (원작 문법 — 구조물이 화면 상단까지 참)
+    // 하늘: M1은 노을 밴드 + CC0 채색 건물 원경, 나머지는 지붕 위 얇은 띠만
     const stops = th.horizon ? [th.sky0, th.sky1, th.horizon] : [th.sky0, th.sky1];
-    for (let i = 0; i < 4; i++) {
-      c.fillStyle = this.mixStops(stops, i / 3);
-      c.fillRect(0, 3 * i, W, 4);
+    const skyH = m === 1 ? 98 : 12;
+    const NB = m === 1 ? 10 : 4;
+    for (let i = 0; i < NB; i++) {
+      c.fillStyle = this.mixStops(stops, i / (NB - 1));
+      c.fillRect(0, (skyH / NB) * i, W, skyH / NB + 1);
+    }
+    if (m === 1 && this.imgs) {
+      if (this.imgs.cloud) {            // 흐르는 구름
+        for (const [co, cy2, s2] of [[80, 10, 0.42], [320, 30, 0.3]]) {
+          const im2 = this.imgs.cloud;
+          const wI = im2.width * s2, hI = im2.height * s2;
+          const x = (((co - t * 6 - cam * 0.04) % (W + wI)) + W + wI) % (W + wI) - wI;
+          c.globalAlpha = 0.75;
+          c.drawImage(im2, x, cy2, wI, hI);
+          c.globalAlpha = 1;
+        }
+      }
+      // 원경 건물 행 (채색 에셋, 종횡비 보존 + 황혼 톤 오버레이)
+      const blds = ['bld1', 'bld3', 'bld4'];
+      for (let i = -1; i < 6; i++) {
+        const seg = Math.floor(cam * 0.3 / 120) + i;
+        const im2 = this.imgs[blds[((seg % 3) + 3) % 3]];
+        if (!im2) continue;
+        const hI = 76 + ((seg * 37 + 11) % 3) * 12;
+        const wI = im2.width * (hI / im2.height);
+        c.drawImage(im2, seg * 120 - cam * 0.3, 98 - hI, wI, hI);
+      }
+      c.fillStyle = 'rgba(90,40,60,.22)';
+      c.fillRect(0, 0, W, 98);
     }
 
     // ── 근경 벽 (미션별) — 상단 12px까지 구조물이 채움 ──
     const wallTop = 12, wallH = M.FLOOR_Y - wallTop;
     if (m === 1) {
-      // 벽돌 골목: 벽돌 패턴 + 그래피티 + 창살 + 쓰레기통 + 가로등
+      // 벽돌 골목: 하단 벽돌담 (상단은 원경 건물 밴드) + 그래피티 + 창살 + 쓰레기통 + 가로등
+      const w1 = 96;
       c.fillStyle = '#6a4a44';
-      c.fillRect(0, wallTop, W, wallH);
+      c.fillRect(0, w1, W, M.FLOOR_Y - w1);
+      c.fillStyle = this.shade('#6a4a44', 1.22);       // 담장 상단 갓돌
+      c.fillRect(0, w1, W, 5);
       c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 1;
-      for (let ry = 0; ry < wallH; ry += 10) {
-        c.beginPath(); c.moveTo(0, wallTop + ry); c.lineTo(W, wallTop + ry); c.stroke();
+      for (let ry = 5; ry < M.FLOOR_Y - w1; ry += 10) {
+        c.beginPath(); c.moveTo(0, w1 + ry); c.lineTo(W, w1 + ry); c.stroke();
         const off = (ry / 10) % 2 ? 12 : 0;
         for (let bx = -24; bx < W + 24; bx += 24) {
           const x = bx + off - ((cam * 0.6) % 24);
-          c.beginPath(); c.moveTo(x, wallTop + ry); c.lineTo(x, wallTop + ry + 10); c.stroke();
+          c.beginPath(); c.moveTo(x, w1 + ry); c.lineTo(x, w1 + ry + 10); c.stroke();
         }
       }
       // 그래피티·창문·쓰레기통·가로등 (구간 해시 배치)
@@ -178,15 +215,15 @@ M.Render = {
           c.fillStyle = ['#e05a8a', '#5ab8e0', '#a8e05a'][h2 % 3 === 0 ? seg % 3 : 0];
           c.globalAlpha = 0.55;
           c.font = 'bold 22px sans-serif'; c.textAlign = 'left';
-          c.fillText(['MOGU!', '냥', '~=≋', 'ZZZ'][h2 % 4], x + 30, wallTop + 46);
+          c.fillText(['MOGU!', '냥', '~=≋', 'ZZZ'][h2 % 4], x + 30, 128);
           c.globalAlpha = 1;
-        } else if (h2 % 3 === 1) {      // 창살 창문 (중단)
+        } else if (h2 % 3 === 1) {      // 창살 창문 (담벼락 중단)
           c.fillStyle = '#2a2030';
-          c.fillRect(x + 40, 76, 34, 26);
+          c.fillRect(x + 40, 112, 34, 26);
           c.strokeStyle = '#8a7a74'; c.lineWidth = 2;
-          c.strokeRect(x + 40, 76, 34, 26);
-          c.beginPath(); c.moveTo(x + 51, 76); c.lineTo(x + 51, 102);
-          c.moveTo(x + 62, 76); c.lineTo(x + 62, 102); c.stroke();
+          c.strokeRect(x + 40, 112, 34, 26);
+          c.beginPath(); c.moveTo(x + 51, 112); c.lineTo(x + 51, 138);
+          c.moveTo(x + 62, 112); c.lineTo(x + 62, 138); c.stroke();
         } else {                        // 쓰레기통 + 나뒹구는 유리병
           c.fillStyle = '#4a5a5a';
           c.beginPath(); c.roundRect(x + 90, M.FLOOR_Y - 30, 26, 30, 3); c.fill();
@@ -202,42 +239,27 @@ M.Render = {
           c.fillRect(-1, -14, 2, 5);
           c.restore();
         }
-        // 체인링크 펜스 (h2 짝수 구간, 중단)
+        // 체인링크 펜스 (h2 짝수 구간, 담벼락 중단)
         if (h2 % 2 === 0) {
           const fx0 = x + 118, fw = 38;
           c.strokeStyle = 'rgba(180,190,200,.4)'; c.lineWidth = 1;
           for (let k = 0; k <= 4; k++) {
-            c.beginPath(); c.moveTo(fx0 + k * 9, 74); c.lineTo(fx0 + k * 9 - 10, 112); c.stroke();
-            c.beginPath(); c.moveTo(fx0 + k * 9 - 10, 74); c.lineTo(fx0 + k * 9, 112); c.stroke();
+            c.beginPath(); c.moveTo(fx0 + k * 9, 106); c.lineTo(fx0 + k * 9 - 10, 144); c.stroke();
+            c.beginPath(); c.moveTo(fx0 + k * 9 - 10, 106); c.lineTo(fx0 + k * 9, 144); c.stroke();
           }
           c.strokeStyle = 'rgba(140,150,160,.6)'; c.lineWidth = 2;
-          c.strokeRect(fx0 - 10, 74, fw + 10, 38);
+          c.strokeRect(fx0 - 10, 106, fw + 10, 38);
         }
       }
-      // 2층 창문 행 (상부 밴드 — 불 켠 창 섞임)
-      for (let i = -1; i < 8; i++) {
-        const seg = Math.floor(cam * 0.6 / 70) + i;
-        const x = seg * 70 - cam * 0.6 + 10;
-        const h2 = (seg * 48271 + 3) >>> 4;
-        c.fillStyle = h2 % 3 === 0 ? 'rgba(255,206,110,.75)' : '#241a26';
-        c.fillRect(x, 22, 20, 16);
-        c.strokeStyle = '#3a2a2c'; c.lineWidth = 2;
-        c.strokeRect(x, 22, 20, 16);
-        c.beginPath(); c.moveTo(x + 10, 22); c.lineTo(x + 10, 38); c.stroke();
-        c.fillStyle = this.shade(th.wall, 0.75);
-        c.fillRect(x - 3, 40, 26, 3);                // 창턱
-      }
-      // 층 구분 몰딩 + 차양
-      c.fillStyle = this.shade(th.wall, 0.7);
-      c.fillRect(0, 52, W, 4);
+      // 담장 차양 (상점 자리)
       for (let i = -1; i < 3; i++) {
         const seg = Math.floor(cam * 0.6 / 260) + i;
         const x = seg * 260 - cam * 0.6 + 30;
         for (let k = 0; k < 5; k++) {
           c.fillStyle = k % 2 ? '#8e3038' : '#d8cfc0';
           c.beginPath();
-          c.moveTo(x + k * 12, 56); c.lineTo(x + k * 12 + 12, 56);
-          c.lineTo(x + k * 12 + 10, 68); c.lineTo(x + k * 12 - 2, 68);
+          c.moveTo(x + k * 12, 100); c.lineTo(x + k * 12 + 12, 100);
+          c.lineTo(x + k * 12 + 10, 112); c.lineTo(x + k * 12 - 2, 112);
           c.closePath(); c.fill();
         }
       }
@@ -324,6 +346,10 @@ M.Render = {
         c.strokeRect(x + 14, M.FLOOR_Y - 52, 28, 24);
         c.beginPath(); c.moveTo(x, M.FLOOR_Y - 28); c.lineTo(x + 30, M.FLOOR_Y);
         c.moveTo(x + 14, M.FLOOR_Y - 52); c.lineTo(x + 42, M.FLOOR_Y - 28); c.stroke();
+        c.fillStyle = 'rgba(40,30,14,.5)';             // 스텐실 마킹
+        c.font = 'bold 9px monospace'; c.textAlign = 'left';
+        c.fillText('MOGU', x + 4, M.FLOOR_Y - 12);
+        c.fillText('냥', x + 20, M.FLOOR_Y - 38);
         for (let k = 0; k < 3; k++) {                  // 크레이트 위 병
           const bx2 = x + 18 + k * 8;
           c.fillStyle = k % 2 ? 'rgba(90,160,90,.85)' : 'rgba(140,100,50,.85)';
@@ -482,11 +508,12 @@ M.Render = {
     }
 
     // ── 표면 질감 (명암 얼룩 — 회화 패스) ──
+    const wt2 = m === 1 ? 96 : wallTop;
     for (let i = -1; i < 26; i++) {
       const seg = Math.floor(cam * 0.6 / 60) + i;
       const h2 = (seg * 2246822519 + 5) >>> 5;
       const x = seg * 60 - cam * 0.6 + (h2 % 40);
-      const yy = wallTop + 6 + (h2 % 7) * 20;
+      const yy = wt2 + 6 + (h2 % 5) * ((M.FLOOR_Y - wt2 - 20) / 5);
       const w3 = 18 + (h2 % 34), h3 = 6 + (h2 % 14);
       c.fillStyle = h2 % 3 === 0 ? 'rgba(255,244,220,.05)' : 'rgba(10,6,14,.07)';
       c.fillRect(x, Math.min(yy, M.FLOOR_Y - h3 - 2), w3, h3);
