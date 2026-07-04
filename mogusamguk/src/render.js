@@ -412,6 +412,23 @@ M.Render = {
       c.globalAlpha = 1;
     }
 
+    // ── 표면 질감 (명암 얼룩 — 회화 패스) ──
+    for (let i = -1; i < 26; i++) {
+      const seg = Math.floor(cam * 0.6 / 60) + i;
+      const h2 = (seg * 2246822519 + 5) >>> 5;
+      const x = seg * 60 - cam * 0.6 + (h2 % 40);
+      const yy = wallTop + 6 + (h2 % 7) * 20;
+      const w3 = 18 + (h2 % 34), h3 = 6 + (h2 % 14);
+      c.fillStyle = h2 % 3 === 0 ? 'rgba(255,244,210,.05)' : 'rgba(10,6,10,.07)';
+      c.fillRect(x, Math.min(yy, M.FLOOR_Y - h3 - 2), w3, h3);
+    }
+    // 벽-바닥 접합 AO (접지감)
+    const ao = c.createLinearGradient(0, M.FLOOR_Y - 20, 0, M.FLOOR_Y);
+    ao.addColorStop(0, 'rgba(0,0,0,0)');
+    ao.addColorStop(1, 'rgba(0,0,0,.24)');
+    c.fillStyle = ao;
+    c.fillRect(0, M.FLOOR_Y - 20, W, 20);
+
     // ── 바닥 (벽보다 밝게 + 미션별 대각 원근 텍스처 — 원작 문법) ──
     const fg = c.createLinearGradient(0, M.FLOOR_Y, 0, H);
     fg.addColorStop(0, this.shade(th.floor, 1.06));
@@ -606,10 +623,51 @@ M.Render = {
   },
 
   // ── 캐릭터 (더블드래곤풍 리그) ──
+  // 스프라이트 패스: 본체를 오프스크린에 그린 뒤 균일 윤곽 + 상하 2톤 셀 셰이딩 합성 (아케이드 화풍)
   drawFighter(st, f, t) {
-    const c = this.ctx;
+    const c0 = this.ctx;
     const x = f.x - this.camX;
     if (x < -70 || x > W + 70) return;
+    const y = this.sy(f.z, f.jy);
+    c0.fillStyle = 'rgba(0,0,0,.3)';
+    c0.beginPath(); c0.ellipse(x, this.sy(f.z, 0) + 3, 15, 4.5, 0, 0, Math.PI * 2); c0.fill();
+    if (!this.osc) {
+      this.osc = document.createElement('canvas'); this.osc.width = 160; this.osc.height = 190;
+      this.os2 = document.createElement('canvas'); this.os2.width = 160; this.os2.height = 190;
+    }
+    const oc = this.osc.getContext('2d');
+    oc.setTransform(1, 0, 0, 1, 0, 0);
+    oc.clearRect(0, 0, 160, 190);
+    oc.setTransform(1, 0, 0, 1, 80 - x, 136 - y);
+    this.ctx = oc;
+    this.drawFighterBody(st, f, t);
+    this.ctx = c0;
+    oc.setTransform(1, 0, 0, 1, 0, 0);
+    oc.globalCompositeOperation = 'source-atop';
+    const sg = oc.createLinearGradient(0, 56, 0, 152);
+    sg.addColorStop(0, 'rgba(255,240,205,.12)');
+    sg.addColorStop(0.5, 'rgba(0,0,0,0)');
+    sg.addColorStop(1, 'rgba(24,12,34,.24)');
+    oc.fillStyle = sg; oc.fillRect(0, 0, 160, 190);
+    oc.globalCompositeOperation = 'source-over';
+    const o2 = this.os2.getContext('2d');
+    o2.setTransform(1, 0, 0, 1, 0, 0);
+    o2.clearRect(0, 0, 160, 190);
+    o2.drawImage(this.osc, 0, 0);
+    o2.globalCompositeOperation = 'source-in';
+    o2.fillStyle = 'rgba(22,14,28,.95)';
+    o2.fillRect(0, 0, 160, 190);
+    o2.globalCompositeOperation = 'source-over';
+    const bx = x - 80, by = y - 136;
+    for (const [ox, oy] of [[1.3, 0], [-1.3, 0], [0, 1.3], [0, -1.3], [1, 1], [-1, 1], [1, -1], [-1, -1]]) {
+      c0.drawImage(this.os2, bx + ox, by + oy);
+    }
+    c0.drawImage(this.osc, bx, by);
+  },
+
+  drawFighterBody(st, f, t) {
+    const c = this.ctx;
+    const x = f.x - this.camX;
     const y = this.sy(f.z, f.jy);
     const down = f.state === 'down' || f.state === 'dead';
     const hurt = f.state === 'hurt';
@@ -617,10 +675,6 @@ M.Render = {
     const walk = f.state === 'walk';
     const dead = f.state === 'dead';
     const airkick = atk && f.jy > 0;
-
-    // 그림자
-    c.fillStyle = 'rgba(0,0,0,.28)';
-    c.beginPath(); c.ellipse(x, this.sy(f.z, 0) + 3, 15, 4.5, 0, 0, Math.PI * 2); c.fill();
 
     c.save();
     c.translate(x, y);
