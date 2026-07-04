@@ -764,11 +764,20 @@ M.Render = {
           c.strokeRect(x + 40, 76, 34, 26);
           c.beginPath(); c.moveTo(x + 51, 76); c.lineTo(x + 51, 102);
           c.moveTo(x + 62, 76); c.lineTo(x + 62, 102); c.stroke();
-        } else {                        // 쓰레기통
+        } else {                        // 쓰레기통 + 나뒹구는 유리병
           c.fillStyle = '#4a5a5a';
           c.beginPath(); c.roundRect(x + 90, M.FLOOR_Y - 30, 26, 30, 3); c.fill();
           c.fillStyle = '#3a4a4a';
           c.fillRect(x + 87, M.FLOOR_Y - 34, 32, 6);
+          c.fillStyle = 'rgba(90,160,90,.85)';
+          c.fillRect(x + 122, M.FLOOR_Y - 11, 5, 11);
+          c.fillRect(x + 123.5, M.FLOOR_Y - 15, 2, 5);
+          c.save();
+          c.translate(x + 136, M.FLOOR_Y - 2); c.rotate(1.35);   // 쓰러진 병
+          c.fillStyle = 'rgba(140,100,50,.85)';
+          c.fillRect(-2.5, -10, 5, 10);
+          c.fillRect(-1, -14, 2, 5);
+          c.restore();
         }
         // 체인링크 펜스 (h2 짝수 구간, 중단)
         if (h2 % 2 === 0) {
@@ -880,7 +889,7 @@ M.Render = {
           c.closePath(); c.fill();
         }
       }
-      // 크레이트 더미
+      // 크레이트 더미 + 유리병
       for (let i = -1; i < 3; i++) {
         const seg = Math.floor(cam * 0.6 / 300) + i;
         const x = seg * 300 - cam * 0.6 + 150;
@@ -892,6 +901,28 @@ M.Render = {
         c.strokeRect(x + 14, M.FLOOR_Y - 52, 28, 24);
         c.beginPath(); c.moveTo(x, M.FLOOR_Y - 28); c.lineTo(x + 30, M.FLOOR_Y);
         c.moveTo(x + 14, M.FLOOR_Y - 52); c.lineTo(x + 42, M.FLOOR_Y - 28); c.stroke();
+        for (let k = 0; k < 3; k++) {                  // 크레이트 위 병
+          const bx2 = x + 18 + k * 8;
+          c.fillStyle = k % 2 ? 'rgba(90,160,90,.85)' : 'rgba(140,100,50,.85)';
+          c.fillRect(bx2, M.FLOOR_Y - 62, 5, 10);
+          c.fillRect(bx2 + 1.5, M.FLOOR_Y - 66, 2, 5);
+          c.fillStyle = 'rgba(255,255,255,.35)';
+          c.fillRect(bx2 + 0.8, M.FLOOR_Y - 61, 1.2, 7);
+        }
+      }
+      // 컨베이어 벨트 (구동 라인)
+      const cyv = M.FLOOR_Y - 12;
+      c.fillStyle = '#26222c';
+      c.fillRect(0, cyv, W, 9);
+      c.fillStyle = '#4a4652';
+      for (let bx2 = -26; bx2 < W + 26; bx2 += 26) {
+        const xx = bx2 - ((cam * 0.6 + t * 55) % 26);
+        c.fillRect(xx, cyv + 1.5, 14, 6);
+      }
+      c.fillStyle = '#5a5662';
+      for (let i = -1; i < 8; i++) {
+        const xx = i * 70 - ((cam * 0.6) % 70);
+        c.beginPath(); c.arc(xx, cyv + 4.5, 4, 0, Math.PI * 2); c.fill();
       }
       // 파이프 (수평 2줄 + 조인트)
       for (const py of [wallTop + 12, wallTop + 30]) {

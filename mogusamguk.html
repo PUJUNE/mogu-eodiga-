@@ -952,6 +952,56 @@ M.Render = {
         c.font = 'bold 11px sans-serif'; c.textAlign = 'left';
         c.fillText('黃', x + 12, wallTop + 7);
       }
+      // 구간 2 (world 430~850): 황토 절벽길 — 목책이 끊기고 절벽 단층
+      const cx0 = 430 - cam;
+      if (cx0 < W && cx0 + 420 > 0) {
+        c.save(); c.beginPath(); c.rect(cx0, wallTop - 8, 420, M.FLOOR_Y - wallTop + 8); c.clip();
+        c.fillStyle = '#b08a4e';
+        c.fillRect(cx0, wallTop - 8, 420, M.FLOOR_Y - wallTop + 8);
+        for (let ry = 0; ry < M.FLOOR_Y - wallTop; ry += 18) {
+          c.fillStyle = (ry / 18) % 2 ? 'rgba(130,88,34,.3)' : 'rgba(70,46,16,.18)';
+          c.fillRect(cx0, wallTop + ry, 420, 7);
+        }
+        c.strokeStyle = 'rgba(70,45,15,.5)'; c.lineWidth = 2;
+        for (let k = 0; k < 6; k++) {
+          const xx = cx0 + 30 + k * 68;
+          c.beginPath();
+          c.moveTo(xx, wallTop + 10 + (k % 3) * 26);
+          c.lineTo(xx + 12, wallTop + 44 + (k % 3) * 26);
+          c.lineTo(xx + 6, wallTop + 74 + (k % 2) * 18);
+          c.stroke();
+        }
+        c.fillStyle = 'rgba(60,90,40,.5)';                     // 절벽 틈 풀
+        for (let k = 0; k < 5; k++) {
+          c.beginPath(); c.ellipse(cx0 + 60 + k * 80, wallTop + 30 + (k % 3) * 34, 9, 3.5, 0, 0, Math.PI * 2); c.fill();
+        }
+        c.restore();
+      }
+      // 구간 3 (world 850~1270): 계곡 로프 다리
+      const bx0 = 850 - cam;
+      if (bx0 < W && bx0 + 420 > 0) {
+        c.save(); c.beginPath(); c.rect(bx0, wallTop - 10, 420, M.FLOOR_Y - wallTop + 10); c.clip();
+        const gg = c.createLinearGradient(0, wallTop, 0, M.FLOOR_Y);
+        gg.addColorStop(0, '#c8a86a'); gg.addColorStop(1, '#eadfc4');
+        c.fillStyle = gg; c.fillRect(bx0, wallTop - 10, 420, M.FLOOR_Y - wallTop + 10);
+        c.fillStyle = 'rgba(140,100,50,.55)';                  // 건너편 협곡 벽
+        c.fillRect(bx0, wallTop - 10, 420, 38);
+        c.fillStyle = 'rgba(255,255,255,.3)';                  // 계곡 안개
+        c.beginPath(); c.ellipse(bx0 + 140, M.FLOOR_Y - 40, 120, 22, 0, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.ellipse(bx0 + 320, M.FLOOR_Y - 60, 100, 18, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = '#6a4a22'; c.lineWidth = 4; c.lineCap = 'round';
+        for (let k = 0; k <= 6; k++) {                         // 다리 말뚝
+          const xx = bx0 + k * 70;
+          c.beginPath(); c.moveTo(xx, M.FLOOR_Y); c.lineTo(xx, M.FLOOR_Y - 52); c.stroke();
+        }
+        c.strokeStyle = '#8a6a38'; c.lineWidth = 2.4;
+        for (let k = 0; k < 6; k++) {                          // 늘어진 로프 2줄
+          const xx = bx0 + k * 70;
+          c.beginPath(); c.moveTo(xx, M.FLOOR_Y - 48); c.quadraticCurveTo(xx + 35, M.FLOOR_Y - 34, xx + 70, M.FLOOR_Y - 48); c.stroke();
+          c.beginPath(); c.moveTo(xx, M.FLOOR_Y - 24); c.quadraticCurveTo(xx + 35, M.FLOOR_Y - 12, xx + 70, M.FLOOR_Y - 24); c.stroke();
+        }
+        c.restore();
+      }
     } else if (m === 2) {
       // 대나무 숲
       for (let i = -1; i < 14; i++) {
@@ -966,6 +1016,48 @@ M.Render = {
         }
         c.strokeStyle = '#3a6a2a'; c.lineWidth = 2;
         c.beginPath(); c.moveTo(x + sway, wallTop + 24); c.lineTo(x + 14 + sway, wallTop + 12); c.stroke();
+      }
+      // 구간 3 (world 850~1270): 강 나루터 — 대나무가 걷히고 정박한 목선
+      const nx0 = 850 - cam;
+      if (nx0 < W && nx0 + 420 > 0) {
+        c.save(); c.beginPath(); c.rect(nx0, wallTop - 8, 420, M.FLOOR_Y - wallTop + 8); c.clip();
+        const wg = c.createLinearGradient(0, wallTop, 0, M.FLOOR_Y);
+        wg.addColorStop(0, '#9fc8b0'); wg.addColorStop(1, '#4e8a78');
+        c.fillStyle = wg; c.fillRect(nx0, wallTop - 8, 420, M.FLOOR_Y - wallTop + 8);
+        c.strokeStyle = 'rgba(255,255,255,.3)'; c.lineWidth = 1.4;
+        for (let k = 0; k < 8; k++) {                          // 물결
+          const yy = wallTop + 34 + k * 14;
+          c.beginPath();
+          for (let xx = 0; xx <= 420; xx += 20) c.lineTo(nx0 + xx, yy + Math.sin((xx + t * 40) * 0.05 + k) * 2);
+          c.stroke();
+        }
+        const shx = nx0 + 170, shy = M.FLOOR_Y - 42;           // 정박 목선
+        const bob = Math.sin(t * 1.2) * 1.5;
+        c.fillStyle = '#6a4526';
+        c.beginPath();
+        c.moveTo(shx - 95, shy + bob);
+        c.quadraticCurveTo(shx, shy + 30 + bob, shx + 95, shy + bob);
+        c.lineTo(shx + 76, shy - 24 + bob); c.lineTo(shx - 76, shy - 24 + bob);
+        c.closePath(); c.fill();
+        c.fillStyle = '#8a6236';
+        c.fillRect(shx - 76, shy - 24 + bob, 152, 7);
+        c.strokeStyle = 'rgba(40,24,10,.4)'; c.lineWidth = 1.4;
+        for (let k = 0; k < 5; k++) { c.beginPath(); c.moveTo(shx - 70 + k * 35, shy - 17 + bob); c.lineTo(shx - 58 + k * 35, shy + 8 + bob); c.stroke(); }
+        c.fillStyle = '#5a3a1e';
+        c.fillRect(shx - 3, shy - 82 + bob, 6, 60);            // 돛대
+        c.fillStyle = '#d8cfb0';
+        c.beginPath();                                          // 접힌 돛
+        c.moveTo(shx + 4, shy - 78 + bob); c.lineTo(shx + 44, shy - 32 + bob); c.lineTo(shx + 4, shy - 32 + bob);
+        c.closePath(); c.fill();
+        c.strokeStyle = '#8a6a38'; c.lineWidth = 1.6;
+        c.beginPath(); c.moveTo(shx - 60, shy - 20 + bob); c.lineTo(nx0 + 40, M.FLOOR_Y - 4); c.stroke();   // 밧줄
+        // 선착장 말뚝
+        c.fillStyle = '#5a4226';
+        for (const px2 of [nx0 + 40, nx0 + 330, nx0 + 390]) {
+          c.fillRect(px2, M.FLOOR_Y - 26, 8, 26);
+          c.beginPath(); c.ellipse(px2 + 4, M.FLOOR_Y - 26, 5, 3, 0, 0, Math.PI * 2); c.fill();
+        }
+        c.restore();
       }
     } else if (m === 3) {
       // 성문 앞: 석성벽 + 성가퀴 + 성문
