@@ -7,11 +7,11 @@ M.FLOOR_Y = 176;
 
 // 사극 드라마 팔레트: 깊은 채도 + 전화(戰火)의 붉은 기운 (90년대 중화 아케이드 톤)
 M.THEMES = {
-  1: { name: '황건적 들판', sky0: '#a04818', sky1: '#e09838', horizon: '#f8dc90', wall: '#77552a', floor: '#8e7640', floor2: '#7c6634', accent: '#ffd83d' },
-  2: { name: '대나무 숲',   sky0: '#12321e', sky1: '#3a6a3e', horizon: '#8fb868', wall: '#142c1a', floor: '#3f6034', floor2: '#345428', accent: '#9fe06a' },
-  3: { name: '성문 앞',     sky0: '#6684b4', sky1: '#b0c8dc', horizon: '#e8ecdc', wall: '#5e5450', floor: '#7c7268', floor2: '#6c6258', accent: '#5db8ff' },
-  4: { name: '성내 시가',   sky0: '#1c0e2a', sky1: '#4e1e3c', horizon: '#8a2c38', wall: '#42282e', floor: '#5e443c', floor2: '#4e342c', accent: '#ff7d5c' },
-  5: { name: '왕좌의 방',   sky0: '#160812', sky1: '#3a1222', wall: '#521a28', floor: '#642838', floor2: '#521a28', accent: '#ffd83d' },
+  1: { name: '황건적 들판', sky0: '#a04818', sky1: '#e09838', horizon: '#f8dc90', wall: '#8a6432', floor: '#a68e4e', floor2: '#948040', accent: '#ffd83d' },
+  2: { name: '대나무 숲',   sky0: '#12321e', sky1: '#3a6a3e', horizon: '#8fb868', wall: '#1a3a22', floor: '#5a7a44', floor2: '#4c6c38', accent: '#9fe06a' },
+  3: { name: '성문 앞',     sky0: '#6684b4', sky1: '#b0c8dc', horizon: '#e8ecdc', wall: '#6e645c', floor: '#948a7c', floor2: '#847a6c', accent: '#5db8ff' },
+  4: { name: '성내 시가',   sky0: '#1c0e2a', sky1: '#4e1e3c', horizon: '#8a2c38', wall: '#4e3034', floor: '#7a6252', floor2: '#6a5244', accent: '#ff7d5c' },
+  5: { name: '왕좌의 방',   sky0: '#160812', sky1: '#3a1222', wall: '#5c1e2c', floor: '#8e2430', floor2: '#7a1c28', accent: '#ffd83d' },
 };
 
 // 병졸 종별

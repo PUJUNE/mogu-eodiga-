@@ -5,12 +5,12 @@ M.W = 480; M.H = 270;
 M.Z_MIN = 0; M.Z_MAX = 78;              // 깊이(세로 이동) 범위
 M.FLOOR_Y = 176;                        // z=0일 때 발 위치 (z가 클수록 아래)
 
-// 그릿 팔레트: 낮은 명도·탁한 채도 + 따뜻한 노을 하이라이트 (80년대 아케이드 톤)
+// 원작 스크린샷 분석 반영: 중명도 벽 + 벽보다 밝은 바닥 + 강한 명암 대비
 M.THEMES = {
-  1: { name: '시내 골목',   sky0: '#221838', sky1: '#66364e', horizon: '#e06a32', wall: '#4c3836', floor: '#525058', floor2: '#444249', accent: '#ffb83d' },
-  2: { name: '공장 지대',   sky0: '#282230', sky1: '#4c3e36', horizon: '#a07048', wall: '#3c3840', floor: '#5c5448', floor2: '#4c443a', accent: '#ff9d5c' },
-  3: { name: '어두운 숲길', sky0: '#081220', sky1: '#14261c', wall: '#0e1e0c', floor: '#364e2a', floor2: '#2a421e', accent: '#9fe06a' },
-  4: { name: '악당 아지트', sky0: '#0c0514', sky1: '#280e34', horizon: '#4c0e22', wall: '#220e2c', floor: '#3e2e54', floor2: '#302246', accent: '#e08fff' },
+  1: { name: '시내 골목',   sky0: '#3a2848', sky1: '#8a4a48', horizon: '#e06a32', wall: '#7a5044', floor: '#8e94a0', floor2: '#7c8492', accent: '#ffb83d' },
+  2: { name: '공장 지대',   sky0: '#3a3440', sky1: '#5c4e46', horizon: '#a07048', wall: '#5a5560', floor: '#8a7f68', floor2: '#786d56', accent: '#ff9d5c' },
+  3: { name: '어두운 숲길', sky0: '#12242e', sky1: '#1e3a28', wall: '#8a6a48', floor: '#57783f', floor2: '#4a6a34', accent: '#9fe06a' },
+  4: { name: '악당 아지트', sky0: '#180a20', sky1: '#301040', horizon: '#4c0e22', wall: '#b08a54', floor: '#7a828e', floor2: '#6a727e', accent: '#ffd83d' },
 };
 
 // 악당 종별 파라미터

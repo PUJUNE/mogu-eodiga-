@@ -52,18 +52,18 @@ M.Render = {
     return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
   },
 
-  // CRT 아케이드 후처리: 진홍 그레이드 + 스캔라인 + 비네트 (사극 드라마 톤)
+  // CRT 아케이드 후처리 (원작 스크린샷 분석 반영: 원작은 밝고 채도가 쨍함 — 그레이드 절제)
   retroPass() {
     const c = this.ctx;
     c.globalCompositeOperation = 'overlay';
-    c.fillStyle = 'rgba(210,60,40,.08)';
+    c.fillStyle = 'rgba(210,70,40,.05)';
     c.fillRect(0, 0, W, H);
     c.globalCompositeOperation = 'source-over';
-    c.fillStyle = 'rgba(0,0,0,.11)';
+    c.fillStyle = 'rgba(0,0,0,.08)';
     for (let y = 0; y < H; y += 3) c.fillRect(0, y, W, 1);
-    const vg = c.createRadialGradient(W / 2, H / 2, H * 0.5, W / 2, H / 2, H * 1.02);
+    const vg = c.createRadialGradient(W / 2, H / 2, H * 0.58, W / 2, H / 2, H * 1.05);
     vg.addColorStop(0, 'rgba(0,0,0,0)');
-    vg.addColorStop(1, 'rgba(12,3,6,.45)');
+    vg.addColorStop(1, 'rgba(12,3,6,.26)');
     c.fillStyle = vg; c.fillRect(0, 0, W, H);
   },
 
@@ -214,8 +214,8 @@ M.Render = {
       for (let i = 0; i < 22; i++) c.fillRect((i * 151 + 23) % W, (i * 67 + 9) % 44, 1.5, 1.5);
     }
 
-    // 원경 산수 2겹 + 산허리 안개 (실내 m5 제외)
-    if (m !== 5) {
+    // 원경 산수 2겹 + 산허리 안개 (하늘이 보이는 들판만)
+    if (m === 1) {
       const MTN = {
         1: ['rgba(150,100,60,.3)', 'rgba(110,70,40,.5)'],
         2: ['rgba(30,70,50,.35)', 'rgba(20,50,35,.55)'],
@@ -293,8 +293,8 @@ M.Render = {
       }
     }
 
-    // ── 근경 벽 (미션별 — 중화 테마) ──
-    const wallTop = 62, wallH = M.FLOOR_Y - wallTop;
+    // ── 근경 벽 (미션별 — 중화 테마) — 야외 들판만 하늘, 나머지는 상단까지 구조물 ──
+    const wallTop = m === 1 ? 62 : 14, wallH = M.FLOOR_Y - wallTop;
     c.fillStyle = th.wall;
     c.fillRect(0, wallTop, W, wallH);
     if (m === 1) {
@@ -412,22 +412,71 @@ M.Render = {
       c.globalAlpha = 1;
     }
 
-    // ── 바닥 (원근 라인 + 미션 톤) ──
+    // ── 바닥 (벽보다 밝게 + 미션별 대각 원근 텍스처 — 원작 문법) ──
     const fg = c.createLinearGradient(0, M.FLOOR_Y, 0, H);
-    fg.addColorStop(0, th.floor);
-    fg.addColorStop(1, this.shade(th.floor, 0.72));
+    fg.addColorStop(0, this.shade(th.floor, 1.06));
+    fg.addColorStop(1, this.shade(th.floor, 0.8));
     c.fillStyle = fg;
     c.fillRect(0, M.FLOOR_Y, W, H - M.FLOOR_Y);
     // 보도 경계
-    c.fillStyle = this.shade(th.floor, 1.25);
+    c.fillStyle = this.shade(th.floor, 1.3);
     c.fillRect(0, M.FLOOR_Y, W, 3);
     c.fillStyle = 'rgba(0,0,0,.25)';
     c.fillRect(0, M.FLOOR_Y + 3, W, 1.5);
-    // 깊이 라인 (희미한 수평선)
-    c.strokeStyle = 'rgba(255,255,255,.05)'; c.lineWidth = 1;
-    for (const zz of [20, 40, 60]) {
-      const y = M.FLOOR_Y + zz * ZS;
-      c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke();
+    if (m === 1 || m === 4) {
+      // 흙길/판석: 수평 골 + 대각 이음
+      c.strokeStyle = 'rgba(0,0,0,.15)'; c.lineWidth = 1.4;
+      for (const zz of [24, 48, 70]) {
+        const y = M.FLOOR_Y + zz * ZS;
+        c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke();
+      }
+      for (let i = -1; i < 7; i++) {
+        const x = i * 100 - (cam % 100) + 20;
+        c.beginPath(); c.moveTo(x, M.FLOOR_Y + 4); c.lineTo(x - 26, H); c.stroke();
+      }
+    } else if (m === 2) {
+      // 숲 흙바닥: 풀포기 데칼
+      c.fillStyle = 'rgba(40,80,30,.5)';
+      for (let i = -1; i < 10; i++) {
+        const seg = Math.floor(cam / 70) + i;
+        const x = seg * 70 - cam + ((seg * 31) % 40);
+        const y = M.FLOOR_Y + 12 + ((seg * 53) % 60) * ZS;
+        for (let k = -1; k <= 1; k++) {
+          c.beginPath(); c.moveTo(x + k * 3, y); c.lineTo(x + k * 4, y - 5 - Math.abs(k)); c.lineTo(x + k * 3 + 1.5, y); c.closePath(); c.fill();
+        }
+      }
+    } else if (m === 3) {
+      // 석판: 격자 이음 + 원형 문양
+      c.strokeStyle = 'rgba(0,0,0,.18)'; c.lineWidth = 1.4;
+      for (const zz of [22, 44, 66]) {
+        const y = M.FLOOR_Y + zz * ZS;
+        c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke();
+      }
+      for (let i = -1; i < 8; i++) {
+        const x = i * 80 - (cam % 80);
+        c.beginPath(); c.moveTo(x, M.FLOOR_Y + 4); c.lineTo(x - 20, H); c.stroke();
+      }
+      for (let i = -1; i < 4; i++) {
+        const seg = Math.floor(cam / 260) + i;
+        const x = seg * 260 - cam + 120;
+        const y = M.FLOOR_Y + 34;
+        c.strokeStyle = 'rgba(0,0,0,.14)'; c.lineWidth = 2;
+        c.beginPath(); c.ellipse(x, y, 26, 11, 0, 0, Math.PI * 2); c.stroke();
+        c.beginPath(); c.ellipse(x, y, 15, 6.5, 0, 0, Math.PI * 2); c.stroke();
+      }
+    } else {
+      // 왕좌의 방: 붉은 카펫 + 금 테 + 마름모 문양
+      c.fillStyle = '#d8b83a';
+      c.fillRect(0, M.FLOOR_Y + 6, W, 2.5);
+      c.fillRect(0, H - 7, W, 2.5);
+      c.fillStyle = 'rgba(0,0,0,.13)';
+      for (let i = -1; i < 8; i++) {
+        const x = i * 70 - (cam % 70);
+        c.beginPath();
+        c.moveTo(x, M.FLOOR_Y + 40); c.lineTo(x + 15, M.FLOOR_Y + 28);
+        c.lineTo(x + 30, M.FLOOR_Y + 40); c.lineTo(x + 15, M.FLOOR_Y + 52);
+        c.closePath(); c.fill();
+      }
     }
     // 바닥 균열·맨홀 (해시 데칼)
     for (let i = -1; i < 5; i++) {
@@ -487,9 +536,9 @@ M.Render = {
     // 레벨 배지 + 경험치 게이지
     c.font = 'bold 9px sans-serif'; c.textAlign = 'left';
     c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 3;
-    c.strokeText(`Lv.${st.lv}`, 10, 61);
+    c.strokeText(`LEV ${st.lv}`, 10, 61);
     c.fillStyle = '#ffd83d';
-    c.fillText(`Lv.${st.lv}`, 10, 61);
+    c.fillText(`LEV ${st.lv}`, 10, 61);
     if (st.lv < M.Logic.LV_MAX) {
       c.fillStyle = 'rgba(0,0,0,.5)';
       c.fillRect(38, 55, 52, 5);
@@ -542,12 +591,17 @@ M.Render = {
       c.beginPath(); c.moveTo(x + 14, y + 10); c.lineTo(x + 18, y + 11.5); c.lineTo(x + 14, y + 13); c.fill();
       c.fillStyle = '#22262e'; c.fillRect(x + 10.5, y + 8.5, 2, 2);
     }
-    // HP 바 (금테)
-    c.fillStyle = 'rgba(0,0,0,.5)';
+    // HP 바 (금테 + 노랑/빨강 이중층 — 사극 아케이드 문법)
+    c.fillStyle = 'rgba(0,0,0,.6)';
     c.fillRect(x + 23, y + 5, w2, 9);
-    c.fillStyle = color;
-    c.fillRect(x + 24, y + 6, Math.max(0, (w2 - 2) * Math.min(1, ratio)), 7);
-    c.strokeStyle = 'rgba(216,184,58,.8)'; c.lineWidth = 1;
+    c.fillStyle = '#a02418';
+    c.fillRect(x + 24, y + 6, w2 - 2, 7);
+    const fw2 = Math.max(0, (w2 - 2) * Math.min(1, ratio));
+    c.fillStyle = '#ffd83d';
+    c.fillRect(x + 24, y + 6, fw2, 7);
+    c.fillStyle = 'rgba(255,255,255,.5)';
+    c.fillRect(x + 24, y + 6, fw2, 2);
+    c.strokeStyle = '#d8b83a'; c.lineWidth = 1;
     c.strokeRect(x + 23, y + 5, w2, 9);
   },
 
