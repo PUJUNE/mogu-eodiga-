@@ -42,6 +42,31 @@ M.Render = {
     return `rgb(${r},${g},${b})`;
   },
 
+  // 다중 스톱 hex 보간 (밴드 그라데이션용)
+  mixStops(stops, t) {
+    const n = stops.length - 1;
+    const k = Math.min(n - 1, Math.floor(t * n));
+    const f = t * n - k;
+    const a = parseInt(stops[k].slice(1), 16), b = parseInt(stops[k + 1].slice(1), 16);
+    const ch = (sh) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * f);
+    return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+  },
+
+  // CRT 아케이드 후처리: 진홍 그레이드 + 스캔라인 + 비네트 (사극 드라마 톤)
+  retroPass() {
+    const c = this.ctx;
+    c.globalCompositeOperation = 'overlay';
+    c.fillStyle = 'rgba(210,60,40,.08)';
+    c.fillRect(0, 0, W, H);
+    c.globalCompositeOperation = 'source-over';
+    c.fillStyle = 'rgba(0,0,0,.11)';
+    for (let y = 0; y < H; y += 3) c.fillRect(0, y, W, 1);
+    const vg = c.createRadialGradient(W / 2, H / 2, H * 0.5, W / 2, H / 2, H * 1.02);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(12,3,6,.45)');
+    c.fillStyle = vg; c.fillRect(0, 0, W, H);
+  },
+
   // 둥근 끝 두꺼운 선분 — 팔다리 (윤곽선 포함)
   limb(x1, y1, x2, y2, w2, color, outline = true) {
     const c = this.ctx;
@@ -145,15 +170,19 @@ M.Render = {
     }
 
     this.drawHud(st, t);
+    this.retroPass();
   },
 
   // ── 미션별 배경 (수묵 산수 원경 — 하늘 띠 0~62px) ──
   drawBackground(st, t, cam) {
     const c = this.ctx, th = st.stage.theme, m = st.mission;
-    // 하늘
-    const g = c.createLinearGradient(0, 0, 0, 66);
-    g.addColorStop(0, th.sky0); g.addColorStop(1, th.sky1);
-    c.fillStyle = g; c.fillRect(0, 0, W, 66);
+    // 하늘: 아케이드식 밴드 그라데이션 (이산 디더 밴딩)
+    const stops = th.horizon ? [th.sky0, th.sky1, th.horizon] : [th.sky0, th.sky1];
+    const BANDS = 9, bh = 66 / BANDS;
+    for (let i = 0; i < BANDS; i++) {
+      c.fillStyle = this.mixStops(stops, i / (BANDS - 1));
+      c.fillRect(0, bh * i, W, bh + 1);
+    }
 
     if (m === 1) {                      // 들판: 해 + 원경 봉화 연기
       c.fillStyle = 'rgba(255,240,200,.9)';
@@ -491,11 +520,13 @@ M.Render = {
 
   portraitBar(x, y, w2, ratio, color, face) {
     const c = this.ctx;
-    // 초상화 틀
+    // 초상화 틀 (금장 프레임 — 사극 톤)
     c.fillStyle = 'rgba(0,0,0,.55)';
     c.beginPath(); c.roundRect(x, y, 19, 19, 3); c.fill();
-    c.strokeStyle = 'rgba(255,255,255,.7)'; c.lineWidth = 1.2;
+    c.strokeStyle = '#d8b83a'; c.lineWidth = 1.4;
     c.strokeRect(x, y, 19, 19);
+    c.strokeStyle = 'rgba(90,20,20,.8)'; c.lineWidth = 0.8;
+    c.strokeRect(x - 1, y - 1, 21, 21);
     if (face === 'mogu' && this.mogu) {
       const a = this.mogu.width / this.mogu.height;
       c.save();
@@ -511,12 +542,12 @@ M.Render = {
       c.beginPath(); c.moveTo(x + 14, y + 10); c.lineTo(x + 18, y + 11.5); c.lineTo(x + 14, y + 13); c.fill();
       c.fillStyle = '#22262e'; c.fillRect(x + 10.5, y + 8.5, 2, 2);
     }
-    // HP 바
+    // HP 바 (금테)
     c.fillStyle = 'rgba(0,0,0,.5)';
     c.fillRect(x + 23, y + 5, w2, 9);
     c.fillStyle = color;
     c.fillRect(x + 24, y + 6, Math.max(0, (w2 - 2) * Math.min(1, ratio)), 7);
-    c.strokeStyle = 'rgba(255,255,255,.6)'; c.lineWidth = 1;
+    c.strokeStyle = 'rgba(216,184,58,.8)'; c.lineWidth = 1;
     c.strokeRect(x + 23, y + 5, w2, 9);
   },
 

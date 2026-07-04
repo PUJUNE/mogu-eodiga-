@@ -23,10 +23,11 @@
     opacity:0; transition:opacity .3s; white-space:nowrap; }
 
   /* ── 타이틀 ── */
-  #title-screen { background:linear-gradient(#2a1a30 0%, #5a3040 55%, #1a1020 100%); }
-  #title-screen .logo { font-size:min(62px, 12vw); font-weight:900; color:#fff; white-space:nowrap;
-    text-shadow:0 5px 0 #8a2a30, 0 9px 18px rgba(0,0,0,.4); letter-spacing:min(7px, 1.4vw); }
-  #title-screen .sub { margin-top:6px; font-size:17px; color:#f0c8a0; font-weight:700; }
+  #title-screen { background:linear-gradient(#160e26 0%, #55231a 55%, #0d0a14 100%);
+    box-shadow:inset 0 0 120px rgba(0,0,0,.7); }
+  #title-screen .logo { font-size:min(62px, 12vw); font-weight:900; color:#ffe8c8; white-space:nowrap;
+    text-shadow:0 0 22px #ff7d3d, 0 5px 0 #5c1c10, 0 9px 18px rgba(0,0,0,.6); letter-spacing:min(7px, 1.4vw); }
+  #title-screen .sub { margin-top:6px; font-size:17px; color:#e8a878; font-weight:700; letter-spacing:2px; }
   #title-icon { width:105px; height:auto; margin:16px 0 4px; animation:bob 1.5s ease-in-out infinite;
     filter:drop-shadow(0 8px 10px rgba(0,0,0,.4)); }
   @keyframes bob { 0%,100%{transform:translateY(0) rotate(-5deg)} 50%{transform:translateY(-16px) rotate(5deg)} }
@@ -180,11 +181,12 @@ M.W = 480; M.H = 270;
 M.Z_MIN = 0; M.Z_MAX = 78;              // 깊이(세로 이동) 범위
 M.FLOOR_Y = 176;                        // z=0일 때 발 위치 (z가 클수록 아래)
 
+// 그릿 팔레트: 낮은 명도·탁한 채도 + 따뜻한 노을 하이라이트 (80년대 아케이드 톤)
 M.THEMES = {
-  1: { name: '시내 골목',   sky0: '#1e2450', sky1: '#6a4a74', horizon: '#e8845a', wall: '#5a4a58', floor: '#6a6a74', floor2: '#5a5a64', accent: '#ffd83d' },
-  2: { name: '공장 지대',   sky0: '#3a3040', sky1: '#5a4a50', horizon: '#b8906a', wall: '#4a4450', floor: '#7a7060', floor2: '#6a6050', accent: '#ff9d5c' },
-  3: { name: '어두운 숲길', sky0: '#0a1c2e', sky1: '#1e3a2a', wall: '#1a3012', floor: '#4a6a3a', floor2: '#3a5a2a', accent: '#9fe06a' },
-  4: { name: '악당 아지트', sky0: '#12081e', sky1: '#341448', horizon: '#5c1830', wall: '#2a1438', floor: '#54406a', floor2: '#44305a', accent: '#e08fff' },
+  1: { name: '시내 골목',   sky0: '#221838', sky1: '#66364e', horizon: '#e06a32', wall: '#4c3836', floor: '#525058', floor2: '#444249', accent: '#ffb83d' },
+  2: { name: '공장 지대',   sky0: '#282230', sky1: '#4c3e36', horizon: '#a07048', wall: '#3c3840', floor: '#5c5448', floor2: '#4c443a', accent: '#ff9d5c' },
+  3: { name: '어두운 숲길', sky0: '#081220', sky1: '#14261c', wall: '#0e1e0c', floor: '#364e2a', floor2: '#2a421e', accent: '#9fe06a' },
+  4: { name: '악당 아지트', sky0: '#0c0514', sky1: '#280e34', horizon: '#4c0e22', wall: '#220e2c', floor: '#3e2e54', floor2: '#302246', accent: '#e08fff' },
 };
 
 // 악당 종별 파라미터
@@ -616,6 +618,31 @@ M.Render = {
     return `rgb(${r},${g},${b})`;
   },
 
+  // 다중 스톱 hex 보간 (밴드 그라데이션용)
+  mixStops(stops, t) {
+    const n = stops.length - 1;
+    const k = Math.min(n - 1, Math.floor(t * n));
+    const f = t * n - k;
+    const a = parseInt(stops[k].slice(1), 16), b = parseInt(stops[k + 1].slice(1), 16);
+    const ch = (sh) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * f);
+    return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+  },
+
+  // CRT 아케이드 후처리: 웜 그레이드 + 스캔라인 + 비네트
+  retroPass() {
+    const c = this.ctx;
+    c.globalCompositeOperation = 'overlay';
+    c.fillStyle = 'rgba(255,130,50,.09)';
+    c.fillRect(0, 0, W, H);
+    c.globalCompositeOperation = 'source-over';
+    c.fillStyle = 'rgba(0,0,0,.11)';
+    for (let y = 0; y < H; y += 3) c.fillRect(0, y, W, 1);
+    const vg = c.createRadialGradient(W / 2, H / 2, H * 0.5, W / 2, H / 2, H * 1.02);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(8,4,10,.45)');
+    c.fillStyle = vg; c.fillRect(0, 0, W, H);
+  },
+
   // 둥근 끝 두꺼운 선분 — 팔다리 (윤곽선 포함)
   limb(x1, y1, x2, y2, w2, color, outline = true) {
     const c = this.ctx;
@@ -691,17 +718,19 @@ M.Render = {
     }
 
     this.drawHud(st, t);
+    this.retroPass();
   },
 
   // ── 미션별 배경 (황혼 도시 무드 — 하늘 띠 0~62px에 원경을 얹음) ──
   drawBackground(st, t, cam) {
     const c = this.ctx, th = st.stage.theme, m = st.mission;
-    // 하늘: 지평선 3단 그라데이션 (황혼·스모그·핏빛 노을)
-    const g = c.createLinearGradient(0, 0, 0, 66);
-    g.addColorStop(0, th.sky0);
-    if (th.horizon) { g.addColorStop(0.55, th.sky1); g.addColorStop(1, th.horizon); }
-    else g.addColorStop(1, th.sky1);
-    c.fillStyle = g; c.fillRect(0, 0, W, 66);
+    // 하늘: 아케이드식 밴드 그라데이션 (이산 디더 밴딩)
+    const stops = th.horizon ? [th.sky0, th.sky1, th.horizon] : [th.sky0, th.sky1];
+    const BANDS = 9, bh = 66 / BANDS;
+    for (let i = 0; i < BANDS; i++) {
+      c.fillStyle = this.mixStops(stops, i / (BANDS - 1));
+      c.fillRect(0, bh * i, W, bh + 1);
+    }
 
     if (m === 1) {                      // 노을: 낮게 걸린 해 + 구름 띠
       const sx2 = W - 110, sy2 = 44;

@@ -41,6 +41,31 @@ M.Render = {
     return `rgb(${r},${g},${b})`;
   },
 
+  // 다중 스톱 hex 보간 (밴드 그라데이션용)
+  mixStops(stops, t) {
+    const n = stops.length - 1;
+    const k = Math.min(n - 1, Math.floor(t * n));
+    const f = t * n - k;
+    const a = parseInt(stops[k].slice(1), 16), b = parseInt(stops[k + 1].slice(1), 16);
+    const ch = (sh) => Math.round(((a >> sh) & 255) + (((b >> sh) & 255) - ((a >> sh) & 255)) * f);
+    return `rgb(${ch(16)},${ch(8)},${ch(0)})`;
+  },
+
+  // CRT 아케이드 후처리: 웜 그레이드 + 스캔라인 + 비네트
+  retroPass() {
+    const c = this.ctx;
+    c.globalCompositeOperation = 'overlay';
+    c.fillStyle = 'rgba(255,130,50,.09)';
+    c.fillRect(0, 0, W, H);
+    c.globalCompositeOperation = 'source-over';
+    c.fillStyle = 'rgba(0,0,0,.11)';
+    for (let y = 0; y < H; y += 3) c.fillRect(0, y, W, 1);
+    const vg = c.createRadialGradient(W / 2, H / 2, H * 0.5, W / 2, H / 2, H * 1.02);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(8,4,10,.45)');
+    c.fillStyle = vg; c.fillRect(0, 0, W, H);
+  },
+
   // 둥근 끝 두꺼운 선분 — 팔다리 (윤곽선 포함)
   limb(x1, y1, x2, y2, w2, color, outline = true) {
     const c = this.ctx;
@@ -116,17 +141,19 @@ M.Render = {
     }
 
     this.drawHud(st, t);
+    this.retroPass();
   },
 
   // ── 미션별 배경 (황혼 도시 무드 — 하늘 띠 0~62px에 원경을 얹음) ──
   drawBackground(st, t, cam) {
     const c = this.ctx, th = st.stage.theme, m = st.mission;
-    // 하늘: 지평선 3단 그라데이션 (황혼·스모그·핏빛 노을)
-    const g = c.createLinearGradient(0, 0, 0, 66);
-    g.addColorStop(0, th.sky0);
-    if (th.horizon) { g.addColorStop(0.55, th.sky1); g.addColorStop(1, th.horizon); }
-    else g.addColorStop(1, th.sky1);
-    c.fillStyle = g; c.fillRect(0, 0, W, 66);
+    // 하늘: 아케이드식 밴드 그라데이션 (이산 디더 밴딩)
+    const stops = th.horizon ? [th.sky0, th.sky1, th.horizon] : [th.sky0, th.sky1];
+    const BANDS = 9, bh = 66 / BANDS;
+    for (let i = 0; i < BANDS; i++) {
+      c.fillStyle = this.mixStops(stops, i / (BANDS - 1));
+      c.fillRect(0, bh * i, W, bh + 1);
+    }
 
     if (m === 1) {                      // 노을: 낮게 걸린 해 + 구름 띠
       const sx2 = W - 110, sy2 = 44;
