@@ -6,10 +6,10 @@ M.Z_MIN = 0; M.Z_MAX = 78;              // 깊이(세로 이동) 범위
 M.FLOOR_Y = 176;                        // z=0일 때 발 위치 (z가 클수록 아래)
 
 M.THEMES = {
-  1: { name: '시내 골목',   sky0: '#2a3550', sky1: '#4a5a80', wall: '#5a4a58', floor: '#6a6a74', floor2: '#5a5a64', accent: '#ffd83d' },
-  2: { name: '공장 지대',   sky0: '#3a3040', sky1: '#5a4a50', wall: '#4a4450', floor: '#7a7060', floor2: '#6a6050', accent: '#ff9d5c' },
-  3: { name: '어두운 숲길', sky0: '#12240a', sky1: '#2a4a20', wall: '#1a3012', floor: '#4a6a3a', floor2: '#3a5a2a', accent: '#9fe06a' },
-  4: { name: '악당 아지트', sky0: '#1a0a2a', sky1: '#3a1850', wall: '#2a1438', floor: '#54406a', floor2: '#44305a', accent: '#e08fff' },
+  1: { name: '시내 골목',   sky0: '#1e2450', sky1: '#6a4a74', horizon: '#e8845a', wall: '#5a4a58', floor: '#6a6a74', floor2: '#5a5a64', accent: '#ffd83d' },
+  2: { name: '공장 지대',   sky0: '#3a3040', sky1: '#5a4a50', horizon: '#b8906a', wall: '#4a4450', floor: '#7a7060', floor2: '#6a6050', accent: '#ff9d5c' },
+  3: { name: '어두운 숲길', sky0: '#0a1c2e', sky1: '#1e3a2a', wall: '#1a3012', floor: '#4a6a3a', floor2: '#3a5a2a', accent: '#9fe06a' },
+  4: { name: '악당 아지트', sky0: '#12081e', sky1: '#341448', horizon: '#5c1830', wall: '#2a1438', floor: '#54406a', floor2: '#44305a', accent: '#e08fff' },
 };
 
 // 악당 종별 파라미터

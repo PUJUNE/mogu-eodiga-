@@ -147,24 +147,121 @@ M.Render = {
     this.drawHud(st, t);
   },
 
-  // ── 미션별 배경 ──
+  // ── 미션별 배경 (수묵 산수 원경 — 하늘 띠 0~62px) ──
   drawBackground(st, t, cam) {
     const c = this.ctx, th = st.stage.theme, m = st.mission;
     // 하늘
-    const g = c.createLinearGradient(0, 0, 0, M.FLOOR_Y);
+    const g = c.createLinearGradient(0, 0, 0, 66);
     g.addColorStop(0, th.sky0); g.addColorStop(1, th.sky1);
-    c.fillStyle = g; c.fillRect(0, 0, W, M.FLOOR_Y);
-    if (m === 4 || m === 3) {           // 밤: 별·달
+    c.fillStyle = g; c.fillRect(0, 0, W, 66);
+
+    if (m === 1) {                      // 들판: 해 + 원경 봉화 연기
+      c.fillStyle = 'rgba(255,240,200,.9)';
+      c.beginPath(); c.arc(W - 96, 26, 10, 0, Math.PI * 2); c.fill();
+      const hg = c.createRadialGradient(W - 96, 26, 4, W - 96, 26, 34);
+      hg.addColorStop(0, 'rgba(255,230,160,.5)'); hg.addColorStop(1, 'rgba(255,230,160,0)');
+      c.fillStyle = hg; c.fillRect(W - 132, -10, 72, 72);
+      for (const sx2 of [110, 330]) {
+        const x = sx2 - ((cam * 0.1) % (W + 200));
+        c.strokeStyle = 'rgba(70,60,55,.4)'; c.lineWidth = 5; c.lineCap = 'round';
+        c.beginPath();
+        c.moveTo(x, 64);
+        c.quadraticCurveTo(x + Math.sin(t * 0.8) * 6, 40, x + 10 + Math.sin(t * 0.6) * 9, 14);
+        c.stroke();
+      }
+    }
+    if (m === 3) {                      // 성문 앞: 낮구름
+      c.fillStyle = 'rgba(255,255,255,.55)';
+      for (const [cy2, cw, co] of [[16, 90, 40], [30, 130, 260], [22, 70, 420]]) {
+        const x = (((co - cam * 0.05 - t * 4) % (W + cw)) + W + cw) % (W + cw) - cw;
+        c.beginPath();
+        c.ellipse(x + cw / 2, cy2, cw / 2, 7, 0, 0, Math.PI * 2);
+        c.ellipse(x + cw / 2 - 18, cy2 + 3, cw / 3, 6, 0, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    if (m === 4) {                      // 성내 밤: 별
       c.fillStyle = 'rgba(255,255,240,.6)';
-      for (let i = 0; i < 20; i++) c.fillRect((i * 151 + 23) % W, (i * 67 + 9) % 60, 1.5, 1.5);
+      for (let i = 0; i < 22; i++) c.fillRect((i * 151 + 23) % W, (i * 67 + 9) % 44, 1.5, 1.5);
     }
 
-    // 원경 스카이라인 (느린 패럴랙스)
-    c.fillStyle = 'rgba(0,0,0,.25)';
-    for (let i = -1; i < 9; i++) {
-      const bx = i * 70 - ((cam * 0.25) % 70);
-      const hgt = 26 + ((i * 53 + m * 17) % 34);
-      c.fillRect(bx, 68 - hgt + 60, 52, hgt);
+    // 원경 산수 2겹 + 산허리 안개 (실내 m5 제외)
+    if (m !== 5) {
+      const MTN = {
+        1: ['rgba(150,100,60,.3)', 'rgba(110,70,40,.5)'],
+        2: ['rgba(30,70,50,.35)', 'rgba(20,50,35,.55)'],
+        3: ['rgba(90,110,140,.4)', 'rgba(60,80,110,.55)'],
+        4: ['rgba(70,40,60,.4)', 'rgba(50,25,45,.6)'],
+      }[m];
+      const ridge = (pf, base, amp, color) => {
+        c.fillStyle = color;
+        c.beginPath();
+        c.moveTo(-2, 66);
+        for (let x = -2; x <= W + 2; x += 12) {
+          const gx = x + cam * pf;
+          const h = amp * (0.42 + 0.3 * Math.sin(gx * 0.014) + 0.28 * Math.sin(gx * 0.037 + 2.1));
+          c.lineTo(x, 66 - base - h);
+        }
+        c.lineTo(W + 2, 66);
+        c.closePath(); c.fill();
+      };
+      ridge(0.06, 10, 30, MTN[0]);
+      const mg = c.createLinearGradient(0, 34, 0, 58);      // 산허리 안개 띠
+      mg.addColorStop(0, 'rgba(255,255,255,0)');
+      mg.addColorStop(0.5, 'rgba(255,255,255,.14)');
+      mg.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = mg; c.fillRect(0, 34, W, 24);
+      ridge(0.14, 0, 22, MTN[1]);
+    }
+    if (m === 3) {                      // 원경 성곽 실루엣 (성가퀴 + 곡선 처마 망루)
+      c.fillStyle = 'rgba(50,55,75,.55)';
+      const wy = 50;
+      c.fillRect(0, wy, W, 16);
+      for (let bx = -12; bx < W + 12; bx += 12) {
+        const x = bx - ((cam * 0.2) % 12);
+        c.fillRect(x, wy - 4, 7, 4);
+      }
+      for (let i = -1; i < 3; i++) {
+        const x = i * 260 - ((cam * 0.2) % 260) + 90;
+        c.fillRect(x + 8, wy - 16, 24, 16);
+        c.beginPath();
+        c.moveTo(x, wy - 14);
+        c.quadraticCurveTo(x + 20, wy - 26, x + 40, wy - 14);
+        c.lineTo(x + 34, wy - 12); c.lineTo(x + 6, wy - 12);
+        c.closePath(); c.fill();
+      }
+    }
+    if (m === 4) {                      // 원경 기와지붕 행렬 + 등불빛
+      c.fillStyle = 'rgba(30,18,32,.7)';
+      for (let i = -1; i < 6; i++) {
+        const x = i * 110 - ((cam * 0.2) % 110);
+        c.beginPath();
+        c.moveTo(x, 66);
+        c.lineTo(x + 6, 46 + (i % 2) * 6);
+        c.quadraticCurveTo(x + 50, 36 + (i % 2) * 6, x + 94, 46 + (i % 2) * 6);
+        c.lineTo(x + 100, 66);
+        c.closePath(); c.fill();
+        c.fillStyle = `rgba(255,150,90,${0.5 + 0.3 * Math.sin(t * 2 + i)})`;
+        c.fillRect(x + 46, 52 + (i % 2) * 5, 3, 3);
+        c.fillStyle = 'rgba(30,18,32,.7)';
+      }
+    }
+    if (m === 5) {                      // 왕좌의 방: 어두운 대들보 천장 + 높은 창 빛내림
+      c.fillStyle = '#241018';
+      c.fillRect(0, 0, W, 66);
+      c.fillStyle = 'rgba(0,0,0,.35)';
+      for (let bx = -60; bx < W + 60; bx += 60) {
+        const x = bx - ((cam * 0.3) % 60);
+        c.fillRect(x, 0, 14, 66);
+      }
+      c.fillStyle = 'rgba(255,214,110,.07)';
+      for (let i = -1; i < 3; i++) {
+        const x = i * 220 - ((cam * 0.3) % 220) + 60;
+        c.beginPath();
+        c.moveTo(x, 0); c.lineTo(x + 34, 0);
+        c.lineTo(x + 90, M.FLOOR_Y); c.lineTo(x + 40, M.FLOOR_Y);
+        c.closePath(); c.fill();
+      }
     }
 
     // ── 근경 벽 (미션별 — 중화 테마) ──
@@ -316,6 +413,39 @@ M.Render = {
       } else {
         c.strokeStyle = 'rgba(0,0,0,.25)'; c.lineWidth = 2;
         c.beginPath(); c.ellipse(x + 14, y, 11, 4.5, 0, 0, Math.PI * 2); c.stroke();
+      }
+    }
+
+    // 미션별 공기 입자: 흙먼지 / 댓잎 / 꽃잎 / 불티 / 금빛 먼지
+    for (let i = 0; i < 12; i++) {
+      const ph = i * 1.7 + (i * i) % 5;
+      if (m === 1) {                    // 마른 흙먼지 — 바람에 오른쪽으로
+        const x = ((i * 173 + t * 26 - cam * 0.3) % (W + 20) + W + 20) % (W + 20) - 10;
+        const y = 80 + ((i * 61) % 150) + Math.sin(t * 1.5 + ph) * 6;
+        c.fillStyle = 'rgba(200,170,110,.35)';
+        c.fillRect(x, y, 2, 1.5);
+      } else if (m === 2) {             // 떨어지는 댓잎
+        const y = ((i * 97 + t * 34) % 260);
+        const x = ((i * 211 - cam * 0.5) % (W + 30) + W + 30) % (W + 30) - 15 + Math.sin(t * 1.8 + ph) * 14;
+        c.save(); c.translate(x, y); c.rotate(Math.sin(t * 2 + ph) * 0.9);
+        c.fillStyle = 'rgba(130,180,90,.55)';
+        c.beginPath(); c.ellipse(0, 0, 4, 1.4, 0, 0, Math.PI * 2); c.fill();
+        c.restore();
+      } else if (m === 3) {             // 꽃잎
+        const y = ((i * 83 + t * 22) % 260);
+        const x = ((i * 191 - cam * 0.4) % (W + 30) + W + 30) % (W + 30) - 15 + Math.sin(t * 1.4 + ph) * 18;
+        c.fillStyle = 'rgba(255,190,205,.6)';
+        c.beginPath(); c.ellipse(x, y, 2.2, 1.4, Math.sin(t + ph), 0, Math.PI * 2); c.fill();
+      } else if (m === 4) {             // 불티 — 위로 떠오름
+        const y = 250 - ((i * 71 + t * 30) % 240);
+        const x = ((i * 157 - cam * 0.4) % (W + 20) + W + 20) % (W + 20) - 10 + Math.sin(t * 3 + ph) * 8;
+        c.fillStyle = `rgba(255,150,70,${0.25 + 0.3 * Math.sin(t * 6 + ph)})`;
+        c.fillRect(x, y, 1.8, 1.8);
+      } else {                          // 금빛 먼지 — 빛내림 속을 느리게
+        const y = ((i * 89 + t * 9) % 250);
+        const x = ((i * 199 - cam * 0.3) % (W + 20) + W + 20) % (W + 20) - 10 + Math.sin(t * 0.8 + ph) * 5;
+        c.fillStyle = `rgba(255,216,110,${0.18 + 0.18 * Math.sin(t * 2.5 + ph)})`;
+        c.fillRect(x, y, 1.6, 1.6);
       }
     }
   },

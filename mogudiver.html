@@ -649,19 +649,66 @@ M.Render = {
       for (let x = 0; x <= W; x += 8) c.lineTo(x, sy(M.SURF) + Math.sin((x + cx) * 0.06 + t * 2.2) * 1.6);
       c.stroke();
     }
-    // 빛줄기 (얕은 곳)
+    // 빛줄기 (얕은 곳 — 물결 따라 흔들림)
     if (cy < 190) {
       c.save();
       c.globalAlpha = Math.max(0, 0.2 - cy / 900);
       c.fillStyle = '#ffffff';
       for (let i = 0; i < 4; i++) {
+        const swy = Math.sin(t * 0.4 + i * 1.7) * 10;
         const bx = ((i * 260 + 80 - cx * 0.6) % (W + 200)) - 100;
         c.beginPath();
         c.moveTo(bx, sy(M.SURF)); c.lineTo(bx + 34, sy(M.SURF));
-        c.lineTo(bx + 90, H); c.lineTo(bx + 26, H);
+        c.lineTo(bx + 90 + swy, H); c.lineTo(bx + 26 + swy, H);
         c.closePath(); c.fill();
       }
       c.restore();
+    }
+
+    // ── 원경 실루엣 층 (패럴랙스 암초 기둥 — 2D 위에 얹는 깊이감) ──
+    for (const L2 of [{ pf: 0.3, a: 0.22 }, { pf: 0.55, a: 0.38 }]) {
+      const gx = cx * L2.pf;
+      c.fillStyle = `rgba(5,16,32,${L2.a})`;
+      for (let i = -1; i < 8; i++) {
+        const seg = Math.floor(gx / 150) + i;
+        const h2 = (seg * 2654435761) >>> 7;
+        const x = seg * 150 - gx + (h2 % 60);
+        const wdt = 26 + (h2 % 36);
+        const hgt = 80 + (h2 % 240);
+        const yb = sy(D - 6);
+        if (yb - hgt > H + 20 || yb < -20) continue;
+        c.beginPath();
+        c.moveTo(x - wdt / 2, yb);
+        c.quadraticCurveTo(x - wdt / 2 + 5, yb - hgt, x + Math.sin(seg) * 5, yb - hgt - 10);
+        c.quadraticCurveTo(x + wdt / 2 - 5, yb - hgt, x + wdt / 2, yb);
+        c.closePath(); c.fill();
+        if (h2 % 3 === 0) {              // 곁가지 산호 팔
+          c.beginPath();
+          c.moveTo(x, yb - hgt * 0.55);
+          c.quadraticCurveTo(x + wdt * 0.7, yb - hgt * 0.62, x + wdt * 0.8, yb - hgt * 0.85);
+          c.quadraticCurveTo(x + wdt * 0.55, yb - hgt * 0.6, x, yb - hgt * 0.48);
+          c.closePath(); c.fill();
+        }
+      }
+    }
+
+    // ── 원경 물고기 떼 실루엣 (비상호작용) ──
+    c.fillStyle = 'rgba(8,22,40,.4)';
+    for (let s2 = 0; s2 < 3; s2++) {
+      const dir = s2 % 2 ? 1 : -1;
+      const wx = (((s2 * 430 + t * 16 * dir) % (M.WORLD_W + 240)) + M.WORLD_W + 240) % (M.WORLD_W + 240) - 120;
+      const wy = M.SURF + 80 + ((s2 * 217) % Math.max(120, D - 220));
+      const X0 = wx - cx * 0.5, Y0 = sy(wy);
+      if (X0 < -80 || X0 > W + 80 || Y0 < -40 || Y0 > H + 40) continue;
+      for (let k = 0; k < 9; k++) {
+        const fx2 = X0 + (k % 3) * 13 + Math.floor(k / 3) * 11;
+        const fy2 = Y0 + (k % 3) * 7 - Math.floor(k / 3) * 5 + Math.sin(t * 3 + k) * 2;
+        c.beginPath();
+        c.ellipse(fx2, fy2, 3.4, 1.6, 0, 0, Math.PI * 2);
+        c.moveTo(fx2 - dir * 3, fy2);
+        c.lineTo(fx2 - dir * 6, fy2 - 2); c.lineTo(fx2 - dir * 6, fy2 + 2);
+        c.closePath(); c.fill();
+      }
     }
 
     // ── 배경 장식 (시드 고정) ──
@@ -695,6 +742,18 @@ M.Render = {
       for (let x = 0; x <= W; x += 16) c.lineTo(x, sy(D - 10) + Math.sin((x + cx) * 0.05) * 4);
       c.lineTo(W, H);
       c.closePath(); c.fill();
+      // 커스틱 (얕은 바다 — 일렁이는 빛 그물)
+      if (st.no <= 3) {
+        c.strokeStyle = 'rgba(255,255,255,.14)';
+        c.lineWidth = 1.2;
+        for (let i = 0; i < 7; i++) {
+          const x = ((i * 90 - cx) % (W + 80) + W + 80) % (W + 80) - 40;
+          const ph = t * 1.6 + i * 1.3;
+          c.beginPath();
+          c.ellipse(x + Math.sin(ph) * 8, sy(D - 8) + (i % 3), 16 + Math.sin(ph * 1.3) * 5, 3.4, 0, 0, Math.PI * 2);
+          c.stroke();
+        }
+      }
     }
 
     // ── 보트 (하역 지점) ──
@@ -725,6 +784,13 @@ M.Render = {
       const X = sx(b.x), Y = sy(b.y);
       if (X < -8 || X > W + 8 || Y < -8 || Y > H + 8) continue;
       c.beginPath(); c.arc(X, Y, b.r, 0, Math.PI * 2); c.fill();
+    }
+    // ── 마린 스노우 (부유 입자) ──
+    c.fillStyle = 'rgba(215,232,250,.28)';
+    for (let i = 0; i < 26; i++) {
+      const x = ((i * 191 - cx * 0.85) % (W + 20) + W + 20) % (W + 20) - 10;
+      const y = ((i * 127 + t * 8 - cy * 0.85) % (H + 20) + H + 20) % (H + 20) - 10;
+      c.fillRect(x + Math.sin(t * 0.9 + i) * 4, y, 1.4, 1.4);
     }
 
     // ── 어군 ──
@@ -783,9 +849,16 @@ M.Render = {
     }
     this.fx = this.fx.filter((f) => f.t > 0);
 
-    // 심도 어둠 (깊을수록)
+    // 심도 어둠 (깊을수록) + 심해 랜턴 글로우
     const dark = Math.max(0, Math.min(0.5, (p.y / D - 0.35) * 0.75)) * (st.no >= 4 ? 1.25 : 1);
     if (dark > 0.02) {
+      if (st.no >= 4) {
+        const lg = c.createRadialGradient(sx(p.x), sy(p.y), 4, sx(p.x), sy(p.y), 85);
+        lg.addColorStop(0, `rgba(255,222,150,${0.16 * dark / 0.5})`);
+        lg.addColorStop(1, 'rgba(255,222,150,0)');
+        c.fillStyle = lg;
+        c.fillRect(sx(p.x) - 90, sy(p.y) - 90, 180, 180);
+      }
       const vg = c.createRadialGradient(sx(p.x), sy(p.y), 60, sx(p.x), sy(p.y), 240);
       vg.addColorStop(0, 'rgba(0,0,10,0)');
       vg.addColorStop(1, `rgba(0,0,12,${dark})`);

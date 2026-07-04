@@ -118,24 +118,90 @@ M.Render = {
     this.drawHud(st, t);
   },
 
-  // ── 미션별 배경 ──
+  // ── 미션별 배경 (황혼 도시 무드 — 하늘 띠 0~62px에 원경을 얹음) ──
   drawBackground(st, t, cam) {
     const c = this.ctx, th = st.stage.theme, m = st.mission;
-    // 하늘
-    const g = c.createLinearGradient(0, 0, 0, M.FLOOR_Y);
-    g.addColorStop(0, th.sky0); g.addColorStop(1, th.sky1);
-    c.fillStyle = g; c.fillRect(0, 0, W, M.FLOOR_Y);
-    if (m === 4 || m === 3) {           // 밤: 별·달
+    // 하늘: 지평선 3단 그라데이션 (황혼·스모그·핏빛 노을)
+    const g = c.createLinearGradient(0, 0, 0, 66);
+    g.addColorStop(0, th.sky0);
+    if (th.horizon) { g.addColorStop(0.55, th.sky1); g.addColorStop(1, th.horizon); }
+    else g.addColorStop(1, th.sky1);
+    c.fillStyle = g; c.fillRect(0, 0, W, 66);
+
+    if (m === 1) {                      // 노을: 낮게 걸린 해 + 구름 띠
+      const sx2 = W - 110, sy2 = 44;
+      const sg = c.createRadialGradient(sx2, sy2, 3, sx2, sy2, 42);
+      sg.addColorStop(0, 'rgba(255,214,120,.85)');
+      sg.addColorStop(0.4, 'rgba(255,150,90,.35)');
+      sg.addColorStop(1, 'rgba(255,150,90,0)');
+      c.fillStyle = sg; c.fillRect(sx2 - 44, sy2 - 44, 88, 88);
+      c.fillStyle = '#ffe0a0';
+      c.beginPath(); c.arc(sx2, sy2, 9, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(40,28,58,.5)';
+      for (const [cy2, cw, co] of [[20, 150, 0], [32, 90, 210], [46, 120, 330]]) {
+        const x = (((co - cam * 0.04 - t * 3) % (W + cw)) + W + cw) % (W + cw) - cw;
+        c.fillRect(x, cy2, cw, 3.5);
+      }
+    }
+    if (m === 3) {                      // 숲: 초승달 + 별
+      c.fillStyle = '#e8ecf4';
+      c.beginPath(); c.arc(W - 84, 22, 10, 0, Math.PI * 2); c.fill();
+      c.fillStyle = th.sky0;
+      c.beginPath(); c.arc(W - 89, 18, 8.5, 0, Math.PI * 2); c.fill();
+    }
+    if (m === 4 || m === 3) {           // 밤: 별
       c.fillStyle = 'rgba(255,255,240,.6)';
-      for (let i = 0; i < 20; i++) c.fillRect((i * 151 + 23) % W, (i * 67 + 9) % 60, 1.5, 1.5);
+      for (let i = 0; i < 22; i++) c.fillRect((i * 151 + 23) % W, (i * 67 + 9) % 44, 1.5, 1.5);
+    }
+    if (m === 2) {                      // 공장: 원경 굴뚝 + 피어오르는 연기
+      for (let i = -1; i < 4; i++) {
+        const x = i * 170 - ((cam * 0.18) % 170) + 60;
+        c.fillStyle = 'rgba(20,16,26,.55)';
+        c.fillRect(x, 20, 12, 46);
+        c.fillRect(x - 3, 20, 18, 4);
+        for (let k = 0; k < 4; k++) {
+          const pt = (t * 0.35 + k * 0.25 + i * 0.13) % 1;
+          c.fillStyle = `rgba(60,54,66,${0.4 * (1 - pt)})`;
+          c.beginPath();
+          c.arc(x + 6 + Math.sin(t + k + i) * 5 + pt * 14, 18 - pt * 26, 4 + pt * 8, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
     }
 
-    // 원경 스카이라인 (느린 패럴랙스)
-    c.fillStyle = 'rgba(0,0,0,.25)';
-    for (let i = -1; i < 9; i++) {
-      const bx = i * 70 - ((cam * 0.25) % 70);
-      const hgt = 26 + ((i * 53 + m * 17) % 34);
-      c.fillRect(bx, 68 - hgt + 60, 52, hgt);
+    // 원경 스카이라인 2겹 (불 켠 창·안테나) — 먼 층일수록 옅고 느리게
+    if (m !== 3) {
+      const layers = [
+        { pf: 0.1, alpha: 0.2, seg: 64, win: false },
+        { pf: 0.22, alpha: 0.4, seg: 78, win: true },
+      ];
+      for (const L2 of layers) {
+        for (let i = -1; i < Math.ceil(W / L2.seg) + 1; i++) {
+          const bx = i * L2.seg - ((cam * L2.pf) % L2.seg);
+          const seg = Math.floor(cam * L2.pf / L2.seg) + i;
+          const h2 = (seg * 2654435761) >>> 6;
+          const hgt = 20 + (h2 % 34);
+          const bw = L2.seg - 16;
+          c.fillStyle = `rgba(8,10,24,${L2.alpha})`;
+          c.fillRect(bx, 66 - hgt, bw, hgt);
+          if (h2 % 3 === 0) c.fillRect(bx + bw / 2 - 1, 58 - hgt, 2, 8);
+          if (L2.win) {                 // 불 켠 창 (해시 점등, 황혼엔 따뜻한 불빛)
+            c.fillStyle = m === 1 ? 'rgba(255,206,110,.6)' : 'rgba(200,220,255,.35)';
+            for (let wy = 0; wy < Math.floor((hgt - 6) / 8); wy++)
+              for (let wx = 0; wx < 3; wx++)
+                if (((h2 >> (wy * 3 + wx)) & 1) === 0)
+                  c.fillRect(bx + 7 + wx * 13, 70 - hgt + wy * 8, 3, 4);
+          }
+        }
+      }
+    }
+    // 도시 앞 숲 실루엣 (마천루와 골목 사이의 나무들)
+    c.fillStyle = m === 3 ? 'rgba(4,14,8,.9)' : 'rgba(10,12,24,.55)';
+    for (let i = -1; i < 16; i++) {
+      const seg = Math.floor(cam * 0.35 / 34) + i;
+      const x = seg * 34 - cam * 0.35;
+      const h2 = (seg * 97 + 13) % 12;
+      c.beginPath(); c.ellipse(x, 66, 24, 8 + h2 * 0.9, 0, Math.PI, 0, true); c.fill();
     }
 
     // ── 근경 벽 (미션별) ──
@@ -177,6 +243,37 @@ M.Render = {
           c.fillStyle = '#3a4a4a';
           c.fillRect(x + 87, M.FLOOR_Y - 34, 32, 6);
         }
+        // 체인링크 펜스 (h2 짝수 구간)
+        if (h2 % 2 === 0) {
+          const fx0 = x + 118, fw = 38;
+          c.strokeStyle = 'rgba(180,190,200,.4)'; c.lineWidth = 1;
+          for (let k = 0; k <= 4; k++) {
+            c.beginPath(); c.moveTo(fx0 + k * 9, wallTop + 18); c.lineTo(fx0 + k * 9 - 10, wallTop + 56); c.stroke();
+            c.beginPath(); c.moveTo(fx0 + k * 9 - 10, wallTop + 18); c.lineTo(fx0 + k * 9, wallTop + 56); c.stroke();
+          }
+          c.strokeStyle = 'rgba(140,150,160,.6)'; c.lineWidth = 2;
+          c.strokeRect(fx0 - 10, wallTop + 18, fw + 10, 38);
+        }
+      }
+      // 가로등: 깜빡이는 불빛 콘 + 바닥 빛 웅덩이
+      for (let i = -1; i < 4; i++) {
+        const seg = Math.floor(cam * 0.6 / 220) + i;
+        const x = seg * 220 - cam * 0.6 + 130;
+        const flick = (seg * 7 + Math.floor(t * 9)) % 23 === 0 ? 0.25 : 1;   // 이따금 깜빡
+        c.fillStyle = '#2a2430';
+        c.fillRect(x, wallTop - 10, 4, M.FLOOR_Y - wallTop + 10);
+        c.fillRect(x - 8, wallTop - 12, 20, 4);
+        c.fillStyle = `rgba(255,214,130,${0.85 * flick})`;
+        c.beginPath(); c.ellipse(x + 2, wallTop - 6, 5, 3.5, 0, 0, Math.PI * 2); c.fill();
+        c.globalAlpha = 0.13 * flick;
+        c.fillStyle = '#ffd88a';
+        c.beginPath();
+        c.moveTo(x - 2, wallTop - 5); c.lineTo(x + 6, wallTop - 5);
+        c.lineTo(x + 26, M.FLOOR_Y + 18); c.lineTo(x - 22, M.FLOOR_Y + 18);
+        c.closePath(); c.fill();
+        c.globalAlpha = 0.1 * flick;
+        c.beginPath(); c.ellipse(x + 2, M.FLOOR_Y + 16, 34, 9, 0, 0, Math.PI * 2); c.fill();
+        c.globalAlpha = 1;
       }
     } else if (m === 2) {
       // 공장: 골함석 + 파이프 + 톱니 + 경고 스트라이프
@@ -244,6 +341,15 @@ M.Render = {
         c.fill();
       }
       c.globalAlpha = 1;
+      // 밤안개 띠 (느리게 흐름)
+      for (let k = 0; k < 2; k++) {
+        const mx = (((t * (8 + k * 5) + k * 260) % (W + 240)) + W + 240) % (W + 240) - 240;
+        const mg = c.createRadialGradient(mx + 120, wallTop + 70 + k * 24, 8, mx + 120, wallTop + 70 + k * 24, 130);
+        mg.addColorStop(0, 'rgba(180,200,190,.1)');
+        mg.addColorStop(1, 'rgba(180,200,190,0)');
+        c.fillStyle = mg;
+        c.fillRect(mx, wallTop + 40 + k * 24, 240, 60);
+      }
     } else {
       // 악당 아지트: 석벽 + 횃불 + 붉은 현수막
       c.fillStyle = '#3a2c48';
