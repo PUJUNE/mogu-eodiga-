@@ -676,6 +676,68 @@ M.Render = {
       }
     }
 
+    // ── 무드 구간 오버레이 (원작 측정 팔레트 세트피스) ──
+    // M3 청록 회랑(월드 430~850, S10 #365e52·#789f8c) · M4 불바다(월드 850~1270, S13 #f09515·#e52103)
+    const mood = (x0, x1, draw) => {
+      const sx = x0 - cam, ex = x1 - cam;
+      if (ex < 0 || sx > W) return;
+      c.save();
+      c.beginPath(); c.rect(Math.max(0, sx), 0, Math.min(W, ex) - Math.max(0, sx), 300);
+      c.clip();
+      draw(sx, ex);
+      c.restore();
+    };
+    if (m === 3) {
+      mood(430, 850, (sx) => {
+        // 청록 동굴 회랑: 전면 워시 + 종유석 + 이끼 바위 원반 (바닥이 캔버스)
+        c.fillStyle = 'rgba(54,94,82,.42)';
+        c.fillRect(sx, 0, 420, 300);
+        c.fillStyle = '#365e52';
+        for (let k = 0; k < 9; k++) {
+          const x = sx + 20 + k * 46, len = 14 + ((k * 37) % 22);
+          c.beginPath(); c.moveTo(x - 7, 12); c.lineTo(x, 12 + len); c.lineTo(x + 7, 12); c.closePath(); c.fill();
+        }
+        for (let k = 0; k < 4; k++) {
+          const x = sx + 60 + k * 105, y = M.FLOOR_Y + 46 + (k % 2) * 26;
+          c.fillStyle = 'rgba(120,159,140,.5)';
+          c.beginPath(); c.ellipse(x, y, 40, 13, 0, 0, Math.PI * 2); c.fill();
+          c.strokeStyle = 'rgba(30,60,50,.55)'; c.lineWidth = 2;
+          c.beginPath(); c.ellipse(x, y, 40, 13, 0, 0, Math.PI * 2); c.stroke();
+          c.beginPath(); c.ellipse(x, y, 24, 8, 0, 0, Math.PI * 2); c.stroke();
+        }
+      });
+    } else if (m === 4) {
+      mood(850, 1270, (sx) => {
+        // 불바다: 벽 밑 화염 혀 + 불기둥 + 전면 글로우
+        c.fillStyle = 'rgba(229,33,3,.20)';
+        c.fillRect(sx, 0, 420, 300);
+        for (let k = 0; k < 12; k++) {
+          const x = sx + 12 + k * 35;
+          const fl = 22 + Math.sin(t * 7 + k * 1.7) * 9;
+          const g2 = c.createLinearGradient(0, M.FLOOR_Y, 0, M.FLOOR_Y - fl - 16);
+          g2.addColorStop(0, 'rgba(240,149,21,.85)');
+          g2.addColorStop(0.6, 'rgba(229,33,3,.55)');
+          g2.addColorStop(1, 'rgba(229,33,3,0)');
+          c.fillStyle = g2;
+          c.beginPath();
+          c.moveTo(x - 9, M.FLOOR_Y);
+          c.quadraticCurveTo(x - 4, M.FLOOR_Y - fl * 0.6, x, M.FLOOR_Y - fl - 10);
+          c.quadraticCurveTo(x + 4, M.FLOOR_Y - fl * 0.6, x + 9, M.FLOOR_Y);
+          c.closePath(); c.fill();
+        }
+        for (const px of [sx + 90, sx + 300]) {
+          const g3 = c.createLinearGradient(0, M.FLOOR_Y, 0, 20);
+          g3.addColorStop(0, 'rgba(240,149,21,.75)');
+          g3.addColorStop(1, 'rgba(229,33,3,.08)');
+          c.fillStyle = g3;
+          const wob = Math.sin(t * 5 + px) * 4;
+          c.fillRect(px + wob, 20, 14, M.FLOOR_Y - 20);
+        }
+        c.fillStyle = 'rgba(255,170,60,.10)';
+        c.fillRect(sx, 0, 420, 300);
+      });
+    }
+
     // 미션별 공기 입자: 흙먼지 / 댓잎 / 꽃잎 / 불티 / 금빛 먼지
     for (let i = 0; i < 12; i++) {
       const ph = i * 1.7 + (i * i) % 5;
@@ -941,6 +1003,30 @@ M.Render = {
     c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.6;
     c.beginPath(); c.ellipse(-12, -53, 6, 4.5, -0.3, 0, Math.PI * 2); c.fill(); c.stroke();
     c.beginPath(); c.ellipse(12, -53, 6, 4.5, 0.3, 0, Math.PI * 2); c.fill(); c.stroke();
+    if (isP || isB) {
+      // 견갑 밑 홍술 (장수 술 장식)
+      c.strokeStyle = '#b03028'; c.lineWidth = 1.6; c.lineCap = 'round';
+      for (const sd of [-1, 1]) {
+        for (let k2 = -1; k2 <= 1; k2++) {
+          c.beginPath();
+          c.moveTo(sd * (12 + k2 * 2.5), -49);
+          c.lineTo(sd * (12 + k2 * 3), -44 + Math.abs(k2));
+          c.stroke();
+        }
+      }
+    }
+    if (isP) {
+      // 금장 흉갑 위 용문양 (S자 곡선 각인)
+      c.strokeStyle = 'rgba(120,70,10,.75)'; c.lineWidth = 1.3; c.lineCap = 'round';
+      c.beginPath();
+      c.moveTo(-5, -49);
+      c.bezierCurveTo(-1, -51, 1, -46, 5, -48);
+      c.stroke();
+      c.beginPath();
+      c.moveTo(-4, -46.5);
+      c.bezierCurveTo(0, -48.5, 2, -44, 5.5, -46);
+      c.stroke();
+    }
 
     // ── 팔 (가드 자세 / 찌르기 / 올려베기) ──
     const shY = -52;

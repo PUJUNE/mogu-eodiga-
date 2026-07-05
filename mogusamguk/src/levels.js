@@ -11,7 +11,7 @@ M.THEMES = {
   2: { name: '대나무 숲',   sky0: '#12321e', sky1: '#3a6a3e', horizon: '#8fb868', wall: '#1a3a22', floor: '#5a7a44', floor2: '#4c6c38', accent: '#9fe06a' },
   3: { name: '성문 앞',     sky0: '#6684b4', sky1: '#b0c8dc', horizon: '#e8ecdc', wall: '#6e645c', floor: '#948a7c', floor2: '#847a6c', accent: '#5db8ff' },
   4: { name: '성내 시가',   sky0: '#1c0e2a', sky1: '#4e1e3c', horizon: '#8a2c38', wall: '#4e3034', floor: '#7a6252', floor2: '#6a5244', accent: '#ff7d5c' },
-  5: { name: '왕좌의 방',   sky0: '#160812', sky1: '#3a1222', wall: '#5c1e2c', floor: '#8e2430', floor2: '#7a1c28', accent: '#ffd83d' },
+  5: { name: '왕좌의 방',   sky0: '#160812', sky1: '#3a1a14', wall: '#6a4a20', floor: '#a8842e', floor2: '#96742a', accent: '#ffd83d' },
 };
 
 // 병졸 종별
