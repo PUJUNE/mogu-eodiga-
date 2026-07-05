@@ -819,7 +819,8 @@ M.Render = {
           : (sofE && f.type === 'quick') ? 'rgba(230,130,40,.32)'
           : (sofE && f.type === 'tank') ? 'rgba(60,80,130,.38)' : null;
         c.imageSmoothingEnabled = false;
-        c.save();                                      // (시트 원본이 오른쪽을 봄 — 반전 불필요)
+        c.save();
+        if (sofE) c.scale(-1, 1);                      // 걸 시트=오른쪽 / 펑크 시트=왼쪽 원본
         if (tint) {
           const tc = this.tintCv.getContext('2d');
           tc.clearRect(0, 0, 96, 63);
