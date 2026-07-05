@@ -18,8 +18,69 @@ M.Render = {
     for (let i = 0; i < 26; i++) {
       this.bub.push({ x: Math.random() * M.WORLD_W, y: Math.random() * 900, r: 0.8 + Math.random() * 1.8, s: 8 + Math.random() * 16 });
     }
+    // CC0 에셋 (ansimuz "Underwater Diving Pack"): 원경 타일·암초 미드그라운드·해저 소품
+    this.imgs = {};
+    for (const k of ['uwdBg', 'uwdMid', 'uwdProps']) {
+      if (!M.ASSETS[k]) continue;
+      const im2 = new Image();
+      im2.onload = () => {
+        this.imgs[k] = im2;
+        if (k === 'uwdMid') {
+          // 상단 페이드 마스크 (이미지 직사각 경계가 수평선으로 잘려 보이는 것 방지)
+          const topFade = (cv2) => {
+            const c3 = cv2.getContext('2d');
+            c3.globalCompositeOperation = 'destination-out';
+            const g2 = c3.createLinearGradient(0, 0, 0, 90);
+            g2.addColorStop(0, 'rgba(0,0,0,1)');
+            g2.addColorStop(1, 'rgba(0,0,0,0)');
+            c3.fillStyle = g2;
+            c3.fillRect(0, 0, cv2.width, 90);
+            c3.globalCompositeOperation = 'source-over';
+          };
+          // 원거리 실루엣 층 (형상만 남기고 짙은 남색 채움)
+          const oc = document.createElement('canvas');
+          oc.width = im2.width; oc.height = im2.height;
+          const c2 = oc.getContext('2d');
+          c2.drawImage(im2, 0, 0);
+          c2.globalCompositeOperation = 'source-in';
+          c2.fillStyle = '#081426';
+          c2.fillRect(0, 0, oc.width, oc.height);
+          topFade(oc);
+          this.midSil = oc;
+          // 근거리 실채색 층 (같은 페이드 적용본)
+          const oc2 = document.createElement('canvas');
+          oc2.width = im2.width; oc2.height = im2.height;
+          oc2.getContext('2d').drawImage(im2, 0, 0);
+          topFade(oc2);
+          this.midFade = oc2;
+        }
+      };
+      im2.src = M.ASSETS[k];
+    }
     this.resize();
     window.addEventListener('resize', () => this.resize());
+  },
+
+  // 소품 시트 소스 좌표 (알파 바운딩 자동 측정값)
+  PROPS: {
+    log:       [49, 95, 85, 98],
+    arch:      [177, 34, 198, 205],
+    totem:     [432, 41, 92, 219],
+    totemMoss: [596, 41, 120, 219],
+    ruins:     [752, 70, 245, 186],
+    coralSm:   [434, 260, 128, 123],
+    seaweed:   [614, 260, 82, 124],
+  },
+  drawProp(name, X, Y, sc) {
+    // Y = 소품 밑변(바닥 접점) 화면 좌표
+    const im2 = this.imgs && this.imgs.uwdProps;
+    if (!im2) return false;
+    const [px, py, pw, ph] = this.PROPS[name];
+    const c = this.ctx;
+    c.imageSmoothingEnabled = false;
+    c.drawImage(im2, px, py, pw, ph, X - pw * sc / 2, Y - ph * sc, pw * sc, ph * sc);
+    c.imageSmoothingEnabled = true;
+    return true;
   },
 
   resize() {
@@ -88,28 +149,48 @@ M.Render = {
       c.restore();
     }
 
-    // ── 원경 실루엣 층 (패럴랙스 암초 기둥 — 2D 위에 얹는 깊이감) ──
-    for (const L2 of [{ pf: 0.3, a: 0.22 }, { pf: 0.55, a: 0.38 }]) {
-      const gx = cx * L2.pf;
-      c.fillStyle = `rgba(5,16,32,${L2.a})`;
-      for (let i = -1; i < 8; i++) {
-        const seg = Math.floor(gx / 150) + i;
-        const h2 = (seg * 2654435761) >>> 7;
-        const x = seg * 150 - gx + (h2 % 60);
-        const wdt = 26 + (h2 % 36);
-        const hgt = 80 + (h2 % 240);
-        const yb = sy(D - 6);
-        if (yb - hgt > H + 20 || yb < -20) continue;
-        c.beginPath();
-        c.moveTo(x - wdt / 2, yb);
-        c.quadraticCurveTo(x - wdt / 2 + 5, yb - hgt, x + Math.sin(seg) * 5, yb - hgt - 10);
-        c.quadraticCurveTo(x + wdt / 2 - 5, yb - hgt, x + wdt / 2, yb);
-        c.closePath(); c.fill();
-        if (h2 % 3 === 0) {              // 곁가지 산호 팔
+    // ── 원경 암초 층 (CC0 미드그라운드 — 실루엣 원거리 + 실채색 근거리) ──
+    // 형상은 팩 아트, 깊이감은 기존 2겹 패럴랙스 문법 유지
+    if (this.imgs && this.imgs.uwdMid) {
+      c.imageSmoothingEnabled = false;
+      if (cy < M.SURF + 30) {            // 아주 얕은 곳: 원경 타일 띠
+        const bg = this.imgs.uwdBg;
+        if (bg) {
+          c.save(); c.globalAlpha = 0.3;
+          const bw = bg.width, off = ((cx * 0.12) % bw + bw) % bw;
+          for (let x = -off; x < W; x += bw) c.drawImage(bg, x, sy(M.SURF) + 6, bw, bg.height);
+          c.restore();
+        }
+      }
+      for (const L2 of [{ img: this.midSil, pf: 0.3, a: 0.5, sc: 0.72 },
+                        { img: this.midFade || this.imgs.uwdMid, pf: 0.55, a: 0.85, sc: 0.6 }]) {
+        if (!L2.img) continue;
+        const iw = L2.img.width * L2.sc, ih = L2.img.height * L2.sc;
+        const yb = sy(D + 8);
+        if (yb - ih > H + 20 || yb < -20) continue;
+        const off = ((cx * L2.pf) % iw + iw) % iw;
+        c.save(); c.globalAlpha = L2.a;
+        for (let x = -off; x < W + iw; x += iw) c.drawImage(L2.img, x, yb - ih, iw, ih);
+        c.restore();
+      }
+      c.imageSmoothingEnabled = true;
+    } else {
+      // 이미지 미로드 폴백: 기존 실루엣 기둥
+      for (const L2 of [{ pf: 0.3, a: 0.22 }, { pf: 0.55, a: 0.38 }]) {
+        const gx = cx * L2.pf;
+        c.fillStyle = `rgba(5,16,32,${L2.a})`;
+        for (let i = -1; i < 8; i++) {
+          const seg = Math.floor(gx / 150) + i;
+          const h2 = (seg * 2654435761) >>> 7;
+          const x = seg * 150 - gx + (h2 % 60);
+          const wdt = 26 + (h2 % 36);
+          const hgt = 80 + (h2 % 240);
+          const yb = sy(D - 6);
+          if (yb - hgt > H + 20 || yb < -20) continue;
           c.beginPath();
-          c.moveTo(x, yb - hgt * 0.55);
-          c.quadraticCurveTo(x + wdt * 0.7, yb - hgt * 0.62, x + wdt * 0.8, yb - hgt * 0.85);
-          c.quadraticCurveTo(x + wdt * 0.55, yb - hgt * 0.6, x, yb - hgt * 0.48);
+          c.moveTo(x - wdt / 2, yb);
+          c.quadraticCurveTo(x - wdt / 2 + 5, yb - hgt, x + Math.sin(seg) * 5, yb - hgt - 10);
+          c.quadraticCurveTo(x + wdt / 2 - 5, yb - hgt, x + wdt / 2, yb);
           c.closePath(); c.fill();
         }
       }
@@ -140,19 +221,23 @@ M.Render = {
       const dx0 = rng.range(20, M.WORLD_W - 20), dy0 = rng.range(M.SURF + 80, D - 26), kind = rng.int(0, 2), sc = rng.range(0.7, 1.5);
       const X = sx(dx0), Y = sy(dy0);
       if (X < -40 || X > W + 40 || Y < -40 || Y > H + 40) continue;
-      c.save(); c.globalAlpha = 0.5;
-      if (kind === 0) {           // 바위
-        c.fillStyle = 'rgba(20,40,60,.8)';
-        c.beginPath(); c.ellipse(X, Y, 12 * sc, 7 * sc, 0, 0, Math.PI * 2); c.fill();
-      } else if (kind === 1) {    // 해초
+      c.save(); c.globalAlpha = 0.62;
+      if (kind === 0) {           // 산호 덤불 (CC0 소품)
+        if (!this.drawProp('coralSm', X, Y + 4, 0.22 * sc)) {
+          c.fillStyle = 'rgba(20,40,60,.8)';
+          c.beginPath(); c.ellipse(X, Y, 12 * sc, 7 * sc, 0, 0, Math.PI * 2); c.fill();
+        }
+      } else if (kind === 1) {    // 해초 (프로시저럴 — 물결 애니메이션 유지)
         c.strokeStyle = th.accent; c.lineWidth = 2 * sc;
         c.beginPath();
         for (let k = 0; k <= 4; k++) c.lineTo(X + Math.sin(t * 1.4 + i + k) * 3, Y - k * 7 * sc);
         c.stroke();
-      } else {                    // 산호/잔해
-        c.fillStyle = th.accent;
-        c.fillRect(X - 3 * sc, Y - 8 * sc, 6 * sc, 8 * sc);
-        c.fillRect(X - 8 * sc, Y - 4 * sc, 5 * sc, 4 * sc);
+      } else {                    // 해초 다발 (CC0 소품)
+        if (!this.drawProp('seaweed', X, Y + 4, 0.26 * sc)) {
+          c.fillStyle = th.accent;
+          c.fillRect(X - 3 * sc, Y - 8 * sc, 6 * sc, 8 * sc);
+          c.fillRect(X - 8 * sc, Y - 4 * sc, 5 * sc, 4 * sc);
+        }
       }
       c.restore();
     }
@@ -176,6 +261,22 @@ M.Render = {
           c.ellipse(x + Math.sin(ph) * 8, sy(D - 8) + (i % 3), 16 + Math.sin(ph * 1.3) * 5, 3.4, 0, 0, Math.PI * 2);
           c.stroke();
         }
+      }
+    }
+
+    // ── 해저 대형 소품 (CC0 — 고대 토템·유적·산호 아치, 스테이지 시드 고정) ──
+    if (sy(D) < H + 260 && this.imgs && this.imgs.uwdProps) {
+      const rng2 = M.makeRng(st.no * 77 + 3);
+      const kinds = ['totemMoss', 'ruins', 'arch', 'totem', 'log'];
+      for (let i = 0; i < 3; i++) {
+        const wx = rng2.range(90, M.WORLD_W - 90);
+        const name = kinds[(st.no + i * 2) % kinds.length];
+        const sc = rng2.range(0.5, 0.75);
+        const X = sx(wx), Y = sy(D + 4);
+        if (X < -160 || X > W + 160) continue;
+        c.save(); c.globalAlpha = 0.92;
+        this.drawProp(name, X, Y, sc);
+        c.restore();
       }
     }
 

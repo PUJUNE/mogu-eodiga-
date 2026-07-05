@@ -14,7 +14,15 @@ def data_uri(p):
     b = (HERE.parent / p).read_bytes()
     return "data:image/png;base64," + base64.b64encode(b).decode()
 
-assets_js = 'window.MDV = { ASSETS: { mogu: "%s" } };' % data_uri("game/assets/mogu-icon.png")
+# CC0 에셋 (ansimuz "Underwater Diving Pack" — 팩 동봉 public-license.txt에 퍼블릭 도메인 명시)
+ASSETS = {
+    "mogu": "game/assets/mogu-icon.png",
+    "uwdBg": "mogudiver/assets/uwd/bg.png",
+    "uwdMid": "mogudiver/assets/uwd/mid.png",
+    "uwdProps": "mogudiver/assets/uwd/props.png",
+}
+pairs = ", ".join('%s: "%s"' % (k, data_uri(v)) for k, v in ASSETS.items())
+assets_js = "window.MDV = { ASSETS: { %s } };" % pairs
 html = re.sub(
     r'<script>window\.MDV = \{ ASSETS: .*?\};</script>',
     lambda m: "<script>" + assets_js + "</script>",
