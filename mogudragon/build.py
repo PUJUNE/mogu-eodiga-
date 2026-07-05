@@ -14,14 +14,17 @@ def data_uri(p):
     b = (HERE.parent / p).read_bytes()
     return "data:image/png;base64," + base64.b64encode(b).decode()
 
-# CC0 에셋 (OpenGameArt "City Platform" — 퍼블릭 도메인) + 모구 아이콘
+# CC0 에셋 (ansimuz "Streets of Fight" — 팩 동봉 라이선스 PDF에 CC0 명시) + 모구 아이콘
+SOF = "mogudragon/assets/sof/"
 ASSETS = {
     "mogu": "game/assets/mogu-icon.png",
-    "bld1": "mogudragon/assets/edificio1.png",
-    "bld3": "mogudragon/assets/edificio3.png",
-    "bld4": "mogudragon/assets/edificio4.png",
-    "cloud": "mogudragon/assets/nube1.png",
-    "crate": "mogudragon/assets/caja1.png",
+    "g_idle": SOF + "g_idle.png", "g_walk": SOF + "g_walk.png", "g_jab": SOF + "g_jab.png",
+    "g_punch": SOF + "g_punch.png", "g_kick": SOF + "g_kick.png", "g_jump": SOF + "g_jump.png",
+    "g_jumpkick": SOF + "g_jump_kick.png", "g_divekick": SOF + "g_dive_kick.png", "g_hurt": SOF + "g_hurt.png",
+    "p_idle": SOF + "p_idle.png", "p_walk": SOF + "p_walk.png", "p_punch": SOF + "p_punch.png", "p_hurt": SOF + "p_hurt.png",
+    "st_back": SOF + "st_back.png", "st_fore": SOF + "st_fore.png",
+    "pr_barrel": SOF + "pr_barrel.png", "pr_car": SOF + "pr_car.png", "pr_hydrant": SOF + "pr_hydrant.png",
+    "pr_sushi1": SOF + "pr_sushi1.png", "pr_sushi2": SOF + "pr_sushi2.png", "pr_banner1": SOF + "pr_banner1.png",
 }
 pairs = ", ".join('%s: "%s"' % (k, data_uri(v)) for k, v in ASSETS.items())
 assets_js = "window.MDG = { ASSETS: { %s } };" % pairs

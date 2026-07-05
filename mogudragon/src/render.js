@@ -12,14 +12,20 @@ M.Render = {
     const img = new Image();
     img.onload = () => { this.mogu = img; };
     img.src = M.ASSETS.mogu;
-    // CC0 에셋 (OGA "City Platform", 퍼블릭 도메인): 원경 건물·구름·상자
+    // CC0 에셋 (ansimuz "Streets of Fight"): 캐릭터 시트·스테이지 레이어·소품
     this.imgs = {};
-    for (const k of ['bld1', 'bld3', 'bld4', 'cloud', 'crate']) {
+    for (const k of ['g_idle', 'g_walk', 'g_jab', 'g_punch', 'g_kick', 'g_jump',
+      'g_jumpkick', 'g_divekick', 'g_hurt',
+      'p_idle', 'p_walk', 'p_punch', 'p_hurt',
+      'st_back', 'st_fore', 'pr_barrel', 'pr_car', 'pr_hydrant',
+      'pr_sushi1', 'pr_sushi2', 'pr_banner1']) {
       if (!M.ASSETS[k]) continue;
       const im2 = new Image();
       im2.onload = () => { this.imgs[k] = im2; };
       im2.src = M.ASSETS[k];
     }
+    this.tintCv = document.createElement('canvas');
+    this.tintCv.width = 96; this.tintCv.height = 63;
     this.resize();
     window.addEventListener('resize', () => this.resize());
   },
@@ -155,43 +161,53 @@ M.Render = {
   // ── 미션별 배경 (황혼 도시 무드 — 하늘 띠 0~62px에 원경을 얹음) ──
   drawBackground(st, t, cam) {
     const c = this.ctx, th = st.stage.theme, m = st.mission;
-    // 하늘: M1은 노을 밴드 + CC0 채색 건물 원경, 나머지는 지붕 위 얇은 띠만
+    // 하늘: M1은 CC0 스테이지 레이어(밤거리), 나머지는 지붕 위 얇은 띠만
     const stops = th.horizon ? [th.sky0, th.sky1, th.horizon] : [th.sky0, th.sky1];
-    const skyH = m === 1 ? 98 : 12;
-    const NB = m === 1 ? 10 : 4;
-    for (let i = 0; i < NB; i++) {
-      c.fillStyle = this.mixStops(stops, i / (NB - 1));
-      c.fillRect(0, (skyH / NB) * i, W, skyH / NB + 1);
-    }
-    if (m === 1 && this.imgs) {
-      if (this.imgs.cloud) {            // 흐르는 구름
-        for (const [co, cy2, s2] of [[80, 10, 0.42], [320, 30, 0.3]]) {
-          const im2 = this.imgs.cloud;
-          const wI = im2.width * s2, hI = im2.height * s2;
-          const x = (((co - t * 6 - cam * 0.04) % (W + wI)) + W + wI) % (W + wI) - wI;
-          c.globalAlpha = 0.75;
-          c.drawImage(im2, x, cy2, wI, hI);
-          c.globalAlpha = 1;
+    if (m !== 1) {
+      for (let i = 0; i < 4; i++) {
+        c.fillStyle = this.mixStops(stops, i / 3);
+        c.fillRect(0, 3 * i, W, 4);
+      }
+    } else {
+      // ── M1 밤거리 (ansimuz Streets of Fight 레이어, CC0) ──
+      c.fillStyle = th.sky0;
+      c.fillRect(0, 0, W, M.FLOOR_Y);
+      c.imageSmoothingEnabled = false;
+      const bk = this.imgs && this.imgs.st_back;
+      if (bk) {                          // 원경 시가 (느린 패럴랙스, ×2)
+        const bw = bk.width * 2, bh = bk.height * 2;
+        const off = ((cam * 0.18) % bw + bw) % bw;
+        for (let x = -off; x < W; x += bw) c.drawImage(bk, x, M.FLOOR_Y - bh - 34, bw, bh);
+      }
+      const fo = this.imgs && this.imgs.st_fore;
+      if (fo) {                          // 근경 건물·상점 (×1.22 — 바닥선 정합)
+        const s2 = 1.22, fw = fo.width * s2, fh = fo.height * s2;
+        const off = ((cam * 0.6) % fw + fw) % fw;
+        for (let x = -off; x < W + fw; x += fw) c.drawImage(fo, x, M.FLOOR_Y - fh, fw, fh);
+      }
+      // 소품 (월드 앵커): 차·소화전·네온 간판·현수막
+      const prop = (key, wx, py2, s2, pf) => {
+        const im2 = this.imgs && this.imgs[key];
+        if (!im2) return;
+        const wI = im2.width * s2, hI = im2.height * s2;
+        for (let i2 = -1; i2 < 2; i2++) {
+          const seg = Math.floor(cam * pf / 700) + i2;
+          const x = seg * 700 - cam * pf + wx;
+          if (x > -wI && x < W + wI) c.drawImage(im2, x, py2 - hI, wI, hI);
         }
-      }
-      // 원경 건물 행 (채색 에셋, 종횡비 보존 + 황혼 톤 오버레이)
-      const blds = ['bld1', 'bld3', 'bld4'];
-      for (let i = -1; i < 6; i++) {
-        const seg = Math.floor(cam * 0.3 / 120) + i;
-        const im2 = this.imgs[blds[((seg % 3) + 3) % 3]];
-        if (!im2) continue;
-        const hI = 76 + ((seg * 37 + 11) % 3) * 12;
-        const wI = im2.width * (hI / im2.height);
-        c.drawImage(im2, seg * 120 - cam * 0.3, 98 - hI, wI, hI);
-      }
-      c.fillStyle = 'rgba(90,40,60,.22)';
-      c.fillRect(0, 0, W, 98);
+      };
+      prop('pr_car', 320, M.FLOOR_Y, 1, 0.6);
+      prop('pr_hydrant', 150, M.FLOOR_Y, 1, 0.6);
+      prop('pr_barrel', 520, M.FLOOR_Y, 1, 0.6);
+      const sushi = (Math.floor(t * 3) % 2 === 0) ? 'pr_sushi1' : 'pr_sushi2';
+      prop(sushi, 636, M.FLOOR_Y - 58, 1, 0.6);
+      c.imageSmoothingEnabled = true;
     }
 
     // ── 근경 벽 (미션별) — 상단 12px까지 구조물이 채움 ──
     const wallTop = 12, wallH = M.FLOOR_Y - wallTop;
-    if (m === 1) {
-      // 벽돌 골목: 하단 벽돌담 (상단은 원경 건물 밴드) + 그래피티 + 창살 + 쓰레기통 + 가로등
+    if (m === -1) {
+      // (구 벽돌 골목 분기 — M1은 SOF 스테이지 레이어로 대체되어 비활성)
       const w1 = 96;
       c.fillStyle = '#6a4a44';
       c.fillRect(0, w1, W, M.FLOOR_Y - w1);
@@ -461,7 +477,7 @@ M.Render = {
         c.fillStyle = mg;
         c.fillRect(mx, wallTop + 40 + k * 24, 240, 60);
       }
-    } else {
+    } else if (m === 4) {
       // 악당 아지트: 사암 석벽 + 횃불 + 붉은 현수막 (원작 분석 — 밝은 사암 + 붉은 카펫)
       c.fillStyle = th.wall;
       c.fillRect(0, wallTop, W, wallH);
@@ -508,8 +524,8 @@ M.Render = {
     }
 
     // ── 표면 질감 (명암 얼룩 — 회화 패스) ──
-    const wt2 = m === 1 ? 96 : wallTop;
-    for (let i = -1; i < 26; i++) {
+    const wt2 = wallTop;
+    for (let i = m === 1 ? 99 : -1; i < 26; i++) {   // M1은 스테이지 레이어라 질감 패스 생략
       const seg = Math.floor(cam * 0.6 / 60) + i;
       const h2 = (seg * 2246822519 + 5) >>> 5;
       const x = seg * 60 - cam * 0.6 + (h2 % 40);
@@ -568,8 +584,9 @@ M.Render = {
         c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke();
       }
     }
-    // 플레이필드 드럼통 무리 (골목 — 바닥 위 소품, 원작 문법)
-    if (m === 1) {
+    // 플레이필드 드럼통 (골목 — CC0 에셋 소품, 바닥 위)
+    if (m === 1 && this.imgs && this.imgs.pr_barrel) {
+      c.imageSmoothingEnabled = false;
       for (let i = -1; i < 3; i++) {
         const seg = Math.floor(cam / 380) + i;
         const x = seg * 380 - cam + 90;
@@ -577,20 +594,12 @@ M.Render = {
         if (h2 % 3 === 0) continue;
         const zz = 18 + (h2 % 34);
         const y = M.FLOOR_Y + zz * ZS;
-        for (let k = 0; k < 2 + (h2 % 2); k++) {
-          const bx2 = x + k * 21, by2 = y - 30 - (k % 2) * 5;
-          c.fillStyle = 'rgba(0,0,0,.25)';
-          c.beginPath(); c.ellipse(bx2 + 9, y + 2 + (k % 2) * -4, 13, 4, 0, 0, Math.PI * 2); c.fill();
-          c.fillStyle = k % 2 ? '#a05a30' : '#8e4c28';
-          c.beginPath(); c.roundRect(bx2, by2, 19, 30, 3); c.fill();
-          c.fillStyle = 'rgba(255,255,255,.18)';
-          c.fillRect(bx2 + 2, by2 + 3, 4, 24);
-          c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 1;
-          for (const ry of [8, 16, 24]) { c.beginPath(); c.moveTo(bx2, by2 + ry); c.lineTo(bx2 + 19, by2 + ry); c.stroke(); }
-          c.fillStyle = 'rgba(30,20,14,.85)';
-          c.beginPath(); c.ellipse(bx2 + 9.5, by2, 9.5, 3, 0, 0, Math.PI * 2); c.fill();
-        }
+        const im2 = this.imgs.pr_barrel;
+        c.fillStyle = 'rgba(0,0,0,.28)';
+        c.beginPath(); c.ellipse(x + im2.width / 2, y + 2, im2.width * 0.55, 5, 0, 0, Math.PI * 2); c.fill();
+        c.drawImage(im2, x, y - im2.height, im2.width, im2.height);
       }
+      c.imageSmoothingEnabled = true;
     }
     // 바닥 균열·맨홀 (해시 데칼)
     for (let i = -1; i < 5; i++) {
@@ -763,6 +772,61 @@ M.Render = {
     const shoeC = isP ? '#e8e4dc' : '#2a2430';
 
     const step = walk ? Math.sin(t * 11) : 0;      // 걷기 위상
+
+    // ── CC0 스프라이트 캐릭터 (ansimuz Streets of Fight) — 플레이어·잡졸 ──
+    // 시트 규격: 프레임 96×63, 발 기준선 프레임 하단. 보스·꼬꼬는 기존 관절 리그 유지.
+    const sofP = isP && this.imgs && this.imgs.g_idle;
+    const sofE = f.kind === 'e' && !f.boss && this.imgs && this.imgs.p_idle;
+    if (sofP || sofE) {
+      let key, n, fi;
+      if (sofP) {
+        if (airkick) { key = 'g_jumpkick'; n = 3; fi = Math.min(2, Math.floor(f.stT / 0.09)); }
+        else if (f.jy > 0) { key = 'g_jump'; n = 4; fi = f.vy > 60 ? 1 : f.vy < -60 ? 3 : 2; }
+        else if (atk) {
+          key = f.combo === 3 ? 'g_kick' : f.combo === 2 ? 'g_punch' : 'g_jab';
+          n = f.combo === 3 ? 5 : 3;
+          fi = Math.min(n - 1, Math.floor(f.stT / (0.28 / n)));
+        } else if (hurt || down) { key = 'g_hurt'; n = 2; fi = Math.min(1, Math.floor(f.stT / 0.16)); }
+        else if (walk) { key = 'g_walk'; n = 10; fi = Math.floor(t * 14) % n; }
+        else { key = 'g_idle'; n = 4; fi = Math.floor(t * 6) % n; }
+      } else {
+        if (atk) { key = 'p_punch'; n = 3; fi = Math.min(2, Math.floor(f.stT / 0.09)); }
+        else if (hurt || down) { key = 'p_hurt'; n = 4; fi = Math.min(3, Math.floor(f.stT / 0.1)); }
+        else if (walk) { key = 'p_walk'; n = 4; fi = Math.floor(t * 9) % n; }
+        else { key = 'p_idle'; n = 4; fi = Math.floor(t * 6) % n; }
+      }
+      const img = this.imgs[key];
+      if (img) {
+        const s = f.type === 'tank' ? 1.18 : f.type === 'quick' ? 0.88 : 1;
+        c.imageSmoothingEnabled = false;
+        c.save();
+        c.scale(-1, 1);                                // 시트 원본이 왼쪽을 봄 → 기본 반전
+        if (sofE && f.type !== 'thug') {
+          // 색조 변형 잡졸 (빠른 쥐: 주황 / 덩치: 청회)
+          const tc = this.tintCv.getContext('2d');
+          tc.clearRect(0, 0, 96, 63);
+          tc.drawImage(img, fi * 96, 0, 96, 63, 0, 0, 96, 63);
+          tc.globalCompositeOperation = 'source-atop';
+          tc.fillStyle = f.type === 'quick' ? 'rgba(230,130,40,.32)' : 'rgba(60,80,130,.38)';
+          tc.fillRect(0, 0, 96, 63);
+          tc.globalCompositeOperation = 'source-over';
+          c.drawImage(this.tintCv, 0, 0, 96, 63, -48 * s, -63 * s, 96 * s, 63 * s);
+        } else {
+          c.drawImage(img, fi * 96, 0, 96, 63, -48 * s, -63 * s, 96 * s, 63 * s);
+        }
+        c.restore();
+        c.imageSmoothingEnabled = true;
+        if (sofP && this.mogu) {
+          // 모구 얼굴 (스프라이트 머리 위치에 합성 — 시리즈 정체성)
+          const a2 = this.mogu.width / this.mogu.height, hh = 16;
+          c.save(); c.scale(-1, 1);
+          c.drawImage(this.mogu, -hh * a2 / 2, -58, hh * a2, hh);
+          c.restore();
+        }
+        c.restore();
+        return;
+      }
+    }
 
     // ── 다리 (무릎 굽힘 워크 사이클) ──
     if (airkick) {
