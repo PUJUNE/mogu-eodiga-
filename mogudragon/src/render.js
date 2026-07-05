@@ -820,6 +820,11 @@ M.Render = {
           : (sofE && f.type === 'tank') ? 'rgba(60,80,130,.38)' : null;
         c.imageSmoothingEnabled = false;
         c.save();
+        if (sofE && down) {
+          // 펑크 피격 시트 마지막 프레임이 이미 누운 포즈 — 리그용 다운 회전(-90°) 상쇄
+          c.translate(-4, -12);
+          c.rotate(Math.PI / 2);
+        }
         if (sofE) c.scale(-1, 1);                      // 걸 시트=오른쪽 / 펑크 시트=왼쪽 원본
         if (tint) {
           const tc = this.tintCv.getContext('2d');
