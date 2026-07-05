@@ -845,7 +845,7 @@ M.Render = {
     c.translate(x, y);
     if (f.face < 0) c.scale(-1, 1);
     if (dead) c.globalAlpha = Math.max(0, 1 - (f.stT - 0.8) / 0.8);
-    if (down) { c.rotate(-Math.PI / 2); c.translate(4, 12); }
+    if (down) { c.rotate(-Math.PI / 2); c.translate(10, 14); }
     if (hurt) { c.translate(Math.sin(t * 40) * 1.5, 0); c.rotate(-0.12); }
 
     const big = f.boss ? 1.35 : f.type === 'tank' ? 1.15 : 1;
@@ -861,118 +861,134 @@ M.Render = {
 
     const step = walk ? Math.sin(t * 11) : 0;      // 걷기 위상
 
-    // ── 다리 (무릎 굽힘 워크 사이클) ──
+    // ── 다리 (5~6등신 장수 비례 — 무릎 굽힘 워크 사이클) ──
     if (airkick) {
-      this.limb(0, -22, 16, -20, 7, pantC);        // 앞차기 허벅지+정강이
-      this.limb(16, -20, 26, -18, 6, pantC);
+      this.limb(0, -30, 18, -27, 7, pantC);        // 앞차기 허벅지+정강이
+      this.limb(18, -27, 30, -24, 6, pantC);
       c.fillStyle = shoeC;
-      c.beginPath(); c.ellipse(29, -18, 5, 3.5, 0.2, 0, Math.PI * 2); c.fill();
-      this.limb(-2, -22, -7, -12, 7, pantC);       // 접은 뒷다리
-      this.limb(-7, -12, -2, -8, 6, pantC);
+      c.beginPath(); c.ellipse(33, -24, 5, 3.5, 0.2, 0, Math.PI * 2); c.fill();
+      this.limb(-2, -30, -8, -17, 7, pantC);       // 접은 뒷다리
+      this.limb(-8, -17, -2, -11, 6, pantC);
       c.fillStyle = shoeC;
-      c.beginPath(); c.ellipse(-1, -7, 4.5, 3, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(-1, -10, 4.5, 3, 0, 0, Math.PI * 2); c.fill();
     } else if (f.jy > 0) {
-      this.limb(1, -22, 4, -12, 7, pantC);
-      this.limb(4, -12, 7, -8, 6, pantC);
-      this.limb(-3, -22, -7, -13, 7, pantC);
-      this.limb(-7, -13, -10, -9, 6, pantC);
+      this.limb(1, -30, 5, -16, 7, pantC);
+      this.limb(5, -16, 8, -10, 6, pantC);
+      this.limb(-3, -30, -8, -18, 7, pantC);
+      this.limb(-8, -18, -12, -12, 6, pantC);
       c.fillStyle = shoeC;
-      c.beginPath(); c.ellipse(8, -7, 4.5, 3, 0, 0, Math.PI * 2); c.fill();
-      c.beginPath(); c.ellipse(-11, -8, 4.5, 3, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(9, -9, 4.5, 3, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(-13, -11, 4.5, 3, 0, 0, Math.PI * 2); c.fill();
     } else {
       // 지상: 앞다리·뒷다리 (걸을 때 무릎이 번갈아 굽음)
-      const k1 = step * 5, k2 = -step * 5;
-      this.limb(2, -22, 4 + k1, -11, 7, pantC);
-      this.limb(4 + k1, -11, 5 + k1 * 1.2, -1, 6, pantC);
-      this.limb(-3, -22, -4 + k2, -11, 7, pantC);
-      this.limb(-4 + k2, -11, -5 + k2 * 1.2, -1, 6, pantC);
+      const k1 = step * 6, k2 = -step * 6;
+      this.limb(2, -30, 4 + k1, -15, 7, pantC);
+      this.limb(4 + k1, -15, 5 + k1 * 1.2, -1, 6, pantC);
+      this.limb(-3, -30, -4 + k2, -15, 7, pantC);
+      this.limb(-4 + k2, -15, -5 + k2 * 1.2, -1, 6, pantC);
       c.fillStyle = shoeC;
       c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.5;
       c.beginPath(); c.ellipse(7 + k1 * 1.2, -1, 5.5, 3, 0, 0, Math.PI * 2); c.fill(); c.stroke();
       c.beginPath(); c.ellipse(-3 + k2 * 1.2, -1, 5.5, 3, 0, 0, Math.PI * 2); c.fill(); c.stroke();
     }
 
-    // ── 몸통 (역삼각 + 벨트 + 근육 음영) ──
+    // ── 치마갑 (허리 찰갑 3단) ──
+    const armC = isP ? '#c8a030' : isB ? '#8a9aa8' : this.shade((f.body || (E && E.body) || '#9aa2ad'), 0.8);
+    c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.6; c.lineJoin = 'round';
+    c.fillStyle = armC;
+    c.beginPath();
+    c.moveTo(-9, -31); c.lineTo(9, -31); c.lineTo(11, -18); c.lineTo(-11, -18);
+    c.closePath(); c.fill(); c.stroke();
+    c.strokeStyle = 'rgba(0,0,0,.3)'; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(-10, -27); c.lineTo(10, -27); c.stroke();
+    c.beginPath(); c.moveTo(-10.5, -22.5); c.lineTo(10.5, -22.5); c.stroke();
+    c.beginPath(); c.moveTo(0, -31); c.lineTo(0, -18); c.stroke();
+
+    // ── 몸통 (판금 흉갑 — 역삼각) ──
     c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 2.4; c.lineJoin = 'round';
     c.fillStyle = shirtC;
     c.beginPath();
-    c.moveTo(-11, -42); c.quadraticCurveTo(0, -45, 11, -42);
-    c.lineTo(7, -21); c.quadraticCurveTo(0, -19, -7, -21);
+    c.moveTo(-12, -56); c.quadraticCurveTo(0, -59, 12, -56);
+    c.lineTo(8, -29); c.quadraticCurveTo(0, -27, -8, -29);
     c.closePath(); c.fill(); c.stroke();
     c.fillStyle = this.shade(shirtC, 0.75);        // 옆구리 음영
     c.beginPath();
-    c.moveTo(6, -41); c.lineTo(11, -42); c.lineTo(7, -21); c.lineTo(4, -21);
+    c.moveTo(7, -55); c.lineTo(12, -56); c.lineTo(8, -29); c.lineTo(5, -29);
     c.closePath(); c.fill();
-    c.strokeStyle = 'rgba(0,0,0,.28)'; c.lineWidth = 1.2;
-    c.beginPath(); c.moveTo(0, -40); c.lineTo(0, -30); c.stroke();       // 가슴 골
-    c.beginPath(); c.moveTo(-6, -29); c.quadraticCurveTo(0, -26.5, 6, -29); c.stroke();   // 가슴 근육
+    if (isP) {
+      // 금장 흉갑 + 홍심
+      c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.6;
+      c.fillStyle = '#d8b83a';
+      c.beginPath(); c.roundRect(-9, -51, 18, 14, 3); c.fill(); c.stroke();
+      c.strokeStyle = 'rgba(0,0,0,.3)'; c.lineWidth = 1;
+      c.beginPath(); c.moveTo(-9, -44); c.lineTo(9, -44); c.stroke();
+      c.fillStyle = '#a02828';
+      c.beginPath(); c.arc(0, -43, 2.8, 0, Math.PI * 2); c.fill();
+    } else {
+      // 찰갑 가로줄 (병졸 갑주)
+      c.strokeStyle = 'rgba(0,0,0,.3)'; c.lineWidth = 1.1;
+      for (const yy of [-51, -46, -41, -36]) {
+        c.beginPath(); c.moveTo(-10 + (yy + 51) * 0.1, yy); c.lineTo(10 - (yy + 51) * 0.1, yy); c.stroke();
+      }
+    }
     // 벨트
     c.fillStyle = '#1a1620';
-    c.fillRect(-7, -22, 14, 3.5);
+    c.fillRect(-8, -32, 16, 3.5);
     c.fillStyle = '#d8b83a';
-    c.fillRect(-2, -22, 4, 3.5);
-    // 갑옷 (모구: 금장 흉갑, 둘 다 견갑)
-    if (isP || isB) {
-      c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.6;
-      if (isP) {
-        c.fillStyle = '#d8b83a';
-        c.beginPath(); c.roundRect(-8, -37, 16, 11, 3); c.fill(); c.stroke();
-        c.strokeStyle = 'rgba(0,0,0,.3)'; c.lineWidth = 1;
-        c.beginPath(); c.moveTo(-8, -32); c.lineTo(8, -32); c.stroke();
-        c.fillStyle = '#a02828';
-        c.beginPath(); c.arc(0, -31, 2.6, 0, Math.PI * 2); c.fill();
-      }
-      const padC = isP ? '#c8a030' : '#8a9aa8';
-      c.fillStyle = padC;
-      c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.6;
-      c.beginPath(); c.ellipse(-11, -39, 5.5, 4, -0.3, 0, Math.PI * 2); c.fill(); c.stroke();
-      c.beginPath(); c.ellipse(11, -39, 5.5, 4, 0.3, 0, Math.PI * 2); c.fill(); c.stroke();
-    }
+    c.fillRect(-2, -32, 4, 3.5);
+    // 견갑 (전원 — 장수 실루엣)
+    c.fillStyle = armC;
+    c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.6;
+    c.beginPath(); c.ellipse(-12, -53, 6, 4.5, -0.3, 0, Math.PI * 2); c.fill(); c.stroke();
+    c.beginPath(); c.ellipse(12, -53, 6, 4.5, 0.3, 0, Math.PI * 2); c.fill(); c.stroke();
 
-    // ── 팔 (가드 자세 / 펀치 / 어퍼컷) ──
-    const shY = -38;
+    // ── 팔 (가드 자세 / 찌르기 / 올려베기) ──
+    const shY = -52;
     if (atk && f.jy === 0) {
       const upper = f.combo === 3;
       if (upper) {
-        this.limb(-8, shY, -14, -32, 6, skinC);    // 뒷팔 가드
+        this.limb(-9, shY, -16, -44, 6, skinC);    // 뒷팔 가드
         c.fillStyle = skinC; c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.5;
-        c.beginPath(); c.arc(-15, -31, 4.5, 0, Math.PI * 2); c.fill(); c.stroke();
-        this.limb(8, shY, 17, -46, 6.5, skinC);    // 어퍼컷!
-        this.limb(17, -46, 21, -56, 6, skinC);
-        c.beginPath(); c.arc(22, -59, 5.5, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.beginPath(); c.arc(-17, -43, 4.5, 0, Math.PI * 2); c.fill(); c.stroke();
+        this.limb(9, shY, 18, -60, 6.5, skinC);    // 올려베기!
+        this.limb(18, -60, 22, -70, 6, skinC);
+        c.beginPath(); c.arc(23, -73, 5.5, 0, Math.PI * 2); c.fill(); c.stroke();
       } else {
-        this.limb(-8, shY, -14, -31, 6, skinC);
+        this.limb(-9, shY, -16, -43, 6, skinC);
         c.fillStyle = skinC; c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.5;
-        c.beginPath(); c.arc(-15, -30, 4.5, 0, Math.PI * 2); c.fill(); c.stroke();
-        this.limb(8, shY, 18, -37, 6.5, skinC);    // 스트레이트
-        this.limb(18, -37, 28, -36, 6, skinC);
-        c.beginPath(); c.arc(31, -36, 5.5, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.beginPath(); c.arc(-17, -42, 4.5, 0, Math.PI * 2); c.fill(); c.stroke();
+        this.limb(9, shY, 20, -51, 6.5, skinC);    // 찌르기
+        this.limb(20, -51, 31, -50, 6, skinC);
+        c.beginPath(); c.arc(34, -50, 5.5, 0, Math.PI * 2); c.fill(); c.stroke();
       }
     } else if (hurt || down) {
-      this.limb(-8, shY, -15, -30, 6, skinC);
-      this.limb(8, shY, 15, -30, 6, skinC);
+      this.limb(-9, shY, -17, -42, 6, skinC);
+      this.limb(9, shY, 17, -42, 6, skinC);
     } else {
       // 파이팅 가드: 두 주먹을 몸 앞에
       const g2 = Math.sin(t * 4 + (isB ? 1 : 0)) * 0.8;
-      this.limb(-8, shY, -12, -30 + g2, 6, skinC);
-      this.limb(-12, -30 + g2, -5, -27 + g2, 5.5, skinC);
-      this.limb(8, shY, 13, -31 - g2, 6, skinC);
-      this.limb(13, -31 - g2, 9, -27 - g2, 5.5, skinC);
+      this.limb(-9, shY, -13, -42 + g2, 6, skinC);
+      this.limb(-13, -42 + g2, -6, -39 + g2, 5.5, skinC);
+      this.limb(9, shY, 14, -43 - g2, 6, skinC);
+      this.limb(14, -43 - g2, 10, -39 - g2, 5.5, skinC);
       c.fillStyle = skinC; c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.5;
-      c.beginPath(); c.arc(-4, -27 + g2, 4.5, 0, Math.PI * 2); c.fill(); c.stroke();
-      c.beginPath(); c.arc(10, -27 - g2, 4.5, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.beginPath(); c.arc(-5, -39 + g2, 4.5, 0, Math.PI * 2); c.fill(); c.stroke();
+      c.beginPath(); c.arc(11, -39 - g2, 4.5, 0, Math.PI * 2); c.fill(); c.stroke();
     }
 
     // ── 무기 ──
     this.drawWeapon(f, atk, t);
 
-    // ── 머리 ──
+    // ── 머리 (장신 비례 — 어깨 위로 들어올림) ──
+    c.save();
+    c.translate(0, -14);
     this.drawHead(f, t);
+    c.restore();
 
     // 적 체력바
     if (!isP && !isB && f.hp < f.maxHp && !down) {
-      c.fillStyle = 'rgba(0,0,0,.5)'; c.fillRect(-12, -70, 24, 3);
-      c.fillStyle = '#ff5a5a'; c.fillRect(-12, -70, 24 * Math.max(0, f.hp / f.maxHp), 3);
+      c.fillStyle = 'rgba(0,0,0,.5)'; c.fillRect(-12, -86, 24, 3);
+      c.fillStyle = '#ff5a5a'; c.fillRect(-12, -86, 24 * Math.max(0, f.hp / f.maxHp), 3);
     }
     c.restore();
   },
@@ -983,59 +999,59 @@ M.Render = {
     const isP = f.kind === 'p', isB = f.kind === 'b';
     if (f.state === 'down' || f.state === 'dead') return;
     const upper = atk && f.combo === 3;
-    const hx = atk ? (upper ? 22 : 31) : 10;
-    const hy = atk ? (upper ? -59 : -36) : -27;
+    const hx = atk ? (upper ? 23 : 34) : 11;
+    const hy = atk ? (upper ? -73 : -50) : -41;
     c.save();
     c.translate(hx, hy);
     const swing = atk ? Math.min(1, f.stT / 0.14) : 0;
     if (isP) {
       c.rotate(atk ? (upper ? -1.9 + swing * 1.2 : -1.5 + swing * 1.6) : -0.5);
       c.strokeStyle = '#6a4a2a'; c.lineWidth = 3.4; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(0, 12); c.lineTo(0, -22); c.stroke();
+      c.beginPath(); c.moveTo(0, 16); c.lineTo(0, -30); c.stroke();
       c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.4;
       c.fillStyle = '#d8dce4';
       c.beginPath();
-      c.moveTo(0, -22);
-      c.quadraticCurveTo(10, -30, 3, -42);
-      c.quadraticCurveTo(6, -32, 0, -30);
+      c.moveTo(0, -30);
+      c.quadraticCurveTo(10, -38, 3, -50);
+      c.quadraticCurveTo(6, -40, 0, -38);
       c.closePath(); c.fill(); c.stroke();
       c.fillStyle = '#d8b83a';
-      c.beginPath(); c.arc(0, -22, 2.4, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(0, -30, 2.4, 0, Math.PI * 2); c.fill();
     } else if (isB) {
       c.rotate(atk ? -1.62 : -0.72);
       c.strokeStyle = '#8a6a3a'; c.lineWidth = 2.8; c.lineCap = 'round';
-      c.beginPath(); c.moveTo(0, 14); c.lineTo(0, -24); c.stroke();
+      c.beginPath(); c.moveTo(0, 16); c.lineTo(0, -32); c.stroke();
       c.fillStyle = '#d8dce4';
       c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.2;
-      c.beginPath(); c.moveTo(-3, -24); c.lineTo(0, -34); c.lineTo(3, -24); c.closePath(); c.fill(); c.stroke();
+      c.beginPath(); c.moveTo(-3, -32); c.lineTo(0, -42); c.lineTo(3, -32); c.closePath(); c.fill(); c.stroke();
       c.fillStyle = '#a02828';
-      c.beginPath(); c.arc(0, -23, 2, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.arc(0, -31, 2, 0, Math.PI * 2); c.fill();
     } else if (!(atk && f.jy > 0)) {
       const kind = f.base || f.type || 'spear';
       c.rotate(atk ? -1.5 : -0.6);
       if (kind === 'axe') {
         c.strokeStyle = '#6a4a2a'; c.lineWidth = 2.6; c.lineCap = 'round';
-        c.beginPath(); c.moveTo(0, 10); c.lineTo(0, -18); c.stroke();
+        c.beginPath(); c.moveTo(0, 14); c.lineTo(0, -26); c.stroke();
         c.fillStyle = '#b8bcc8';
         c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.2;
-        c.beginPath(); c.moveTo(0, -18); c.quadraticCurveTo(11, -16, 9, -6); c.lineTo(0, -10); c.closePath(); c.fill(); c.stroke();
+        c.beginPath(); c.moveTo(0, -26); c.quadraticCurveTo(11, -24, 9, -14); c.lineTo(0, -18); c.closePath(); c.fill(); c.stroke();
       } else if (kind === 'archer') {
         c.strokeStyle = '#6a4a2a'; c.lineWidth = 2.2; c.lineCap = 'round';
-        c.beginPath(); c.arc(0, -6, 13, -1.25, 1.25); c.stroke();
+        c.beginPath(); c.arc(0, -12, 15, -1.25, 1.25); c.stroke();
         c.strokeStyle = 'rgba(230,230,240,.7)'; c.lineWidth = 1;
-        c.beginPath(); c.moveTo(Math.cos(-1.25) * 13, -6 + Math.sin(-1.25) * 13); c.lineTo(Math.cos(1.25) * 13, -6 + Math.sin(1.25) * 13); c.stroke();
+        c.beginPath(); c.moveTo(Math.cos(-1.25) * 15, -12 + Math.sin(-1.25) * 15); c.lineTo(Math.cos(1.25) * 15, -12 + Math.sin(1.25) * 15); c.stroke();
       } else if (kind === 'shield' || f.type === 'tank') {
         c.fillStyle = '#5a6a7a';
         c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.6;
-        c.beginPath(); c.roundRect(2, -16, 9, 22, 4); c.fill(); c.stroke();
+        c.beginPath(); c.roundRect(2, -22, 10, 28, 4); c.fill(); c.stroke();
         c.fillStyle = '#d8b83a';
-        c.beginPath(); c.arc(6.5, -5, 2.2, 0, Math.PI * 2); c.fill();
+        c.beginPath(); c.arc(7, -8, 2.2, 0, Math.PI * 2); c.fill();
       } else {
         c.strokeStyle = '#6a4a2a'; c.lineWidth = 2.4; c.lineCap = 'round';
-        c.beginPath(); c.moveTo(0, 12); c.lineTo(0, -20); c.stroke();
+        c.beginPath(); c.moveTo(0, 14); c.lineTo(0, -28); c.stroke();
         c.fillStyle = '#d8dce4';
         c.strokeStyle = 'rgba(20,16,28,.9)'; c.lineWidth = 1.2;
-        c.beginPath(); c.moveTo(-2.5, -20); c.lineTo(0, -28); c.lineTo(2.5, -20); c.closePath(); c.fill(); c.stroke();
+        c.beginPath(); c.moveTo(-2.5, -28); c.lineTo(0, -36); c.lineTo(2.5, -28); c.closePath(); c.fill(); c.stroke();
       }
     }
     c.restore();
