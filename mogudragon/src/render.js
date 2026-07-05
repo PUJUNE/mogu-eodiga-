@@ -333,6 +333,22 @@ M.Render = {
         const x = bx - ((cam * 0.6) % 16);
         c.beginPath(); c.moveTo(x, wallTop); c.lineTo(x, M.FLOOR_Y); c.stroke();
       }
+      // 밤 공장 네온 (SOF 톤): 스시 간판 + 주황 조명 웅덩이
+      if (this.imgs && this.imgs.pr_sushi1) {
+        c.imageSmoothingEnabled = false;
+        for (let i = -1; i < 3; i++) {
+          const seg = Math.floor(cam * 0.6 / 300) + i;
+          const x = seg * 300 - cam * 0.6 + 210;
+          const im2 = (Math.floor(t * 3) % 2 === 0) ? this.imgs.pr_sushi1 : this.imgs.pr_sushi2;
+          c.drawImage(im2, x, 58, im2.width, im2.height);
+          const lg = c.createRadialGradient(x + 9, 82, 4, x + 9, 82, 42);
+          lg.addColorStop(0, 'rgba(255,140,70,.16)');
+          lg.addColorStop(1, 'rgba(255,140,70,0)');
+          c.fillStyle = lg;
+          c.fillRect(x - 36, 46, 90, 90);
+        }
+        c.imageSmoothingEnabled = true;
+      }
       // 환풍 팬 (상부 밴드 — 회전)
       for (let i = -1; i < 3; i++) {
         const seg = Math.floor(cam * 0.6 / 240) + i;
@@ -773,13 +789,14 @@ M.Render = {
 
     const step = walk ? Math.sin(t * 11) : 0;      // 걷기 위상
 
-    // ── CC0 스프라이트 캐릭터 (ansimuz Streets of Fight) — 플레이어·잡졸 ──
-    // 시트 규격: 프레임 96×63, 발 기준선 프레임 하단. 보스·꼬꼬는 기존 관절 리그 유지.
+    // ── CC0 스프라이트 캐릭터 (ansimuz Streets of Fight) — 플레이어·꼬꼬·잡졸 ──
+    // 시트 규격: 프레임 96×63, 발 기준선 프레임 하단. 보스는 기존 관절 리그 유지.
     const sofP = isP && this.imgs && this.imgs.g_idle;
+    const sofB = isB && this.imgs && this.imgs.g_idle;
     const sofE = f.kind === 'e' && !f.boss && this.imgs && this.imgs.p_idle;
-    if (sofP || sofE) {
+    if (sofP || sofB || sofE) {
       let key, n, fi;
-      if (sofP) {
+      if (sofP || sofB) {
         if (airkick) { key = 'g_jumpkick'; n = 3; fi = Math.min(2, Math.floor(f.stT / 0.09)); }
         else if (f.jy > 0) { key = 'g_jump'; n = 4; fi = f.vy > 60 ? 1 : f.vy < -60 ? 3 : 2; }
         else if (atk) {
@@ -797,17 +814,18 @@ M.Render = {
       }
       const img = this.imgs[key];
       if (img) {
-        const s = f.type === 'tank' ? 1.18 : f.type === 'quick' ? 0.88 : 1;
+        const s = sofB ? 1.2 : f.type === 'tank' ? 1.5 : f.type === 'quick' ? 1.12 : 1.3;
+        const tint = sofB ? 'rgba(150,180,245,.28)'
+          : (sofE && f.type === 'quick') ? 'rgba(230,130,40,.32)'
+          : (sofE && f.type === 'tank') ? 'rgba(60,80,130,.38)' : null;
         c.imageSmoothingEnabled = false;
-        c.save();
-        c.scale(-1, 1);                                // 시트 원본이 왼쪽을 봄 → 기본 반전
-        if (sofE && f.type !== 'thug') {
-          // 색조 변형 잡졸 (빠른 쥐: 주황 / 덩치: 청회)
+        c.save();                                      // (시트 원본이 오른쪽을 봄 — 반전 불필요)
+        if (tint) {
           const tc = this.tintCv.getContext('2d');
           tc.clearRect(0, 0, 96, 63);
           tc.drawImage(img, fi * 96, 0, 96, 63, 0, 0, 96, 63);
           tc.globalCompositeOperation = 'source-atop';
-          tc.fillStyle = f.type === 'quick' ? 'rgba(230,130,40,.32)' : 'rgba(60,80,130,.38)';
+          tc.fillStyle = tint;
           tc.fillRect(0, 0, 96, 63);
           tc.globalCompositeOperation = 'source-over';
           c.drawImage(this.tintCv, 0, 0, 96, 63, -48 * s, -63 * s, 96 * s, 63 * s);
@@ -816,11 +834,13 @@ M.Render = {
         }
         c.restore();
         c.imageSmoothingEnabled = true;
-        if (sofP && this.mogu) {
-          // 모구 얼굴 (스프라이트 머리 위치에 합성 — 시리즈 정체성)
-          const a2 = this.mogu.width / this.mogu.height, hh = 16;
-          c.save(); c.scale(-1, 1);
-          c.drawImage(this.mogu, -hh * a2 / 2, -58, hh * a2, hh);
+        if (sofP || sofB) {
+          // 머리 합성: 모구 사진 얼굴 / 꼬꼬 머리 (시리즈 정체성, 스프라이트 비례로 축소)
+          c.save();
+          c.translate(0, -49 * s);                   // 스프라이트 머리 중심으로
+          c.scale(0.72, 0.72);
+          c.translate(0, 51);                        // drawHead 머리 중심(-51)을 원점에
+          this.drawHead(f, t);
           c.restore();
         }
         c.restore();

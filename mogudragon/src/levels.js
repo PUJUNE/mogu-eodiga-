@@ -8,7 +8,7 @@ M.FLOOR_Y = 176;                        // z=0일 때 발 위치 (z가 클수록
 // 원작 스크린샷 분석 반영: 중명도 벽 + 벽보다 밝은 바닥 + 강한 명암 대비
 M.THEMES = {
   1: { name: '시내 골목',   sky0: '#0e0c1c', sky1: '#1c1830', horizon: '#2c2444', wall: '#20242e', floor: '#5c7274', floor2: '#4e6264', accent: '#ffb83d' },
-  2: { name: '공장 지대',   sky0: '#3a3440', sky1: '#5c4e46', horizon: '#a07048', wall: '#5a5560', floor: '#8a7f68', floor2: '#786d56', accent: '#ff9d5c' },
+  2: { name: '공장 지대',   sky0: '#0a0e16', sky1: '#141c28', horizon: '#28323e', wall: '#2e3440', floor: '#4e5a64', floor2: '#404c56', accent: '#ff9d5c' },
   3: { name: '어두운 숲길', sky0: '#12242e', sky1: '#1e3a28', wall: '#8a6a48', floor: '#57783f', floor2: '#4a6a34', accent: '#9fe06a' },
   4: { name: '악당 아지트', sky0: '#180a20', sky1: '#301040', horizon: '#4c0e22', wall: '#b08a54', floor: '#7a828e', floor2: '#6a727e', accent: '#ffd83d' },
 };
