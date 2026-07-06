@@ -447,10 +447,10 @@ function makeFlame(){
 
 /* ═══════════════ 난이도 ═══════════════ */
 const DIFFS={
-  easy:  {name:'이지',   hp:0.75, count:0.8, fire:0.65, accuracy:0.5, mislChance:0.4, dmg:0.7},
-  normal:{name:'노말',   hp:1.0,  count:1.0, fire:1.0,  accuracy:0.75,mislChance:0.7, dmg:1.0},
-  hard:  {name:'하드',   hp:1.35, count:1.15,fire:1.35, accuracy:0.9, mislChance:1.0, dmg:1.3},
-  crazy: {name:'크레이지',hp:1.8,  count:1.4, fire:1.7,  accuracy:1.0, mislChance:1.3, dmg:1.6},
+  easy:  {name:'이지',   hp:0.7,  count:0.8, fire:0.6,  accuracy:0.45,mislChance:0.35,dmg:0.7, spd:0.7},
+  normal:{name:'노말',   hp:0.95, count:1.0, fire:0.95, accuracy:0.7, mislChance:0.65,dmg:0.95,spd:0.9},
+  hard:  {name:'하드',   hp:1.3,  count:1.15,fire:1.3,  accuracy:0.88,mislChance:1.0, dmg:1.25,spd:1.1},
+  crazy: {name:'크레이지',hp:1.75, count:1.4, fire:1.65, accuracy:1.0, mislChance:1.3, dmg:1.55,spd:1.3},
 };
 
 /* ═══════════════ 미션 정의 ═══════════════ */
@@ -635,11 +635,11 @@ addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.upd
 
 /* ═══════════════ 적 생성 ═══════════════ */
 const ENEMY_DEF={
-  target:{hp:18, speed:14, radius:2.2, fire:0, color:0xdd5555, missile:false, score:60},
-  crow: {hp:22, speed:26, radius:2.0, fire:1.6, color:0x333340, missile:false, score:100},
-  drone:{hp:34, speed:22, radius:2.4, fire:1.1, color:0x6a7a8a, missile:false, score:140},
-  turret:{hp:46, speed:0, radius:3.0, fire:1.3, color:0x888088, missile:false, score:120, ground:true},
-  ace:  {hp:56, speed:30, radius:2.4, fire:0.9, color:0xc23a3a, missile:true, score:240},
+  target:{hp:14, speed:7,  radius:2.6, fire:0, color:0xdd5555, missile:false, score:60},
+  crow: {hp:18, speed:16, radius:2.6, fire:1.9, color:0x333340, missile:false, score:100},
+  drone:{hp:28, speed:14, radius:2.9, fire:1.3, color:0x6a7a8a, missile:false, score:140},
+  turret:{hp:44, speed:0, radius:3.2, fire:1.4, color:0x888088, missile:false, score:120, ground:true},
+  ace:  {hp:46, speed:19, radius:2.9, fire:1.0, color:0xc23a3a, missile:true, score:240},
 };
 function makeEnemyMesh(type,def){
   const g=new THREE.Group();
@@ -720,7 +720,7 @@ const tracerGeo=new THREE.CylinderGeometry(0.12,0.12,2.4,5); tracerGeo.rotateX(M
 function spawnPTracer(pos,dir,dmg){
   const m=new THREE.Mesh(tracerGeo,new THREE.MeshBasicMaterial({color:0xfff2a0}));
   m.position.copy(pos); m.quaternion.copy(craft.quaternion); scene.add(m);
-  pProj.push({m,vel:dir.clone().multiplyScalar(220),life:1.6,dmg});
+  pProj.push({m,vel:dir.clone().multiplyScalar(180),life:1.8,dmg});
 }
 function fireGun(){
   forward.set(0,0,-1).applyQuaternion(craft.quaternion);
@@ -772,7 +772,7 @@ function explode(pos,scale=1,color=0xffb040){
 let lockTarget=null, lockTimer=0, lockState='none';
 function updateLock(dt){
   forward.set(0,0,-1).applyQuaternion(craft.quaternion);
-  let best=null,bestAng=0.16;
+  let best=null,bestAng=0.22;
   const list=boss?[boss]:[];
   for(const e of enemies)list.push(e);
   for(const e of list){
@@ -1037,12 +1037,14 @@ function updateEnemies(dt){
     if(!e.ground){
       // 추격: 일정 거리 유지하며 플레이어 향함
       tmpV.normalize(); e.wobble+=dt;
-      const desired=e.def.speed;
+      const isTarget=e.type==='target';
+      const desired=e.def.speed*d.spd;
       const targetVel=tmpV.multiplyScalar(desired);
-      // 회피 지그재그
-      const side=new THREE.Vector3(-tmpV.z,0,tmpV.x).multiplyScalar(Math.sin(e.wobble*1.5)*desired*0.5);
+      // 회피 지그재그 (표적은 거의 정지, 나머지도 완화)
+      const jink=isTarget?0.12:0.26;
+      const side=new THREE.Vector3(-tmpV.z,0,tmpV.x).multiplyScalar(Math.sin(e.wobble*1.0)*desired*jink);
       targetVel.add(side);
-      if(dist<40)targetVel.multiplyScalar(-0.4); // 너무 가까우면 이탈
+      if(!isTarget && dist<26)targetVel.multiplyScalar(-0.25); // 너무 가까우면 살짝 이탈
       e.vel.lerp(targetVel,dt*1.2);
       e.root.position.addScaledVector(e.vel,dt);
       e.root.position.y=clamp(e.root.position.y,6,240);
@@ -1121,7 +1123,7 @@ function updateAlly(dt){
 function updatePProj(dt){
   for(let i=pProj.length-1;i>=0;i--){ const p=pProj[i]; p.m.position.addScaledVector(p.vel,dt); p.life-=dt;
     let hit=false;
-    for(const e of enemies){ if(p.m.position.distanceTo(e.root.position)<e.radius){ e.hp-=p.dmg; hit=true; shotsHit++; hitMark(); sfx.hit(); explode(p.m.position,0.3,0xffe080); break; } }
+    for(const e of enemies){ if(p.m.position.distanceTo(e.root.position)<e.radius+1.8){ e.hp-=p.dmg; hit=true; shotsHit++; hitMark(); sfx.hit(); explode(p.m.position,0.3,0xffe080); break; } }
     if(!hit&&boss&&p.m.position.distanceTo(boss.root.position)<boss.radius){ boss.hp-=p.dmg; hit=true; shotsHit++; hitMark(); sfx.hit(); }
     if(hit||p.life<=0){ scene.remove(p.m); pProj.splice(i,1); }
   }
