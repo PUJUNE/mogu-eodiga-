@@ -180,6 +180,11 @@
   #tb-pause{right:16px;top:16px;width:44px;height:44px;font-size:20px;}
   #tb-cam{right:16px;top:68px;width:44px;height:44px;font-size:18px;}
   #cammode{position:absolute;top:16px;left:18px;font-size:10px;letter-spacing:.16em;color:rgba(184,236,255,.7);}
+  #hud-menu{position:absolute;top:12px;right:16px;pointer-events:auto;cursor:pointer;padding:8px 14px;
+    font-size:13px;font-weight:700;letter-spacing:.1em;color:#d9f6ff;background:rgba(8,20,30,.55);
+    border:1px solid rgba(53,224,255,.5);border-radius:8px;}
+  #hud-menu:hover{background:rgba(53,224,255,.25);}
+  body.touch #hud-menu{display:none;}
   @media (max-width:820px){
     #status{width:170px;} #weapons{width:150px;} #radar{width:104px;height:104px;}
     #spd{left:calc(50% - 150px);} #alt{left:calc(50% + 110px);}
@@ -206,6 +211,7 @@
   <div class="datum" id="alt">ALT<b>0</b></div>
   <div id="objective">—<small></small></div>
   <div id="cammode">CAM · 외부(TPS)</div>
+  <div id="hud-menu">☰ 메뉴</div>
   <div id="missilewarn">⚠ MISSILE</div>
   <div id="bossbar"><div class="nm">BOSS</div><div class="bg"><i></i></div><div class="ph"></div></div>
   <div id="banner"><h2></h2><p></p></div>
@@ -286,6 +292,7 @@
   <button class="btn" id="btn-resume">계속</button>
   <button class="btn ghost" id="btn-pause-retry">다시 시작</button>
   <button class="btn ghost" id="btn-pause-quit">미션 선택</button>
+  <button class="btn ghost" id="btn-pause-home">🏠 홈</button>
 </div>
 
 <script type="importmap">
@@ -1206,6 +1213,7 @@ function failMission(reason){
 function retryMission(){ startMission(GS.mission); }
 function pauseGame(){ if(GS.mode!=='play')return; GS.mode='pause'; $('hud').classList.remove('on'); $('vpad').classList.remove('on'); showScreen('pausescr'); }
 function resumeGame(){ GS.mode='play'; showScreen(null); $('hud').classList.add('on'); if(isTouch)$('vpad').classList.add('on'); last=performance.now(); }
+function goToTitle(){ clearEntities(); if(craft){ scene.remove(craft); craft=null; } GS.mode='title'; $('hud').classList.remove('on'); $('vpad').classList.remove('on'); $('bossbar').style.display='none'; $('missilewarn').style.display='none'; showScreen('title'); }
 
 /* ═══════════════ 화면 전환 ═══════════════ */
 const SCREENS=['title','select','mission','continue','result','pausescr'];
@@ -1254,6 +1262,8 @@ $('continue').addEventListener('touchstart',e=>{e.preventDefault();doContinue();
 $('btn-resume').addEventListener('click',()=>{ sfx.select(); resumeGame(); });
 $('btn-pause-retry').addEventListener('click',()=>{ sfx.select(); startMission(GS.mission); });
 $('btn-pause-quit').addEventListener('click',()=>{ sfx.select(); openMissionScreen(); });
+$('btn-pause-home').addEventListener('click',()=>{ sfx.select(); goToTitle(); });
+$('hud-menu').addEventListener('click',()=>{ if(GS.mode==='play')pauseGame(); });
 addEventListener('keydown',e=>{ if(GS.mode==='pause'&&e.code==='Escape')resumeGame(); if(GS.mode==='continue'&&e.code==='Escape')abandonMission(); });
 
 /* ═══════════════ 부팅 ═══════════════ */
