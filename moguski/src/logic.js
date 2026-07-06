@@ -7,7 +7,7 @@ const G0 = 9.81;
 const REL_WIN = 0.28;            // 릴리즈 타이밍 허용 오차 (초)
 const LATE_WIN = 0.18;           // 립 통과 후 늦은 릴리즈 부분 인정 (초)
 const CHARGE_T = 0.8;            // 완충까지 필요한 홀드 시간 (초)
-const BASE_HOP = 2.3, JUMP_BONUS = 3.1;
+const BASE_HOP = 2.6, JUMP_BONUS = 3.8;
 
 M.Logic = {
   create(no) {
@@ -75,9 +75,9 @@ M.Logic = {
       // 활공 (자세 = 릴리즈 품질로 고정, 추가 조작 없음)
       const pq = this.poseQ(st);
       let lift = stg.cl * st.vx * st.vx * pq + 0.055 * stg.wind;
-      lift = Math.min(lift, 8.8);
+      lift = Math.min(lift, 9.4);
       st.vy += (-G0 + lift) * dt;
-      st.vx -= 0.016 * (1.3 - pq) * st.vx * dt;
+      st.vx -= 0.011 * (1.3 - pq) * st.vx * dt;
       st.x += st.vx * dt;
       st.y += st.vy * dt;
       // 착지

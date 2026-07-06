@@ -24,14 +24,14 @@ for (let s = 1; s <= 50; s++) {
 
   // 착지 언덕: 연속·단조 하강 후 평탄
   let py = 0, mono = true;
-  for (let x = 0.5; x < st.K * 1.32 + 40; x += 0.5) {
+  for (let x = 0.5; x < st.K1 + st.EASE + 6; x += 0.5) {
     const y = st.hillY(x);
     if (y > py + 0.001) mono = false;
     if (Math.abs(y - py) > 0.5) bad(s, `언덕 불연속 x=${x}`);
     py = y;
   }
   if (!mono) bad(s, '언덕이 단조 하강 아님');
-  const flatA = st.hillY(st.K * 1.32 + 40), flatB = st.hillY(st.K * 1.32 + 60);
+  const flatA = st.hillY(st.K1 + st.EASE + 6), flatB = st.hillY(st.K1 + st.EASE + 26);
   if (Math.abs(flatA - flatB) > 0.01) bad(s, '아웃런 평탄화 실패');
 
   // 결정성

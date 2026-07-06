@@ -98,7 +98,7 @@ M.Render = {
 
     // 목표·최고 기록의 z 좌표 (거리 = sqrt(z²+y²) 역산)
     const solve = (d) => {
-      let lo = 0, hi = stage.K * 2.2;
+      let lo = 0, hi = stage.K1 + stage.EASE + 30;
       for (let i = 0; i < 20; i++) {
         const mid = (lo + hi) / 2;
         if (Math.sqrt(mid * mid + stage.hillY(mid) ** 2) < d) lo = mid; else hi = mid;
@@ -112,8 +112,8 @@ M.Render = {
     // 트랙(활강로): 0.25m 소형 슬래브가 프로파일을 연속으로 따라감 → 매끄러운 비탈
     // 둔치·지반: 1m 복셀 (마인크래프트 질감 유지)
     const zMin = Math.floor(topX) - 12;         // 출발 플랫폼 여유 (카메라 자리)
-    const zMax = Math.ceil(stage.K * 1.32 + 56);
-    const HALF_W = 8;
+    const zMax = Math.ceil(stage.K1 + stage.EASE + 18);
+    const HALF_W = 14;                          // 둔치 폭 (장식이 앉을 어깨 포함)
     const TRACK_HW = 3.5, S = 0.25;             // 트랙 반폭·소형 박스 크기
     const cTrack = new THREE.Color(th.track), cGround = new THREE.Color(th.ground);
     const cDirt = new THREE.Color(th.ground).multiplyScalar(0.55);
@@ -126,7 +126,8 @@ M.Render = {
     };
     // 10m 간격 눈금·목표 라인의 z 좌표
     const markZ = [];
-    for (let d = 10; d < stage.K * 1.7; d += 10) markZ.push(solve(d));
+    const maxD = Math.hypot(zMax, stage.hillY(zMax));
+    for (let d = 10; d < maxD; d += 10) markZ.push(solve(d));
     const tgtZ = this.targetZ;
 
     // 1) 트랙 소형 슬래브
@@ -189,7 +190,7 @@ M.Render = {
     }
 
     // ── 계곡 바닥 + 인런 뒤 능선 (수평선이 하늘로 비지 않게) ──
-    const outY = stage.hillY(stage.K * 1.32 + 40);
+    const outY = stage.hillY(stage.K1 + stage.EASE + 20);
     const valley = new THREE.Mesh(BOXG, new THREE.MeshLambertMaterial({ color: cGround.clone().multiplyScalar(0.8) }));
     valley.scale.set(600, 2, 500);
     valley.position.set(0, outY - 1.2, zMax + 180);
@@ -206,43 +207,173 @@ M.Render = {
       const cloth = new THREE.Mesh(BOXG, new THREE.MeshLambertMaterial({ color }));
       cloth.scale.set(0.12, 0.8, 1.4); cloth.position.set(0, h - 0.5, 0.8);
       fg.add(pole, cloth);
-      fg.position.set(HALF_W + 1.2, this.surfaceY(z), z);
+      fg.position.set(TRACK_HW + 5.7, this.surfaceY(z), z);
       const fg2 = fg.clone();
-      fg2.position.x = -HALF_W - 1.2;
+      fg2.position.x = -TRACK_HW - 5.7;
       grp.add(fg, fg2);
     };
     flag(this.targetZ, new THREE.Color(th.accent), 3.4);
     if (bestZ) flag(bestZ, new THREE.Color(0xffffff), 2.2);
 
-    // ── 둔치 장식 (테마별) ──
-    const deco = (z, side) => {
-      const x = side * (HALF_W + 3 + ((z * 7) % 5));
-      const y = this.surfaceY(z);
-      const g2 = new THREE.Group();
-      if (stage.world === 3) {          // 선인장
-        const c1 = new THREE.Mesh(BOXG, new THREE.MeshLambertMaterial({ color: 0x4e9c3c }));
-        c1.scale.set(0.8, 2.4, 0.8); c1.position.y = 1.2; g2.add(c1);
-      } else if (stage.world === 5) {   // 횃불
-        const p = new THREE.Mesh(BOXG, new THREE.MeshLambertMaterial({ color: 0x6a4a2a }));
-        p.scale.set(0.3, 1.6, 0.3); p.position.y = 0.8;
-        const f = new THREE.Mesh(BOXG, new THREE.MeshBasicMaterial({ color: 0xffc84a }));
-        f.scale.set(0.5, 0.5, 0.5); f.position.y = 1.8;
-        g2.add(p, f);
-      } else {                          // 나무 (설산은 전나무 톤)
-        const trunk = new THREE.Mesh(BOXG, new THREE.MeshLambertMaterial({ color: 0x7a4f2b }));
-        trunk.scale.set(0.7, 2, 0.7); trunk.position.y = 1;
-        const leafC = stage.world === 4 ? 0x2f5d3a : stage.world === 2 ? 0xd88a2c : 0x3e9b3e;
-        const leaf = new THREE.Mesh(BOXG, new THREE.MeshLambertMaterial({ color: leafC }));
-        leaf.scale.set(2.2, 2.2, 2.2); leaf.position.y = 3.1;
-        g2.add(trunk, leaf);
-      }
-      g2.position.set(x, y, z);
-      grp.add(g2);
+    // ── 둔치·하늘 장식 (테마별 — 인스턴스드 복셀, 활강로·비행로 좌우를 채움) ──
+    const solids = [], glows = [];
+    const put = (arr, x, y, z, sx, sy, sz, col, rot = 0) =>
+      arr.push({ x, y, z, sx, sy, sz, col: col instanceof THREE.Color ? col : new THREE.Color(col), rot });
+    const W = stage.world;
+
+    // 소품 (r: 0~1 변주값)
+    const mkTree = (x, y, z, r, leafC) => {
+      const h = 1.6 + r * 1.4;
+      put(solids, x, y + h / 2, z, 0.55, h, 0.55, 0x7a4f2b, r * 6);
+      put(solids, x, y + h + 0.85, z, 1.7 + r, 1.8 + r, 1.7 + r, leafC, r * 6);
     };
-    for (let z = zMin + 2; z < zMax - 2; z += 7) {
-      if ((z * 13) % 4 !== 0) deco(z, 1);      // 걸음(7)과 서로소 모듈러 — 양쪽이 다 비지 않게
-      if ((z * 17) % 5 !== 0) deco(z, -1);
+    const mkFir = (x, y, z, r) => {
+      const h = 1.1 + r * 0.7;
+      put(solids, x, y + h / 2, z, 0.5, h, 0.5, 0x5a3f24, r * 6);
+      put(solids, x, y + h + 0.9, z, 2.1 + r * 0.6, 1.7, 2.1 + r * 0.6, 0x2f5d3a, r * 6);
+      put(solids, x, y + h + 2.2, z, 1.3 + r * 0.4, 1.1, 1.3 + r * 0.4, 0x38684a, r * 6);
+      put(solids, x, y + h + 3.0, z, 0.8, 0.5, 0.8, 0xf2f8ff, r * 6);   // 눈 모자
+    };
+    const mkCactus = (x, y, z, r) => {
+      const h = 1.8 + r * 1.8;
+      put(solids, x, y + h / 2, z, 0.75, h, 0.75, 0x4e9c3c, r * 6);
+      if (r > 0.45) {
+        put(solids, x + 0.7, y + h * 0.55, z, 0.7, 0.45, 0.45, 0x459036);
+        put(solids, x + 0.95, y + h * 0.72, z, 0.4, 0.8, 0.45, 0x459036);
+      }
+    };
+    const mkRock = (x, y, z, r, col) => {
+      put(solids, x, y + 0.35 + r * 0.25, z, 1.0 + r, 0.7 + r * 0.6, 0.9 + r * 0.8, col, r * 6);
+      if (r > 0.55) put(solids, x + 0.6, y + 0.25, z + 0.4, 0.6, 0.5, 0.55, col);
+    };
+    const mkBush = (x, y, z, r, col) =>
+      put(solids, x, y + 0.4 + r * 0.2, z, 1.1 + r * 0.7, 0.8 + r * 0.4, 1.1 + r * 0.7, col, r * 6);
+    const mkFlower = (x, y, z, r) => {
+      put(solids, x, y + 0.25, z, 0.12, 0.5, 0.12, 0x3e8b3e);
+      put(solids, x, y + 0.58, z, 0.34, 0.26, 0.34, [0xff6fa0, 0xffd83d, 0xffffff, 0xff8a5c][Math.floor(r * 4) % 4]);
+    };
+    const mkMushroom = (x, y, z, r, capC, glow) => {
+      put(solids, x, y + 0.3, z, 0.28, 0.6, 0.28, 0xe8dcc8);
+      put(glow ? glows : solids, x, y + 0.72, z, 0.8 + r * 0.3, 0.35, 0.8 + r * 0.3, capC);
+    };
+    const mkSnowman = (x, y, z, r) => {
+      put(solids, x, y + 0.5, z, 1.0, 1.0, 1.0, 0xf4f8ff, r * 6);
+      put(solids, x, y + 1.3, z, 0.7, 0.7, 0.7, 0xf4f8ff, r * 6);
+      put(solids, x, y + 1.32, z + 0.36, 0.14, 0.14, 0.3, 0xff8a3c, r * 6);  // 당근 코
+    };
+    const mkTorch = (x, y, z, r) => {
+      put(solids, x, y + 0.8, z, 0.28, 1.6, 0.28, 0x6a4a2a);
+      put(glows, x, y + 1.8, z, 0.5, 0.5, 0.5, 0xffc84a);
+    };
+    const mkCrystal = (x, y, z, r) => {
+      const h = 1.2 + r * 1.6;
+      put(glows, x, y + h / 2, z, 0.5, h, 0.5, r > 0.5 ? 0xc07aff : 0x7ab8ff, 0.5 + r * 5);
+      if (r > 0.4) put(glows, x + 0.5, y + h * 0.3, z + 0.3, 0.3, h * 0.5, 0.3, 0x9a8aff, r * 5);
+    };
+
+    const deco = (x, y, z, r, k) => {
+      if (W === 1) {
+        if (k < 0.48) mkTree(x, y, z, r, r > 0.6 ? 0x54b04a : 0x3e9b3e);
+        else if (k < 0.68) mkBush(x, y, z, r, 0x4a9c44);
+        else if (k < 0.82) mkRock(x, y, z, r, 0x9a9a92);
+        else mkFlower(x, y, z, r);
+      } else if (W === 2) {
+        if (k < 0.55) mkTree(x, y, z, r, [0xd88a2c, 0xc8552a, 0xe6b83c][Math.floor(r * 3) % 3]);
+        else if (k < 0.72) mkMushroom(x, y, z, r, 0xd83a3a, false);
+        else if (k < 0.87) mkBush(x, y, z, r, 0xb06a2c);
+        else mkRock(x, y, z, r, 0x8a7a66);
+      } else if (W === 3) {
+        if (k < 0.5) mkCactus(x, y, z, r);
+        else if (k < 0.76) mkRock(x, y, z, r, 0xc0a070);
+        else mkBush(x, y, z, r, 0xa08048);
+      } else if (W === 4) {
+        if (k < 0.5) mkFir(x, y, z, r);
+        else if (k < 0.68) mkSnowman(x, y, z, r);
+        else if (k < 0.88) mkRock(x, y, z, r, 0xbcd8ee);
+        else mkTree(x, y, z, r, 0x2f5d3a);
+      } else {
+        if (k < 0.38) mkCrystal(x, y, z, r);
+        else if (k < 0.62) mkTorch(x, y, z, r);
+        else if (k < 0.84) mkTree(x, y, z, r, 0x6a4a9a);
+        else mkMushroom(x, y, z, r, 0xff8ad8, true);
+      }
+    };
+    // 굵은 소품 두 줄 + 잔풀 스캐터
+    const bandLo = TRACK_HW + 1.6, bandHi = HALF_W - 0.8;
+    for (let z = zMin + 2; z < zMax - 2; z += 2.5) {
+      const zi = Math.round(z * 4);
+      for (const side of [1, -1]) {
+        const r1 = hash(zi, side * 7);
+        if (r1 < 0.24) continue;
+        const x = side * (bandLo + r1 * (bandHi - bandLo));
+        deco(x, this.surfaceY(z), z, hash(zi + 1, side * 11), hash(zi + 2, side * 13));
+      }
+      for (const side of [1, -1]) {                   // 잔장식 (꽃·낙엽·조약돌·눈덩이)
+        const r2 = hash(zi + 5, side * 17);
+        if (r2 < 0.3) continue;
+        const sx = side * (TRACK_HW + 0.7 + r2 * (HALF_W - TRACK_HW - 1.4));
+        const sy = this.surfaceY(z + 1.2), sz = z + 1.2;
+        if (W === 1) mkFlower(sx, sy, sz, r2);
+        else if (W === 2) put(solids, sx, sy + 0.06, sz, 0.5, 0.1, 0.5, r2 > 0.6 ? 0xc8552a : 0xe6b83c, r2 * 6);
+        else if (W === 3) put(solids, sx, sy + 0.15, sz, 0.4, 0.3, 0.4, 0xb89468, r2 * 6);
+        else if (W === 4) put(solids, sx, sy + 0.18, sz, 0.5, 0.36, 0.5, 0xffffff, r2 * 6);
+        else if (r2 > 0.62) put(glows, sx, sy + 0.14, sz, 0.26, 0.26, 0.26, 0xb08aff);
+      }
     }
+
+    // 구름 — 비행 고도 좌우에 떠서 활공 풍경을 채움 (밤 월드는 보랏빛)
+    const cCloud = new THREE.Color(th.night ? 0x584a86 : 0xffffff);
+    for (let z = zMin; z < zMax + 50; z += 9) {
+      const zi = Math.round(z);
+      const r = hash(zi, 991);
+      if (r < 0.42) continue;
+      const x = (hash(zi, 992) > 0.5 ? 1 : -1) * (9 + hash(zi, 993) * 30);
+      const y = this.surfaceY(Math.min(z, zMax)) + 9 + hash(zi, 994) * 20;
+      const s = 2.6 + r * 4;
+      put(solids, x, y, z, s, 0.9 + r * 0.5, s * 0.55, cCloud);
+      put(solids, x + s * 0.45, y + 0.55, z + 0.8, s * 0.6, 0.7, s * 0.4, cCloud);
+    }
+
+    // 밤하늘 — 별·달 (월드 5)
+    if (th.night) {
+      for (let i = 0; i < 150; i++) {
+        const r = hash(i, 551), r2 = hash(i, 552), r3 = hash(i, 553);
+        const z = zMin - 30 + (zMax - zMin + 150) * r;
+        const y = this.surfaceY(Math.max(zMin, Math.min(z, zMax))) + 16 + r3 * 55;
+        const s = 0.22 + r3 * 0.4;
+        put(glows, (r2 - 0.5) * 170, y, z, s, s, s, r2 > 0.82 ? 0xffe9a8 : 0xffffff);
+      }
+      put(glows, -48, 62, zMax * 0.6, 7, 7, 2.2, 0xfff2c0);   // 달
+    }
+
+    // 좌우 원경 능선 (계곡 벽 실루엣)
+    const cFar = new THREE.Color(th.far);
+    for (let i = 0; i < 10; i++) {
+      const r = hash(i, 771), side = i % 2 ? 1 : -1;
+      const zc = zMin + (zMax - zMin) * (i + 0.5) / 10;
+      const hgt = 13 + r * 22;
+      put(solids, side * (34 + r * 26), this.surfaceY(zc) - 6 + hgt / 2, zc,
+        18 + r * 20, hgt, 26 + r * 26, cFar.clone().multiplyScalar(0.85 + r * 0.3), r);
+    }
+
+    const addInst = (list, mat) => {
+      if (!list.length) return;
+      const m = new THREE.InstancedMesh(BOXG, mat, list.length);
+      const mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+      const vp = new THREE.Vector3(), vs = new THREE.Vector3();
+      list.forEach((c, i) => {
+        e.set(0, c.rot || 0, 0); q.setFromEuler(e);
+        vp.set(c.x, c.y, c.z); vs.set(c.sx, c.sy, c.sz);
+        mtx.compose(vp, q, vs);
+        m.setMatrixAt(i, mtx);
+        m.setColorAt(i, c.col);
+      });
+      m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+      grp.add(m);
+    };
+    addInst(solids, new THREE.MeshLambertMaterial());
+    addInst(glows, new THREE.MeshBasicMaterial());
 
     this.scene.add(grp);
     // 카메라 초기화 (인런 꼭대기 뒤)
