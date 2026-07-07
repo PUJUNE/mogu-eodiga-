@@ -671,7 +671,11 @@ addEventListener('keydown',e=>{
     if(e.code==='KeyC'){ toggleCam(); }
     if(e.code==='Escape'){ pauseGame(); }
     if(['Space','ShiftLeft','ShiftRight','KeyW','KeyA','KeyD','KeyS','KeyE','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
-  } else if(GS.mode==='continue'){ doContinue(); }
+  } else if(GS.mode==='pause'){
+    if(e.code==='Escape') resumeGame();
+  } else if(GS.mode==='continue'){
+    if(e.code==='Escape') abandonMission(); else doContinue();
+  }
 });
 addEventListener('keyup',e=>{ keys[e.code]=false; });
 renderer.domElement.addEventListener('mousemove',e=>{
@@ -702,6 +706,7 @@ renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
   $('tb-mis').addEventListener('touchstart',e=>{e.preventDefault(); if(GS.mode==='play')fireMissile(); else if(GS.mode==='continue')doContinue();},{passive:false});
   $('tb-smoke').addEventListener('touchstart',e=>{e.preventDefault(); if(GS.mode==='play')useSmoke();},{passive:false});
   $('tb-pause').addEventListener('touchstart',e=>{e.preventDefault(); if(GS.mode==='play')pauseGame();},{passive:false});
+  $('tb-pause').addEventListener('click',()=>{ if(GS.mode==='play')pauseGame(); });
   $('tb-cam').addEventListener('touchstart',e=>{e.preventDefault(); if(GS.mode==='play')toggleCam();},{passive:false});
 })();
 
@@ -1343,7 +1348,6 @@ $('btn-pause-retry').addEventListener('click',()=>{ sfx.select(); startMission(G
 $('btn-pause-quit').addEventListener('click',()=>{ sfx.select(); openMissionScreen(); });
 $('btn-pause-home').addEventListener('click',()=>{ sfx.select(); goToTitle(); });
 $('hud-menu').addEventListener('click',()=>{ if(GS.mode==='play')pauseGame(); });
-addEventListener('keydown',e=>{ if(GS.mode==='pause'&&e.code==='Escape')resumeGame(); if(GS.mode==='continue'&&e.code==='Escape')abandonMission(); });
 
 /* ═══════════════ 부팅 ═══════════════ */
 MOGU_TEX=makeMoguTexture();
