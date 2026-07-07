@@ -13,6 +13,12 @@
   .logo { font-size:min(58px, 11vw); font-weight:900; color:#ffd83d; white-space:nowrap;
     text-shadow:0 4px 0 #8a5a10, 0 8px 16px rgba(0,0,0,.5); letter-spacing:min(6px, 1.2vw); }
   .sub { margin-top:8px; font-size:16px; color:#bcd0f0; font-weight:700; }
+  .yt-link { display:inline-flex; align-items:center; gap:8px; margin-top:14px; padding:9px 20px;
+    font-size:15px; font-weight:800; text-decoration:none; color:#fff;
+    background:#ff0033; border:2px solid rgba(255,255,255,.7); border-radius:24px;
+    box-shadow:0 4px 12px rgba(255,0,51,.35); transition:transform .12s, background .12s; }
+  .yt-link:hover, .yt-link:active { transform:translateY(-2px) scale(1.03); background:#e60000; }
+  .yt-link .yt-ico { font-size:18px; }
   #mogu-face { width:110px; height:auto; margin:22px 0 8px; animation:bob 1.6s ease-in-out infinite;
     filter:drop-shadow(0 8px 10px rgba(0,0,0,.4)); }
   @keyframes bob { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-12px) rotate(4deg)} }
@@ -49,6 +55,9 @@
 <div id="wrap">
   <div class="logo">모구 게임 시리즈</div>
   <div class="sub">MOGU GAME SERIES</div>
+  <a class="yt-link" href="https://www.youtube.com/@mo9-mogoo" target="_blank" rel="noopener">
+    <span class="yt-ico">▶</span> 모구촌 유튜브 채널
+  </a>
   <img id="mogu-face" src="game/assets/mogu-icon.png" alt="모구">
   <div id="cards">
     <a class="card" href="eodiga.html" id="card-eodiga">
