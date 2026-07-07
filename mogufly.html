@@ -136,7 +136,8 @@
     color:#b8ecff;background:rgba(8,22,32,.7);border:1px solid rgba(53,224,255,.4);border-radius:7px;}
   .diffbtn.sel{color:#04121a;background:linear-gradient(90deg,#ffb52e,#ffd98a);border-color:#ffb52e;}
 
-  #missions{display:grid;grid-template-columns:repeat(4,132px);gap:12px;justify-content:center;max-width:600px;}
+  #missions{display:grid;grid-template-columns:repeat(4,132px);gap:12px;justify-content:center;max-width:600px;
+    max-height:64vh;overflow-y:auto;padding:6px 10px;-webkit-overflow-scrolling:touch;}
   .mnode{pointer-events:auto;cursor:pointer;padding:12px 10px;text-align:center;min-height:96px;
     background:linear-gradient(160deg,rgba(8,22,32,.8),rgba(8,22,32,.5));border:1px solid rgba(53,224,255,.24);border-radius:6px;
     transition:border-color .14s,transform .14s;display:flex;flex-direction:column;justify-content:center;}
@@ -456,31 +457,99 @@ const DIFFS={
 /* ═══════════════ 미션 정의 ═══════════════ */
 // obj: eliminate | survive | escort | boss
 function W(t,type,count,spread){return {t,type,count,spread:spread||60};}
+const SKY={
+  grass:{top:0x4a90d9,bot:0xbfe3f5,fog:0xbfe3f5,far:340},
+  city:{top:0x3f7fc4,bot:0xa9d4ee,fog:0xa9d4ee,far:320},
+  canyon:{top:0xd8a860,bot:0xefd6a4,fog:0xefd6a4,far:280},
+  port:{top:0x3a6ea0,bot:0x9ec6e0,fog:0x9ec6e0,far:320},
+  high:{top:0x1a3a6e,bot:0x6ea0d8,fog:0x6ea0d8,far:360},
+  storm:{top:0x4b566e,bot:0x8792a8,fog:0x8792a8,far:220},
+  nightcity:{top:0x0b1030,bot:0x1a2247,fog:0x141c3e,far:280},
+  nightfar:{top:0x0a1228,bot:0x1a2a50,fog:0x0e1830,far:300},
+  dusk:{top:0x2a1848,bot:0x7a4ca8,fog:0x3a2460,far:320},
+  sunset:{top:0xd86a3a,bot:0xf0b070,fog:0xe0a060,far:300},
+};
 const MISSIONS=[
-  { no:1, name:'훈련 공역', sub:'표적 드론 전멸', obj:'eliminate',
-    sky:{top:0x4a90d9,bot:0xbfe3f5,fog:0xbfe3f5,far:340}, ground:'grass',
+  { no:1, name:'훈련 공역', sub:'표적 드론 전멸', obj:'eliminate', sky:SKY.grass, ground:'grass',
     waves:[W(0,'target',3,50),W(6,'target',4,70)] },
-  { no:2, name:'도심 상공', sub:'까마귀 편대 격추 · 미사일 개방', obj:'eliminate',
-    sky:{top:0x3f7fc4,bot:0xa9d4ee,fog:0xa9d4ee,far:320}, ground:'city',
-    waves:[W(0,'crow',4,80),W(8,'drone',3,70),W(16,'crow',4,90)] },
-  { no:3, name:'협곡 저공', sub:'75초 생존 + 격추', obj:'survive', time:75,
-    sky:{top:0xd8a860,bot:0xefd6a4,fog:0xefd6a4,far:280}, ground:'canyon',
-    waves:[W(0,'crow',3,70),W(10,'drone',3,80),W(24,'crow',4,90),W(40,'drone',4,90),W(56,'crow',5,100)] },
-  { no:4, name:'항구 함대', sub:'적 소탕 후 보스 격파', obj:'boss', boss:'dog',
-    sky:{top:0x3a6ea0,bot:0x9ec6e0,fog:0x9ec6e0,far:320}, ground:'port',
+  { no:2, name:'초계 비행', sub:'까마귀 편대 격추', obj:'eliminate', sky:SKY.grass, ground:'grass',
+    waves:[W(0,'crow',4,70),W(8,'crow',4,90)] },
+  { no:3, name:'협곡 잠입', sub:'70초 생존', obj:'survive', time:70, sky:SKY.canyon, ground:'canyon',
+    waves:[W(0,'crow',3,70),W(10,'drone',3,80),W(24,'crow',4,90),W(44,'drone',4,90)] },
+  { no:4, name:'도심 상공', sub:'드론 소탕 · 미사일 개방', obj:'eliminate', sky:SKY.city, ground:'city',
+    waves:[W(0,'crow',4,80),W(8,'drone',3,70),W(16,'crow',4,90),W(24,'drone',3,90)] },
+  { no:5, name:'항구 함대', sub:'적 소탕 후 보스 격파', obj:'boss', boss:'dog', bossLv:1, sky:SKY.port, ground:'port',
     waves:[W(0,'drone',4,90),W(9,'turret',3,120),W(18,'drone',4,90)] },
-  { no:5, name:'폭풍 구름', sub:'아군 수송기 호위', obj:'escort',
-    sky:{top:0x4b566e,bot:0x8792a8,fog:0x8792a8,far:220}, ground:'grass',
-    waves:[W(0,'crow',3,90),W(10,'drone',3,90),W(22,'crow',4,100),W(36,'drone',4,100)] },
-  { no:6, name:'야간 도시', sub:'적 유도탄 회피 격추', obj:'eliminate',
-    sky:{top:0x0b1030,bot:0x1a2247,fog:0x141c3e,far:280}, ground:'city', night:true,
-    waves:[W(0,'drone',3,90),W(10,'ace',2,100),W(22,'drone',4,100),W(36,'ace',3,110)] },
-  { no:7, name:'성층권', sub:'정예 편대 격파', obj:'eliminate',
-    sky:{top:0x1a3a6e,bot:0x6ea0d8,fog:0x6ea0d8,far:360}, ground:'far',
+  { no:6, name:'폭풍 전선', sub:'악천후 요격', obj:'eliminate', sky:SKY.storm, ground:'grass',
+    waves:[W(0,'crow',4,90),W(8,'drone',4,90),W(18,'crow',5,100)] },
+  { no:7, name:'사막 저공', sub:'고정포·드론 소탕', obj:'eliminate', sky:SKY.canyon, ground:'canyon',
+    waves:[W(0,'drone',4,80),W(9,'turret',3,120),W(18,'drone',5,90)] },
+  { no:8, name:'보급로 호위', sub:'아군 수송기 호위', obj:'escort', sky:SKY.grass, ground:'grass',
+    waves:[W(0,'crow',4,90),W(10,'drone',4,90),W(22,'crow',5,100),W(36,'drone',4,100)] },
+  { no:9, name:'고지 요격', sub:'정예기 첫 조우', obj:'eliminate', sky:SKY.high, ground:'far',
+    waves:[W(0,'drone',4,90),W(10,'ace',2,100),W(22,'drone',5,100)] },
+  { no:10, name:'야간 결전', sub:'라이벌 비행체 격파', obj:'boss', boss:'rival', bossLv:1, sky:SKY.nightcity, ground:'city', night:true,
+    waves:[W(0,'drone',4,100),W(10,'ace',2,110),W(22,'drone',4,100)] },
+  { no:11, name:'시가지 소탕', sub:'드론·고정포 제압', obj:'eliminate', sky:SKY.city, ground:'city',
+    waves:[W(0,'drone',5,90),W(9,'turret',3,120),W(20,'drone',5,100),W(32,'ace',2,110)] },
+  { no:12, name:'난기류 돌파', sub:'80초 생존', obj:'survive', time:80, sky:SKY.storm, ground:'grass',
+    waves:[W(0,'crow',4,90),W(10,'drone',4,90),W(24,'crow',5,100),W(40,'drone',5,100),W(58,'ace',2,110)] },
+  { no:13, name:'해협 봉쇄', sub:'함대 방공망 격파', obj:'eliminate', sky:SKY.port, ground:'port',
+    waves:[W(0,'drone',5,90),W(10,'ace',2,110),W(22,'drone',5,100),W(34,'ace',2,110)] },
+  { no:14, name:'협곡 추격', sub:'정예 편대 추격전', obj:'eliminate', sky:SKY.canyon, ground:'canyon',
+    waves:[W(0,'ace',2,110),W(10,'drone',5,100),W(24,'ace',3,120)] },
+  { no:15, name:'사막 요새', sub:'강화된 도베르냥 격파', obj:'boss', boss:'dog', bossLv:2, sky:SKY.sunset, ground:'canyon',
+    waves:[W(0,'drone',5,90),W(9,'turret',4,120),W(20,'drone',5,100)] },
+  { no:16, name:'성층권', sub:'정예 편대 격파', obj:'eliminate', sky:SKY.high, ground:'far',
     waves:[W(0,'ace',3,110),W(12,'drone',5,100),W(26,'ace',4,120)] },
-  { no:8, name:'최종 공역', sub:'라이벌 비행체 격파', obj:'boss', boss:'rival',
-    sky:{top:0x2a1848,bot:0x7a4ca8,fog:0x3a2460,far:320}, ground:'far', night:true,
-    waves:[W(0,'ace',3,110),W(12,'drone',4,100),W(24,'ace',3,120)] },
+  { no:17, name:'수송 호위', sub:'폭풍 속 수송기 호위', obj:'escort', sky:SKY.storm, ground:'grass',
+    waves:[W(0,'drone',4,90),W(10,'crow',5,100),W(22,'ace',2,110),W(36,'drone',5,100)] },
+  { no:18, name:'항만 폭격', sub:'요새화 항만 제압', obj:'eliminate', sky:SKY.port, ground:'port',
+    waves:[W(0,'turret',4,120),W(8,'drone',5,100),W(20,'ace',3,110),W(32,'drone',5,100)] },
+  { no:19, name:'야간 시가', sub:'야간 정예 요격', obj:'eliminate', sky:SKY.nightcity, ground:'city', night:true,
+    waves:[W(0,'drone',5,100),W(10,'ace',3,110),W(24,'ace',3,120)] },
+  { no:20, name:'라이벌 재격돌', sub:'강화된 팬텀냥 격파', obj:'boss', boss:'rival', bossLv:2, sky:SKY.dusk, ground:'far', night:true,
+    waves:[W(0,'ace',3,110),W(12,'drone',5,100),W(24,'ace',3,120)] },
+  { no:21, name:'폭풍의 눈', sub:'90초 생존', obj:'survive', time:90, sky:SKY.storm, ground:'grass',
+    waves:[W(0,'drone',5,90),W(10,'crow',5,100),W(24,'ace',2,110),W(42,'drone',5,100),W(62,'ace',3,120)] },
+  { no:22, name:'고공 편대전', sub:'정예 대편대 격파', obj:'eliminate', sky:SKY.high, ground:'far',
+    waves:[W(0,'ace',4,110),W(12,'drone',6,100),W(28,'ace',4,120)] },
+  { no:23, name:'협곡 매복', sub:'고정포·정예 매복 돌파', obj:'eliminate', sky:SKY.canyon, ground:'canyon',
+    waves:[W(0,'turret',4,120),W(8,'ace',3,110),W(22,'drone',6,100),W(34,'ace',3,120)] },
+  { no:24, name:'도심 방공', sub:'밀집 정예 요격', obj:'eliminate', sky:SKY.city, ground:'city',
+    waves:[W(0,'drone',6,100),W(10,'ace',4,110),W(26,'ace',4,120)] },
+  { no:25, name:'강철 도베르냥', sub:'중장갑 도베르냥 격파', obj:'boss', boss:'dog', bossLv:3, sky:SKY.port, ground:'port',
+    waves:[W(0,'drone',5,100),W(9,'turret',4,120),W(20,'ace',3,110)] },
+  { no:26, name:'심야 요격', sub:'야간 정예 대편대', obj:'eliminate', sky:SKY.nightfar, ground:'far', night:true,
+    waves:[W(0,'ace',4,110),W(12,'drone',6,100),W(28,'ace',4,120)] },
+  { no:27, name:'최후 보급 호위', sub:'고공 수송기 호위', obj:'escort', sky:SKY.high, ground:'far',
+    waves:[W(0,'drone',5,100),W(10,'ace',3,110),W(24,'drone',6,100),W(38,'ace',3,120)] },
+  { no:28, name:'사막 폭풍', sub:'정예·고정포 소탕', obj:'eliminate', sky:SKY.sunset, ground:'canyon',
+    waves:[W(0,'turret',5,120),W(8,'ace',4,110),W(24,'ace',4,120)] },
+  { no:29, name:'해상 결전', sub:'정예 대함대 격파', obj:'eliminate', sky:SKY.port, ground:'port',
+    waves:[W(0,'ace',4,110),W(12,'drone',6,100),W(28,'ace',5,120)] },
+  { no:30, name:'팬텀 강습', sub:'중장 팬텀냥 격파', obj:'boss', boss:'rival', bossLv:3, sky:SKY.dusk, ground:'far', night:true,
+    waves:[W(0,'ace',4,110),W(12,'drone',5,100),W(24,'ace',3,120)] },
+  { no:31, name:'극한 생존', sub:'100초 생존', obj:'survive', time:100, sky:SKY.storm, ground:'grass',
+    waves:[W(0,'drone',5,100),W(10,'ace',3,110),W(26,'ace',3,120),W(46,'drone',6,100),W(66,'ace',4,120)] },
+  { no:32, name:'성층권 대전', sub:'정예 최대편대 격파', obj:'eliminate', sky:SKY.high, ground:'far',
+    waves:[W(0,'ace',5,110),W(12,'drone',6,100),W(28,'ace',5,120)] },
+  { no:33, name:'야간 총력전', sub:'야간 정예 총력 요격', obj:'eliminate', sky:SKY.nightcity, ground:'city', night:true,
+    waves:[W(0,'drone',6,100),W(10,'ace',5,110),W(26,'ace',5,120)] },
+  { no:34, name:'협곡 최종 방어', sub:'고정포·정예 밀집 돌파', obj:'eliminate', sky:SKY.canyon, ground:'canyon',
+    waves:[W(0,'turret',5,120),W(8,'ace',5,110),W(24,'ace',5,120)] },
+  { no:35, name:'초강화 도베르냥', sub:'최종 병기 도베르냥 격파', obj:'boss', boss:'dog', bossLv:4, sky:SKY.sunset, ground:'port',
+    waves:[W(0,'drone',6,100),W(9,'turret',4,120),W(20,'ace',4,110)] },
+  { no:36, name:'최종 보급선 호위', sub:'심야 수송선 사수', obj:'escort', sky:SKY.nightfar, ground:'far', night:true,
+    waves:[W(0,'drone',6,100),W(10,'ace',4,110),W(24,'ace',4,120),W(38,'drone',6,100)] },
+  { no:37, name:'공역 장악', sub:'정예 대군 소탕', obj:'eliminate', sky:SKY.high, ground:'far',
+    waves:[W(0,'ace',5,110),W(12,'ace',5,120),W(26,'drone',6,100),W(38,'ace',5,120)] },
+  { no:38, name:'폭풍 최종전', sub:'110초 생존', obj:'survive', time:110, sky:SKY.storm, ground:'grass',
+    waves:[W(0,'ace',4,110),W(12,'drone',6,100),W(28,'ace',4,120),W(48,'ace',4,120),W(70,'ace',5,120)] },
+  { no:39, name:'결전 전야', sub:'최정예 편대 격파', obj:'eliminate', sky:SKY.dusk, ground:'far', night:true,
+    waves:[W(0,'ace',6,110),W(12,'drone',6,100),W(28,'ace',6,120)] },
+  { no:40, name:'최종 공역', sub:'최종 병기 팬텀냥 격파', obj:'boss', boss:'rival', bossLv:4, sky:SKY.dusk, ground:'far', night:true,
+    waves:[W(0,'ace',4,110),W(12,'ace',4,120),W(24,'ace',4,120)] },
 ];
 
 /* ═══════════════ 세이브 ═══════════════ */
@@ -676,31 +745,34 @@ function spawnEnemy(type,spread){
 }
 
 /* ── 보스 ── */
-function spawnBoss(kind){
+function spawnBoss(kind,lv){
+  lv=lv||1;
   const d=DIFFS[GS.diff];
+  const hpScale=1+(lv-1)*0.28;
   const g=new THREE.Group();
   let hpm, name, phases;
   if(kind==='dog'){
-    hpm=600*d.hp; name='로봇 도베르냥'; phases=2;
+    hpm=600*d.hp*hpScale; name='로봇 도베르냥'; phases=2;
     const body=new THREE.Mesh(new THREE.BoxGeometry(6,4,9),new THREE.MeshLambertMaterial({color:0x556070,flatShading:true})); g.add(body);
     const head=new THREE.Mesh(new THREE.BoxGeometry(3.4,3,3.4),new THREE.MeshLambertMaterial({color:0x66707e})); head.position.set(0,1.6,-5); g.add(head);
     for(const s of[-1,1]){ const ear=new THREE.Mesh(new THREE.ConeGeometry(0.8,2,4),new THREE.MeshLambertMaterial({color:0x3a4250})); ear.position.set(s*1,3.6,-5); g.add(ear);}
     const eye=new THREE.Mesh(new THREE.SphereGeometry(0.7,10,8),new THREE.MeshBasicMaterial({color:0xff3030})); eye.position.set(0,2,-6.6); g.add(eye);
     for(const sx of[-1,1])for(const sz of[-1,1]){ const en=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.9,3,8),new THREE.MeshLambertMaterial({color:0xffb060,transparent:true,opacity:.8})); en.position.set(sx*1.6,-1.5,sz*3); g.add(en);}
   } else {
-    hpm=880*d.hp; name='라이벌 팬텀냥'; phases=3;
+    hpm=880*d.hp*hpScale; name='라이벌 팬텀냥'; phases=3;
     const body=new THREE.Mesh(new THREE.ConeGeometry(2.4,11,6),new THREE.MeshLambertMaterial({color:0x2a2440,flatShading:true})); body.rotation.x=-Math.PI/2; g.add(body);
     for(const s of[-1,1]){ const w=new THREE.Mesh(new THREE.BoxGeometry(9,0.4,2.6),new THREE.MeshLambertMaterial({color:0x4a2a70})); w.position.set(s*0.2,0,1.5); w.rotation.z=s*0.18; g.add(w);}
     const core=new THREE.Mesh(new THREE.SphereGeometry(1.2,12,10),new THREE.MeshBasicMaterial({color:0xcc66ff})); core.position.set(0,0.4,-2); g.add(core);
     g.userData.core=core;
   }
-  boss={ kind, root:g, hp:hpm, hpMax:hpm, phases, phase:1, radius:kind==='dog'?6:5,
+  boss={ kind, lv, fireScale:1+(lv-1)*0.1, root:g, hp:hpm, hpMax:hpm, phases, phase:1, radius:kind==='dog'?6:5,
     vel:new THREE.Vector3(), fireCd:1.5, salvoCd:4, name, angle:0 };
   forward.set(0,0,-1).applyQuaternion(craft.quaternion);
   g.position.copy(craft.position).addScaledVector(forward,160); g.position.y=Math.max(30,craft.position.y);
   scene.add(g); bossActive=true;
-  $('bossbar').style.display='block'; $('bossbar').querySelector('.nm').textContent=name;
-  banner(name,'격추하라!');
+  const label=name+(lv>1?' Lv.'+lv:'');
+  $('bossbar').style.display='block'; $('bossbar').querySelector('.nm').textContent=label;
+  banner(label,'격추하라!');
 }
 
 /* ── 아군 (호위) ── */
@@ -951,7 +1023,7 @@ function updateSpawns(dt){
   else if(m.obj==='survive'){ if(missionTime>=m.time && enemies.length<=1)winMission(); }
   else if(m.obj==='escort'){ if(allObjSpawned && enemies.length===0)winMission(); }
   else if(m.obj==='boss'){
-    if(allObjSpawned && enemies.length===0 && !bossActive && !boss){ spawnBoss(m.boss); }
+    if(allObjSpawned && enemies.length===0 && !bossActive && !boss){ spawnBoss(m.boss,m.bossLv); }
     if(boss && boss.hp<=0){ winMission(); }
   }
 }
@@ -1093,7 +1165,7 @@ function updateBoss(dt){
   if(b.root.userData.core)b.root.userData.core.material.color.setHSL((performance.now()*0.0003)%1,0.8,0.6);
   // 사격
   b.fireCd-=dt;
-  if(b.fireCd<=0&&dist<340){ b.fireCd=(1.05/d.fire)*rand(0.8,1.1);
+  if(b.fireCd<=0&&dist<340){ b.fireCd=(1.05/(d.fire*b.fireScale))*rand(0.8,1.1);
     const acc=(1-d.accuracy)*0.1;
     forward.set(0,0,-1).applyQuaternion(craft.quaternion);
     const lead=craft.position.clone().addScaledVector(forward,curSpeed*dist/140);
@@ -1201,7 +1273,7 @@ function winMission(){
   $('r-stars').textContent='★★★☆☆☆'.slice(3-stars,6-stars).padEnd(3,'☆').slice(0,3);
   $('r-stars').textContent=['','★☆☆','★★☆','★★★'][stars];
   $('r-stats').innerHTML=`격추 <b>${kills}</b> · 명중률 <b>${Math.round(acc*100)}%</b><br>시간 <b>${missionTime.toFixed(1)}초</b> · 점수 <b>${score}</b>`+(usedContinue?'<br><span style="color:#ff8a8a">컨티뉴 사용 (★1 제한)</span>':'');
-  $('btn-next').style.display=(m.no<8&&missionUnlocked(m.no+1)||m.no<8)?'inline-block':'none';
+  $('btn-next').style.display=(m.no<MISSIONS.length)?'inline-block':'none';
   $('hud').classList.remove('on'); $('vpad').classList.remove('on'); showScreen('result');
 }
 function failMission(reason){
@@ -1256,7 +1328,7 @@ $('btn-mission-back').addEventListener('click',()=>{ sfx.select(); openSelectScr
 // 기체 선택 화면에서 "출격"은 미션 화면으로
 (function(){ const b=document.createElement('button'); b.className='btn'; b.textContent='출격 ▶'; b.id='btn-deploy';
   $('diffrow').insertAdjacentElement('afterend',b); b.addEventListener('click',()=>{ sfx.select(); openMissionScreen(); }); })();
-$('btn-next').addEventListener('click',()=>{ const no=GS.mission.no; sfx.select(); if(no<8){ const nm=MISSIONS[no]; if(missionUnlocked(nm.no))startMission(nm); else openMissionScreen(); } else openMissionScreen(); });
+$('btn-next').addEventListener('click',()=>{ const no=GS.mission.no; sfx.select(); if(no<MISSIONS.length){ const nm=MISSIONS[no]; if(missionUnlocked(nm.no))startMission(nm); else openMissionScreen(); } else openMissionScreen(); });
 $('btn-retry').addEventListener('click',()=>{ sfx.select(); startMission(GS.mission); });
 $('btn-tomission').addEventListener('click',()=>{ sfx.select(); openMissionScreen(); });
 $('continue').addEventListener('click',()=>doContinue());
