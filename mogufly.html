@@ -1077,7 +1077,7 @@ function killEnemy(e,i){
 }
 
 function updateBoss(dt){
-  const b=boss,d=DIFFS[GS.diff]; b.angle+=dt*0.4;
+  const b=boss,d=DIFFS[GS.diff]; b.angle+=dt*0.22;
   // 페이즈
   const frac=b.hp/b.hpMax;
   const newPhase=b.phases-Math.floor(frac*b.phases)+ (frac>=1?-1+1:0);
@@ -1085,10 +1085,10 @@ function updateBoss(dt){
   if(ph>b.phase){ b.phase=ph; banner('PHASE '+ph,'패턴 강화'); }
   // 이동: 플레이어 주위 선회, 거리 유지
   tmpV.copy(craft.position).sub(b.root.position); const dist=tmpV.length();
-  const orbit=new THREE.Vector3(Math.cos(b.angle),0,Math.sin(b.angle)).multiplyScalar(30);
-  const desired=craft.position.clone().add(orbit); desired.y=Math.max(28,craft.position.y+rand(-4,10));
-  b.vel.lerp(desired.sub(b.root.position).multiplyScalar(0.6),dt);
-  b.root.position.addScaledVector(b.vel,dt*0.8);
+  const orbit=new THREE.Vector3(Math.cos(b.angle),0,Math.sin(b.angle)).multiplyScalar(58);
+  const desired=craft.position.clone().add(orbit); desired.y=Math.max(28,craft.position.y+rand(-3,7));
+  b.vel.lerp(desired.sub(b.root.position).multiplyScalar(0.45),dt);
+  b.root.position.addScaledVector(b.vel,dt*0.5);
   b.root.lookAt(craft.position);
   if(b.root.userData.core)b.root.userData.core.material.color.setHSL((performance.now()*0.0003)%1,0.8,0.6);
   // 사격
