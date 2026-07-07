@@ -77,7 +77,7 @@ M.Logic = {
         if (!hit) {
           for (const k of st.grid.keys()) {
             const [r, c] = k.split(',').map(Number);
-            const dx = f.x - M.cellX(r, c), dy = f.y - M.cellY(r, c, st.drop);
+            const dx = f.x - M.cellX(r, c), dy = f.y - M.cellY(r, st.drop);
             if (dx * dx + dy * dy < (M.D - 3) * (M.D - 3)) { hit = true; break; }
           }
         }
@@ -104,7 +104,7 @@ M.Logic = {
     let best = null, bd = 1e9;
     for (const k of cand) {
       const [r, c] = k.split(',').map(Number);
-      const dx = f.x - M.cellX(r, c), dy = f.y - M.cellY(r, c, st.drop);
+      const dx = f.x - M.cellX(r, c), dy = f.y - M.cellY(r, st.drop);
       const d = dx * dx + dy * dy;
       if (d < bd) { bd = d; best = k; }
     }
@@ -138,7 +138,7 @@ M.Logic = {
     st.popping = null;
     for (const k of same) {
       const [r, c] = k.split(',').map(Number);
-      ev.push({ type: 'popfx', x: M.cellX(r, c), y: M.cellY(r, c, st.drop), col: st.grid.get(k) });
+      ev.push({ type: 'popfx', x: M.cellX(r, c), y: M.cellY(r, st.drop), col: st.grid.get(k) });
       st.grid.delete(k);
     }
     st.popped += same.length;
@@ -159,7 +159,7 @@ M.Logic = {
     for (const k of [...st.grid.keys()]) {
       if (!attached.has(k)) {
         const [r, c] = k.split(',').map(Number);
-        ev.push({ type: 'fallfx', x: M.cellX(r, c), y: M.cellY(r, c, st.drop), col: st.grid.get(k) });
+        ev.push({ type: 'fallfx', x: M.cellX(r, c), y: M.cellY(r, st.drop), col: st.grid.get(k) });
         st.grid.delete(k);
         fell++;
       }
