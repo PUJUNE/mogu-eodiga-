@@ -95,7 +95,7 @@
 
   /* ── Screens ───────────────────────── */
   .scr{position:fixed;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;justify-content:center;
-    text-align:center;padding:24px;box-sizing:border-box;
+    text-align:center;padding:24px;box-sizing:border-box;overflow-y:auto;
     background:linear-gradient(180deg,rgba(6,12,22,.82),rgba(10,20,36,.5) 40%,rgba(6,12,22,.88));}
   .scr.on{display:flex;}
   #title-logo .over{font-size:12px;letter-spacing:.7em;color:#ffb52e;margin-bottom:8px;text-shadow:0 0 10px rgba(255,181,46,.6);}
@@ -190,6 +190,11 @@
     #status{width:170px;} #weapons{width:150px;} #radar{width:104px;height:104px;}
     #spd{left:calc(50% - 150px);} #alt{left:calc(50% + 110px);}
     .datum b{font-size:16px;}
+    /* 선택·미션 화면: 세로 폰에서 넘쳐 잘리던 문제 — 위에서부터 쌓아 스크롤 + 유동 폭 */
+    .scr{justify-content:flex-start;padding:20px 12px;}
+    #cards{gap:12px;width:100%;}
+    .vcard{width:100%;max-width:340px;box-sizing:border-box;}
+    #missions{grid-template-columns:repeat(3,minmax(0,1fr));width:100%;max-width:340px;max-height:none;box-sizing:border-box;}
   }
 </style>
 </head>
