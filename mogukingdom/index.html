@@ -43,7 +43,7 @@ canvas{display:block;touch-action:none}
   padding:4px 17px;font-size:13px;letter-spacing:.05em;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.46)}
 
 /* 좌측 조정 장부 */
-#drawer{position:fixed;z-index:18;left:12px;top:66px;width:278px;max-height:calc(100vh - 80px);overflow:auto}
+#drawer{position:fixed;z-index:19;left:12px;top:66px;width:278px;max-height:calc(100vh - 80px);overflow:auto}
 #drawerTabs{display:flex;gap:2px;align-items:center;padding:7px 9px;border-bottom:1px solid var(--rule);position:sticky;top:0;
   background:linear-gradient(170deg,var(--paper),var(--paper2));z-index:2}
 #drawerTabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:3px 7px;cursor:pointer;font-size:14px}
@@ -64,7 +64,7 @@ canvas{display:block;touch-action:none}
 .actrow button:hover{background:rgba(120,90,30,.13)}
 .drow{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin:7px 0}
 .uin{width:105px;background:rgba(255,255,255,.55);border:1px solid var(--rule);border-radius:3px;padding:4px 6px}
-#drawerHandle{position:fixed;z-index:18;left:12px;top:66px;padding:7px 13px;cursor:pointer;font-size:13px}
+#drawerHandle{position:fixed;z-index:19;left:12px;top:66px;padding:7px 13px;cursor:pointer;font-size:13px}
 .monarch{display:flex;gap:9px;padding:4px 0 8px;border-bottom:1px solid var(--rule);align-items:center}
 .sigil{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:16px;border:2px solid rgba(255,255,255,.65);
   box-shadow:0 1px 4px rgba(0,0,0,.3)}
@@ -73,6 +73,24 @@ canvas{display:block;touch-action:none}
 .houseTop{display:flex;gap:7px;align-items:center;font-size:12px}.houseTop b{flex:1}
 .loyal{height:5px;background:rgba(100,75,30,.14);border-radius:4px;margin-top:4px;overflow:hidden}
 .loyal i{display:block;height:100%;background:linear-gradient(90deg,#87513c,#c6a345)}
+
+/* 발전 탭 */
+.devScore{padding:3px 0 6px;border-bottom:1px solid var(--rule)}
+.devTop{display:flex;justify-content:space-between;align-items:baseline}
+.devTop b{font-size:15px;color:#6e5110;letter-spacing:.03em}
+.devTop span{font-size:11px;color:var(--soft);font-style:italic}
+.devBar{height:7px;background:rgba(100,75,30,.15);border-radius:4px;margin-top:5px;overflow:hidden}
+.devBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#9b7227,#ebca70);transition:width .4s}
+.devSub{font-size:12px;color:var(--soft);margin:7px 0 3px}.devSub b{color:var(--ink)}
+.devHead{font-size:12px;font-weight:700;color:#6e5110;margin:11px 0 5px;letter-spacing:.02em}
+.devHead .devHint{font-weight:400;font-size:10px;color:#8a795c;font-style:italic}
+.tech{display:flex;align-items:center;gap:7px;padding:5px 4px;border-bottom:1px dotted rgba(128,103,58,.4)}
+.tech .ti{flex:1}.tech .tn{font-size:12px}.tech .td{font-size:10px;color:#7d6d54;line-height:1.35}
+.tech .tbuy{border:1px solid #8d7b50;background:rgba(255,255,255,.2);border-radius:3px;padding:3px 7px;cursor:pointer;font-size:11px;white-space:nowrap}
+.tech .tbuy:hover:not(:disabled){background:rgba(120,90,30,.15)}
+.tech .tbuy:disabled{opacity:.42;cursor:default}
+.tech.done{opacity:.72}.tech.done .tn::before{content:'✓ ';color:#50683b}
+.tech.locked{opacity:.5}
 
 /* 우측 연대기 */
 #chronicle{position:fixed;z-index:18;right:12px;top:66px;bottom:12px;width:318px;display:flex;flex-direction:column}
@@ -162,6 +180,8 @@ body.aiming canvas{cursor:crosshair}
   <span id="dateTxt"></span>
   <span class="stat">백성 <b id="popTxt">0</b>마리</span>
   <span class="stat">왕실 츄르 <b id="treasuryTxt">0</b></span>
+  <span class="stat">연구력 <b id="researchTxt">0</b></span>
+  <span class="stat">발전도 <b id="devTxt">0</b> · <b id="eraTxt">털가죽 시대</b></span>
   <span id="speeds">
     <button data-speed="0" title="멈춤">⏸</button><button data-speed="1">▶</button><button data-speed="2">▶▶</button>
     <button data-speed="3">▶▶▶</button><button data-speed="4">▶▶▶▶</button><button data-speed="5">▶▶▶▶▶</button>
@@ -171,11 +191,26 @@ body.aiming canvas{cursor:crosshair}
 
 <div id="drawer" class="paper hidden">
   <div id="drawerTabs">
-    <button data-tab="rates" class="on">조정</button><button data-tab="acts">사건</button>
+    <button data-tab="develop" class="on">발전</button><button data-tab="rates">정책</button><button data-tab="acts">사건</button>
     <button data-tab="houses">가문</button><button data-tab="world">세계</button>
     <span class="space"></span><button id="drawerFold">⟨</button>
   </div>
-  <div class="tab" id="tab-rates">
+  <div class="tab" id="tab-develop">
+    <div class="devScore"><div class="devTop"><b id="devTier">갓 세운 왕국</b><span id="devNum">발전도 0</span></div>
+      <div class="devBar"><i id="devFill"></i></div></div>
+    <div class="devSub"><span id="eraName">털가죽 시대</span> · 연구력 <b id="devPoints">0</b></div>
+    <div class="devHead">🔬 왕실 서고 · 기술 연구</div>
+    <div id="techList"></div>
+    <div class="devHead">🏛 고을 건설 <span class="devHint">(⌖ 지도에서 고을 선택)</span></div>
+    <div class="actrow" id="buildRow">
+      <button data-act="build_granary">곡창 ⌖</button><button data-act="build_market">시장 ⌖</button>
+      <button data-act="build_harbor">항구 ⌖</button><button data-act="build_wall">성벽 ⌖</button>
+      <button data-act="build_temple">신전 ⌖</button><button data-act="invest">번영 투자 ⌖</button>
+      <button data-act="found">새 마을 ⌖</button>
+    </div>
+    <div class="hint">연구력은 백성과 번영에서 저절로 쌓임. 기술을 해금하면 왕국이 다음 시대로 나아감.<br>건설·투자는 왕실 츄르를 사용함.</div>
+  </div>
+  <div class="tab hidden" id="tab-rates">
     <div class="srow"><label>수확량 <span data-value="harvest">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="harvest"></div>
     <div class="srow"><label>출산율 <span data-value="birth">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="birth"></div>
     <div class="srow"><label>자연 사망률 <span data-value="mortality">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="mortality"></div>
