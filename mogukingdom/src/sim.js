@@ -494,6 +494,7 @@ M.runAct=function(act,target){
   else if(act==='found'&&target&&target.x!=null){M.foundSettlement(target.x,target.z);}
   else if(act==='gold'){W.treasury+=5000;M.chron('crown','왕실 창고에 츄르 5,000개가 추가로 들어옴.',0,3);}
   else if(act==='raze'){s=s||W.rng.pick(W.settlements);const alive=s.buildings.filter(function(b){return b.alive;});if(alive.length){const b=W.rng.pick(alive);b.alive=false;s.ruins++;if(M.removeBuildingVisual)M.removeBuildingVisual(b);M.chron('fate',s.name+'의 건물 한 채가 왕명으로 철거됨.',s.id,2);}}
+  M.worldMetrics(W);
   if(M.refreshUI)M.refreshUI(true);
 };
 
