@@ -88,6 +88,15 @@ function applyFilter(){
   });
 }
 
+let toastTimer=null;
+M.toast=function(msg,kind){
+  const el=q('toast');if(!el)return;
+  el.textContent=msg;
+  el.className='paper toast '+(kind||'ok');
+  if(toastTimer)clearTimeout(toastTimer);
+  toastTimer=setTimeout(function(){el.classList.add('hidden');},2800);
+};
+
 M.showBeat=function(e){
   const card=q('beatCard');card.querySelector('time').textContent=M.dateStr(e.day);card.querySelector('p').textContent=e.text;
   q('inspector').classList.add('hidden');
@@ -228,7 +237,7 @@ function toggleUI(){
 
 function setPending(act){
   pendingAct=act;const btn=qa('[data-act]').find(function(b){return b.dataset.act===act;});
-  q('aimNotice').textContent=(btn?btn.textContent.replace('⌖','').trim():'사건')+' 위치를 지도에서 선택';
+  q('aimNotice').textContent=(btn?btn.textContent.replace(/[⌖\d,~]|\(무료\)/g,'').trim():'사건')+' 위치를 고을에서 선택';
   q('aimNotice').classList.remove('hidden');document.body.classList.add('aiming');
 }
 function clearPending(){pendingAct=null;q('aimNotice').classList.add('hidden');document.body.classList.remove('aiming');}

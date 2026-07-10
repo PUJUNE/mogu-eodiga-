@@ -451,17 +451,23 @@ M.civicCost=function(s,key){
 function buildCivic(W,s,key){
   const d=CIVIC_DEFS[key];if(!d||!s)return;
   const cost=M.civicCost(s,key);
-  if(W.treasury<cost){M.chron('realm',s.name+'에 '+d.name+'을 세우려 했으나 왕실 창고의 츄르가 모자람('+M.fmt(cost)+' 필요).',s.id,2);return;}
+  if(W.treasury<cost){
+    M.chron('realm',s.name+'에 '+d.name+'을 세우려 했으나 왕실 창고의 츄르가 모자람('+M.fmt(cost)+' 필요).',s.id,2);
+    if(M.toast)M.toast('츄르 부족 · '+d.name+' 건설에 '+M.fmt(cost)+' 필요 (보유 '+M.fmt(W.treasury)+')','warn');
+    return;
+  }
   W.treasury-=cost;
   s.civic[key]=(s.civic[key]||0)+1;
   if(key==='harbor')s.harbor=true;
   if(key==='temple')W.legitimacy=M.clamp(W.legitimacy+2,0,100);
   if(key==='market'||key==='wall'){s.unrest=M.clamp(s.unrest-3,0,100);}
-  // 시각적으로 새 건물 한 채를 올림
-  const r=W.rng,a=r.range(0,Math.PI*2),rad=r.range(s.radius*.35,s.radius*.8);
-  const b={x:s.x+Math.cos(a)*rad,z:s.z+Math.sin(a)*rad,w:r.range(12,18),d:r.range(12,18),h:r.range(11,20),rot:r.range(-.3,.3),roof:r.int(0,3),color:r.int(0,5),alive:true};
+  // 시각적으로 새 건물 한 채를 올림 (문물은 조금 크고 눈에 띄게)
+  const r=W.rng,a=r.range(0,Math.PI*2),rad=r.range(s.radius*.3,s.radius*.7);
+  const b={x:s.x+Math.cos(a)*rad,z:s.z+Math.sin(a)*rad,w:r.range(17,24),d:r.range(17,24),h:r.range(18,30),rot:r.range(-.3,.3),roof:r.int(0,3),color:r.int(0,5),alive:true,civic:key};
   s.buildings.push(b);if(M.addBuildingVisual)M.addBuildingVisual(s,b);
   M.chron('crown',s.name+'에 '+d.name+'('+(s.civic[key])+'째)이 세워짐. '+d.note+'. 츄르 '+M.fmt(cost)+' 사용.',s.id,4);
+  if(M.focusSettlement)M.focusSettlement(s.id);
+  if(M.toast)M.toast('🏛 '+s.name+' · '+d.name+' 건설 완료 · 츄르 '+M.fmt(cost)+' 사용','ok');
 }
 
 M.runAct=function(act,target){
@@ -471,8 +477,8 @@ M.runAct=function(act,target){
   if(act.indexOf('build_')===0){buildCivic(W,s||W.settlements[0],act.slice(6));}
   else if(act==='invest'){
     s=s||W.settlements[0];const cost=700;
-    if(W.treasury<cost){M.chron('realm',s.name+'에 투자하려 했으나 츄르가 모자람.',s.id,2);}
-    else{W.treasury-=cost;s.prosperity=M.clamp(s.prosperity+.07,0,1);s.unrest=M.clamp(s.unrest-5,0,100);M.chron('crown',s.name+'의 저잣거리에 왕실 츄르 '+M.fmt(cost)+'가 풀려 살림이 넉넉해짐.',s.id,3);}
+    if(W.treasury<cost){M.chron('realm',s.name+'에 투자하려 했으나 츄르가 모자람.',s.id,2);if(M.toast)M.toast('츄르 부족 · 번영 투자에 '+M.fmt(cost)+' 필요 (보유 '+M.fmt(W.treasury)+')','warn');}
+    else{W.treasury-=cost;s.prosperity=M.clamp(s.prosperity+.07,0,1);s.unrest=M.clamp(s.unrest-5,0,100);M.chron('crown',s.name+'의 저잣거리에 왕실 츄르 '+M.fmt(cost)+'가 풀려 살림이 넉넉해짐.',s.id,3);if(M.focusSettlement)M.focusSettlement(s.id);if(M.toast)M.toast('💰 '+s.name+' · 번영 투자 완료 · 츄르 '+M.fmt(cost)+' 사용','ok');}
   }
   else if(act==='plague'){infect(W,s||W.rng.pick(W.settlements),'궁정의 명령으로');}
   else if(act==='fire'){s=s||W.rng.pick(W.settlements);s.fire=45;M.chron('fate',s.name+'에 인위적인 대화재가 시작됨.',s.id,5);}
