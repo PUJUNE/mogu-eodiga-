@@ -1273,7 +1273,9 @@ function updateSky(){
   const sunA=day*Math.PI*2-Math.PI*.45;
   sun.position.set(Math.cos(sunA)*1200,Math.max(120,Math.sin(sunA)*1450),Math.sin(sunA*.7)*900);
   const daylight=M.clamp((sun.position.y-40)/900,.18,1);
-  sun.intensity=.35+daylight*1.25;hemi.intensity=.35+daylight*.85;
+  const nightLevel=.18,dayMix=M.clamp((daylight-nightLevel)/(1-nightLevel),0,1);
+  sun.intensity=M.lerp(.35+nightLevel*1.25,(.35+1.25)*.6,dayMix);
+  hemi.intensity=M.lerp(.35+nightLevel*.85,(.35+.85)*.6,dayMix);
   let sky=season===3?new T.Color(0x9daeba):season===2?new T.Color(0xb29a78):new T.Color(0x8da4b7);
   if(M.state.weather.state==='폭풍')sky.multiplyScalar(.58);
   else if(M.state.weather.state==='비')sky.multiplyScalar(.78);
