@@ -1120,7 +1120,9 @@ if (isTouch) {
   document.body.classList.add('touch');
   $('ready-hint').innerHTML = '화면을 꾹 누르면 모구가 웅크려요<br>도약대 끝에서 손을 떼면 점프!';
   $('title-hint').textContent = '화면을 꾹 눌러 활강 — 도약대 끝에서 떼면 점프!';
-  document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+  document.addEventListener('touchmove', (e) => {
+    if (!e.target.closest('#map-scroll')) e.preventDefault();
+  }, { passive: false });
   document.addEventListener('gesturestart', (e) => e.preventDefault());
 }
 const app = document.getElementById('app');
