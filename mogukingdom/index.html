@@ -73,6 +73,9 @@ canvas{display:block;touch-action:none}
 .houseTop{display:flex;gap:7px;align-items:center;font-size:12px}.houseTop b{flex:1}
 .loyal{height:5px;background:rgba(100,75,30,.14);border-radius:4px;margin-top:4px;overflow:hidden}
 .loyal i{display:block;height:100%;background:linear-gradient(90deg,#87513c,#c6a345)}
+.grip{cursor:move;color:#9c8a5f;font-size:13px;letter-spacing:-1px;padding:0 4px;user-select:none;touch-action:none}
+.grip:hover{color:#6e5110}
+.dragging{opacity:.96;box-shadow:0 8px 26px rgba(0,0,0,.55)!important}
 
 /* 발전 탭 */
 .devScore{padding:3px 0 6px;border-bottom:1px solid var(--rule)}
@@ -193,7 +196,7 @@ body.aiming canvas{cursor:crosshair}
   <div id="drawerTabs">
     <button data-tab="develop" class="on">발전</button><button data-tab="rates">정책</button><button data-tab="acts">사건</button>
     <button data-tab="houses">가문</button><button data-tab="world">세계</button>
-    <span class="space"></span><button id="drawerFold">⟨</button>
+    <span class="space"></span><span class="grip" id="gripDrawer" title="창을 끌어 이동">⠿</span><button id="drawerFold">⟨</button>
   </div>
   <div class="tab" id="tab-develop">
     <div class="devScore"><div class="devTop"><b id="devTier">갓 세운 왕국</b><span id="devNum">발전도 0</span></div>
@@ -252,7 +255,7 @@ body.aiming canvas{cursor:crosshair}
 <div id="drawerHandle" class="paper hidden">⚖ 왕국 장부</div>
 
 <div id="chronicle" class="paper hidden">
-  <div id="chronHead"><b>❧ 모구 왕국 연대기</b><span class="space"></span><button id="btnExport">내보내기</button><button id="chronToggle">▾</button></div>
+  <div id="chronHead"><b>❧ 모구 왕국 연대기</b><span class="grip" id="gripChron" title="창을 끌어 이동">⠿</span><span class="space"></span><button id="btnExport">내보내기</button><button id="chronToggle">▾</button></div>
   <div id="chronFilters">
     <button data-filter="" class="on">전체</button><button data-filter="crown">왕실</button><button data-filter="war">전쟁</button>
     <button data-filter="trade">교역</button><button data-filter="fate">사건</button><button id="btnChart">그래프</button>

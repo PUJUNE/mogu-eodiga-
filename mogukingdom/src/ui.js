@@ -10,6 +10,49 @@ function house(id){return M.state.houses.find(function(h){return h.id===id;});}
 function settlement(id){return M.state.settlements.find(function(s){return s.id===id;});}
 function htmlSafe(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 
+// 창을 제목 부분(handle)을 잡고 드래그해 옮길 수 있게 함
+function makeDraggable(el,handle){
+  if(!el||!handle)return;
+  handle.style.touchAction='none';handle.style.cursor='move';
+  let sx=0,sy=0,ox=0,oy=0,active=false,moved=false;
+  const SKIP='button,input,select,textarea,a,[data-tab],[data-filter],[data-overlay],[data-tech],[data-act]';
+  handle.addEventListener('pointerdown',function(e){
+    if(e.target.closest&&e.target.closest(SKIP)&&!e.target.classList.contains('grip'))return;
+    const r=el.getBoundingClientRect();
+    ox=r.left;oy=r.top;sx=e.clientX;sy=e.clientY;active=true;moved=false;
+    try{handle.setPointerCapture(e.pointerId);}catch(_){}
+  });
+  handle.addEventListener('pointermove',function(e){
+    if(!active)return;
+    const dx=e.clientX-sx,dy=e.clientY-sy;
+    if(!moved){
+      if(Math.abs(dx)+Math.abs(dy)<5)return;
+      moved=true;
+      const r=el.getBoundingClientRect();
+      el.style.right='auto';el.style.bottom='auto';el.style.transform='none';el.style.width=r.width+'px';
+      el.classList.add('dragging');
+    }
+    const w=el.offsetWidth;
+    let nx=Math.max(44-w,Math.min(ox+dx,innerWidth-44));
+    let ny=Math.max(6,Math.min(oy+dy,innerHeight-40));
+    el.style.left=nx+'px';el.style.top=ny+'px';
+    el.style.maxHeight=(innerHeight-ny-8)+'px';
+    e.preventDefault();
+  });
+  function end(e){
+    if(!active)return;active=false;el.classList.remove('dragging');
+    try{handle.releasePointerCapture(e.pointerId);}catch(_){}
+    if(moved){ // 드래그 끝에 따라오는 click(탭 전환·연대기 토글) 한 번만 무시
+      const supp=function(ev){ev.stopImmediatePropagation();ev.preventDefault();};
+      handle.addEventListener('click',supp,true);
+      setTimeout(function(){handle.removeEventListener('click',supp,true);},0);
+    }
+  }
+  handle.addEventListener('pointerup',end);
+  handle.addEventListener('pointercancel',end);
+}
+M.makeDraggable=makeDraggable;
+
 M.buildLabels=function(){
   const holder=q('labels');holder.innerHTML='';
   M.state.settlements.forEach(function(s){
@@ -252,6 +295,9 @@ M.initUI=function(){
   q('warStrip').addEventListener('click',function(){if(W.war){const h=house(W.war.rebels[0]);if(h)M.focusSettlement(h.seat);}});
   window.addEventListener('keydown',keyboard);
   window.addEventListener('resize',function(){if(chartOn)drawChart();});
+  makeDraggable(q('drawer'),q('drawerTabs'));
+  makeDraggable(q('chronicle'),q('chronHead'));
+  makeDraggable(q('inspector'),q('inspector'));
   readRates();M.buildLabels();
   W.events.forEach(M.appendEvent);
   ['hud','drawer','chronicle'].forEach(function(id){q(id).classList.remove('hidden');});
