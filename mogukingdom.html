@@ -74,6 +74,24 @@ canvas{display:block;touch-action:none}
 .loyal{height:5px;background:rgba(100,75,30,.14);border-radius:4px;margin-top:4px;overflow:hidden}
 .loyal i{display:block;height:100%;background:linear-gradient(90deg,#87513c,#c6a345)}
 
+/* 발전 탭 */
+.devScore{padding:3px 0 6px;border-bottom:1px solid var(--rule)}
+.devTop{display:flex;justify-content:space-between;align-items:baseline}
+.devTop b{font-size:15px;color:#6e5110;letter-spacing:.03em}
+.devTop span{font-size:11px;color:var(--soft);font-style:italic}
+.devBar{height:7px;background:rgba(100,75,30,.15);border-radius:4px;margin-top:5px;overflow:hidden}
+.devBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#9b7227,#ebca70);transition:width .4s}
+.devSub{font-size:12px;color:var(--soft);margin:7px 0 3px}.devSub b{color:var(--ink)}
+.devHead{font-size:12px;font-weight:700;color:#6e5110;margin:11px 0 5px;letter-spacing:.02em}
+.devHead .devHint{font-weight:400;font-size:10px;color:#8a795c;font-style:italic}
+.tech{display:flex;align-items:center;gap:7px;padding:5px 4px;border-bottom:1px dotted rgba(128,103,58,.4)}
+.tech .ti{flex:1}.tech .tn{font-size:12px}.tech .td{font-size:10px;color:#7d6d54;line-height:1.35}
+.tech .tbuy{border:1px solid #8d7b50;background:rgba(255,255,255,.2);border-radius:3px;padding:3px 7px;cursor:pointer;font-size:11px;white-space:nowrap}
+.tech .tbuy:hover:not(:disabled){background:rgba(120,90,30,.15)}
+.tech .tbuy:disabled{opacity:.42;cursor:default}
+.tech.done{opacity:.72}.tech.done .tn::before{content:'✓ ';color:#50683b}
+.tech.locked{opacity:.5}
+
 /* 우측 연대기 */
 #chronicle{position:fixed;z-index:18;right:12px;top:66px;bottom:12px;width:318px;display:flex;flex-direction:column}
 #chronHead{display:flex;align-items:center;gap:6px;padding:8px 11px;border-bottom:1px solid var(--rule)}
@@ -162,6 +180,8 @@ body.aiming canvas{cursor:crosshair}
   <span id="dateTxt"></span>
   <span class="stat">백성 <b id="popTxt">0</b>마리</span>
   <span class="stat">왕실 츄르 <b id="treasuryTxt">0</b></span>
+  <span class="stat">연구력 <b id="researchTxt">0</b></span>
+  <span class="stat">발전도 <b id="devTxt">0</b> · <b id="eraTxt">털가죽 시대</b></span>
   <span id="speeds">
     <button data-speed="0" title="멈춤">⏸</button><button data-speed="1">▶</button><button data-speed="2">▶▶</button>
     <button data-speed="3">▶▶▶</button><button data-speed="4">▶▶▶▶</button><button data-speed="5">▶▶▶▶▶</button>
@@ -171,11 +191,26 @@ body.aiming canvas{cursor:crosshair}
 
 <div id="drawer" class="paper hidden">
   <div id="drawerTabs">
-    <button data-tab="rates" class="on">조정</button><button data-tab="acts">사건</button>
+    <button data-tab="develop" class="on">발전</button><button data-tab="rates">정책</button><button data-tab="acts">사건</button>
     <button data-tab="houses">가문</button><button data-tab="world">세계</button>
     <span class="space"></span><button id="drawerFold">⟨</button>
   </div>
-  <div class="tab" id="tab-rates">
+  <div class="tab" id="tab-develop">
+    <div class="devScore"><div class="devTop"><b id="devTier">갓 세운 왕국</b><span id="devNum">발전도 0</span></div>
+      <div class="devBar"><i id="devFill"></i></div></div>
+    <div class="devSub"><span id="eraName">털가죽 시대</span> · 연구력 <b id="devPoints">0</b></div>
+    <div class="devHead">🔬 왕실 서고 · 기술 연구</div>
+    <div id="techList"></div>
+    <div class="devHead">🏛 고을 건설 <span class="devHint">(⌖ 지도에서 고을 선택)</span></div>
+    <div class="actrow" id="buildRow">
+      <button data-act="build_granary">곡창 ⌖</button><button data-act="build_market">시장 ⌖</button>
+      <button data-act="build_harbor">항구 ⌖</button><button data-act="build_wall">성벽 ⌖</button>
+      <button data-act="build_temple">신전 ⌖</button><button data-act="invest">번영 투자 ⌖</button>
+      <button data-act="found">새 마을 ⌖</button>
+    </div>
+    <div class="hint">연구력은 백성과 번영에서 저절로 쌓임. 기술을 해금하면 왕국이 다음 시대로 나아감.<br>건설·투자는 왕실 츄르를 사용함.</div>
+  </div>
+  <div class="tab hidden" id="tab-rates">
     <div class="srow"><label>수확량 <span data-value="harvest">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="harvest"></div>
     <div class="srow"><label>출산율 <span data-value="birth">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="birth"></div>
     <div class="srow"><label>자연 사망률 <span data-value="mortality">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="mortality"></div>
@@ -322,6 +357,32 @@ M.SPEEDS=[0,.1,1,5,30,120];
 M.SEASONS=['봄','여름','가을','겨울'];
 M.SEASON_ICONS=['🌸','☀','🍁','❄'];
 
+// 문명 발전: 시대·기술 트리
+M.ERAS=['털가죽 시대','방울 시대','비단 시대','황금 시대'];
+M.ERA_STEP=3; // 시대마다 필요한 기술 수
+// 기술 하나를 해금하면 mult 값이 왕국 전체 보너스에 곱해짐
+M.TECHS=[
+  {id:'net',   era:0,name:'그물 코 개량', cost:90, mult:{fish:1.28},            desc:'포구의 생선 어획이 크게 늘어남'},
+  {id:'plow',  era:0,name:'나무 쟁기',   cost:90, mult:{grain:1.22},           desc:'밭갈이가 쉬워져 곡물 수확이 늘어남'},
+  {id:'store', era:0,name:'마른 곳간',   cost:100,mult:{food:1.25},            desc:'식량 보존이 좋아져 굶주림이 줄어듦'},
+  {id:'road',  era:1,name:'다진 흙길',   cost:200,mult:{trade:1.3},            desc:'수레가 빨라져 교역량이 늘어남'},
+  {id:'herb',  era:1,name:'들풀 약방',   cost:210,mult:{med:1.4},             desc:'고양이 감기의 전파와 치명률이 낮아짐'},
+  {id:'coin',  era:1,name:'조개 화폐',   cost:220,mult:{tax:1.3,research:1.12},desc:'세금이 잘 걷히고 배움이 빨라짐'},
+  {id:'stone', era:2,name:'돌쌓기 기술', cost:400,mult:{ward:1.5},            desc:'재난 피해가 줄고 성벽이 튼튼해짐'},
+  {id:'loom',  era:2,name:'비단 물레',   cost:420,mult:{culture:1.2,tax:1.1}, desc:'비단 교역으로 번영과 재정이 함께 오름'},
+  {id:'lib',   era:2,name:'필사 서고',   cost:450,mult:{research:1.4},        desc:'서고에서 배움이 크게 빨라짐'},
+  {id:'sail',  era:3,name:'먼바다 돛',   cost:750,mult:{trade:1.35,fish:1.2}, desc:'먼 포구까지 교역과 어획이 뻗어감'},
+  {id:'med',   era:3,name:'고양이 의학', cost:800,mult:{med:1.8},             desc:'역병이 왕국을 거의 넘보지 못함'},
+  {id:'edict', era:3,name:'황금 율령',   cost:900,mult:{tax:1.35,culture:1.25},desc:'율령으로 나라가 부강하고 번영함'}
+];
+M.techBonusDefault=function(){return{fish:1,grain:1,food:1,trade:1,med:1,ward:1,tax:1,research:1,culture:1};};
+M.DEV_TIERS=[[1050,'전설의 왕국'],[850,'황금 왕국'],[620,'융성한 왕국'],[420,'번성하는 왕국'],[250,'자리잡은 왕국'],[120,'싹트는 왕국'],[0,'갓 세운 왕국']];
+M.DEV_WIN=1050;
+M.devTier=function(dev){
+  for(let i=0;i<M.DEV_TIERS.length;i++)if(dev>=M.DEV_TIERS[i][0])return M.DEV_TIERS[i][1];
+  return'갓 세운 왕국';
+};
+
 const PLACE_A=['보드라','나비','구름','달빛','참치','연어','보리','별빛','단풍','하늘','호박','복숭아','은방울','새벽','산들','초롱'];
 const PLACE_B=['성','골','마루','포구','뜰','고개','내','들','숲','울','터','평야','나루','샘','고을','항'];
 const HOUSE_A=['턱시도','치즈','고등어','삼색','검은발','흰수염','노랑눈','긴꼬리','점박이','은갈기'];
@@ -406,7 +467,8 @@ M.generateWorld=function(seed){
       id:i,name:namePlace(r,used),kind:kind,x:p.x,z:p.z,y:terrainHeight(seed,p.x,p.z),
       pop:pop,radius:radius,harbor:Math.abs(p.x-M.riverX(p.z,seed))<230,
       buildings:[],owner:i===0?-1:0,prosperity:.5,hunger:0,unrest:r.range(5,13),inf:0,sus:1,
-      fire:0,flood:0,ruins:0,stores:{grain:pop*72,fish:pop*7,timber:pop*2,ore:pop*.3,tools:pop*.5,cloth:pop*.35,churu:pop*.15},
+      fire:0,flood:0,ruins:0,civic:{granary:0,market:0,harbor:0,wall:0,temple:0},
+      stores:{grain:pop*72,fish:pop*7,timber:pop*2,ore:pop*.3,tools:pop*.5,cloth:pop*.35,churu:pop*.15},
       production:{},trade:0,lastEvent:0
     };
     s.buildings=planBuildings(s,M.rng(seed+':build:'+i));
@@ -452,6 +514,7 @@ M.generateWorld=function(seed){
     settlements:settlements,houses:houses,notables:notables,roads:roads,
     clock:{day:0,speed:2,last:performance.now()},treasury:800,realmPop:0,
     monarch:monarch.id,legitimacy:62,regency:false,war:null,peaceUntil:0,
+    tech:{points:0,era:0,unlocked:[],bonus:M.techBonusDefault()},dev:0,devTier:'갓 세운 왕국',devMark:0,victory:false,
     rates:{harvest:1,birth:1,mortality:1,trade:1,tax:.12,plagueV:1,plagueL:1,disaster:1,bandit:1,aggression:1,fertility:1,myth:1},
     weather:{state:'맑음',until:0},drought:0,bandits:[],dragon:{name:'솜구름용 냥그라',state:'sleeping',until:720,dead:false,target:null},
     caravans:[],armies:[],events:[],history:[],selected:null,overlay:'',watch:false,director:true,labels:true,
@@ -461,6 +524,19 @@ M.generateWorld=function(seed){
 
 M.worldMetrics=function(W){
   W.realmPop=W.settlements.reduce(function(a,s){return a+s.pop;},0);
+  let pros=0,unrest=0,civic=0;
+  W.settlements.forEach(function(s){
+    pros+=s.prosperity;unrest+=s.unrest;
+    const c=s.civic;if(c)civic+=c.granary+c.market+c.harbor+c.wall+c.temple;
+  });
+  const n=Math.max(1,W.settlements.length);
+  pros/=n;unrest/=n;
+  const tech=W.tech?W.tech.unlocked.length:0,era=W.tech?W.tech.era:0;
+  W.dev=Math.max(0,Math.round(
+    W.realmPop/45 + pros*240 + tech*30 + era*15 + civic*14 +
+    Math.min(180,W.treasury/70) + W.legitimacy*.6 - unrest*1.4
+  ));
+  W.devTier=M.devTier(W.dev);
   return W;
 };
 }
@@ -507,16 +583,45 @@ function initialChronicle(W){
 
 M.initSimulation=function(){
   const W=M.state;
+  M.recomputeTech(W);
   M.worldMetrics(W);
   initialChronicle(W);
   snapshot(W);
 };
 
+M.recomputeTech=function(W){
+  const b=M.techBonusDefault();
+  W.tech.unlocked.forEach(function(id){
+    const t=M.TECHS.find(function(x){return x.id===id;});
+    if(t&&t.mult)Object.keys(t.mult).forEach(function(k){b[k]=(b[k]||1)*t.mult[k];});
+  });
+  W.tech.bonus=b;
+  W.tech.era=Math.min(M.ERAS.length-1,Math.floor(W.tech.unlocked.length/M.ERA_STEP));
+};
+
+M.unlockTech=function(id){
+  const W=M.state,t=M.TECHS.find(function(x){return x.id===id;});
+  if(!t||W.tech.unlocked.indexOf(id)>=0)return false;
+  if(t.era>W.tech.era)return false;                 // 아직 열리지 않은 시대
+  if(W.tech.points<t.cost)return false;             // 연구력 부족
+  W.tech.points-=t.cost;
+  const prevEra=W.tech.era;
+  W.tech.unlocked.push(id);
+  M.recomputeTech(W);
+  M.chron('crown','왕실 서고가 「'+t.name+'」의 지혜를 갖춤. '+t.desc+'.',0,3);
+  if(W.tech.era>prevEra)M.chron('crown','왕국이 '+M.ERAS[W.tech.era]+'로 들어섬. 새 지혜의 길이 열림.',0,6);
+  M.worldMetrics(W);
+  if(M.refreshUI)M.refreshUI(true);
+  return true;
+};
+
 function productionRates(s,season,W){
   const winter=season===3?.38:season===2?1.25:season===1?1.12:.9;
+  const tb=W.tech.bonus,c=s.civic||{};
+  const harborLvl=(s.harbor?1:0)+(c.harbor||0);
   return{
-    grain:s.pop*.055*winter*W.rates.harvest*(s.flood>0?.65:1)*(W.drought>0?.55:1),
-    fish:s.pop*(s.harbor?.025:.008)*(W.weather.state==='폭풍'?.6:1),
+    grain:s.pop*.055*winter*W.rates.harvest*tb.grain*(1+(c.granary||0)*.12)*(s.flood>0?.65:1)*(W.drought>0?.55:1),
+    fish:s.pop*(harborLvl?.025*(1+(c.harbor||0)*.35):.008)*tb.fish*(W.weather.state==='폭풍'?.6:1),
     timber:s.pop*.006,ore:s.kind==='village'?0:s.pop*.0035,
     tools:s.pop*.0018,cloth:s.pop*.0015,churu:s.pop*.001
   };
@@ -532,16 +637,17 @@ function economyDay(W,s,day){
   const left=food-grainUse;
   s.stores.fish=Math.max(0,s.stores.fish-left);
   const shortage=Math.max(0,left-s.stores.fish)/Math.max(1,food);
-  s.hunger=M.clamp(s.hunger*.985+shortage*.045,0,1);
+  const tb=W.tech.bonus,c=s.civic||{};
+  s.hunger=M.clamp(s.hunger*.985+shortage*.045/tb.food,0,1);
 
   const cap=Math.max(120,s.buildings.filter(function(b){return b.alive;}).length*15);
   const crowd=M.clamp(1-s.pop/cap,0,1);
   const births=s.pop*.00017*W.rates.birth*(.4+.6*crowd)*(1-s.hunger*.8);
   const deaths=s.pop*.00009*W.rates.mortality*(1+s.hunger*7+s.inf*8);
   s.pop=Math.max(20,s.pop+births-deaths);
-  s.prosperity=M.clamp(s.prosperity+(s.hunger<.08?.00035:-.0012)+(s.trade>0?.0003:0)-(s.inf*.001),0,1);
-  s.unrest=M.clamp(s.unrest+(s.hunger*1.4+s.inf*.7+W.rates.tax*.45-.085),0,100);
-  W.treasury+=s.pop*s.prosperity*W.rates.tax*.00038;
+  s.prosperity=M.clamp(s.prosperity+((s.hunger<.08?.00035:-.0012)+(s.trade>0?.0003:0))*tb.culture+(c.market||0)*.00026-(s.inf*.001),0,1);
+  s.unrest=M.clamp(s.unrest+(s.hunger*1.4+s.inf*.7+W.rates.tax*.45-.085)-(c.temple||0)*.02,0,100);
+  W.treasury+=s.pop*s.prosperity*W.rates.tax*.0015*tb.tax*(1+(c.market||0)*.08);
   s.trade*=.985;
 
   if(day%30===8&&s.hunger>.28&&day-s.lastEvent>90){
@@ -561,7 +667,7 @@ function economyDay(W,s,day){
   }
   if(s.fire>0){
     s.fire--;
-    if(W.rng.chance(.055)){
+    if(W.rng.chance(.055/(1+(c.wall||0)*.4+(tb.ward-1)))){
       const alive=s.buildings.filter(function(b){return b.alive;});
       if(alive.length){const b=W.rng.pick(alive);b.alive=false;s.ruins++;if(M.removeBuildingVisual)M.removeBuildingVisual(b);}
       s.pop=Math.max(20,s.pop-W.rng.range(2,12));
@@ -585,7 +691,7 @@ function findTrade(W){
     });
   });
   if(!src||best<.12)return;
-  const qty=Math.max(8,Math.min(src.stores[good]*.08,src.pop*.8))*W.rates.trade;
+  const qty=Math.max(8,Math.min(src.stores[good]*.08,src.pop*.8))*W.rates.trade*W.tech.bonus.trade;
   src.stores[good]-=qty;
   W.caravans.push({id:Date.now()+W.rng.int(0,9999),from:src.id,to:dst.id,good:good,qty:qty,start:W.clock.day,duration:M.dist(src,dst)/95+3,progress:0,robbed:false});
   if(M.spawnCaravanVisual)M.spawnCaravanVisual(W.caravans[W.caravans.length-1]);
@@ -612,11 +718,12 @@ function caravansDay(W,day){
 }
 
 function plagueDay(W,s,day){
+  const med=W.tech.bonus.med;
   if(s.inf>0){
-    const catching=s.inf*s.sus*.105*W.rates.plagueV;
+    const catching=s.inf*s.sus*.105*W.rates.plagueV/med;
     s.sus=Math.max(0,s.sus-catching);
     s.inf=M.clamp(s.inf+catching-s.inf*.047,0,1);
-    const dead=s.pop*s.inf*.0011*W.rates.plagueL;
+    const dead=s.pop*s.inf*.0011*W.rates.plagueL/med;
     s.pop=Math.max(20,s.pop-dead);
     if(s.inf<.012){
       s.inf=0;
@@ -757,7 +864,7 @@ function weatherDay(W,day){
     W.weather.until=day+W.rng.int(3,16);
   }
   if(W.drought>0)W.drought--;
-  if(day%30===21&&W.rng.chance(.018*W.rates.disaster)){
+  if(day%30===21&&W.rng.chance(.018*W.rates.disaster/W.tech.bonus.ward)){
     const roll=W.rng.next();
     if(roll<.25){W.drought=W.rng.int(60,150);M.chron('fate','비구름이 왕국을 비껴가며 긴 가뭄이 시작됨.',0,5);}
     else if(roll<.5){const s=W.rng.pick(W.settlements);s.fire=W.rng.int(20,55);M.chron('fate',s.name+'의 건어물 창고에서 불이 번져 지붕 사이로 불티가 날림.',s.id,5);}
@@ -767,7 +874,8 @@ function weatherDay(W,day){
 }
 function quake(W,s){
   if(!s)return;let lost=0;
-  s.buildings.filter(function(b){return b.alive;}).forEach(function(b){if(W.rng.chance(.05)){b.alive=false;lost++;if(M.removeBuildingVisual)M.removeBuildingVisual(b);}});
+  const guard=.05/(1+(s.civic?s.civic.wall:0)*.45+(W.tech.bonus.ward-1));
+  s.buildings.filter(function(b){return b.alive;}).forEach(function(b){if(W.rng.chance(guard)){b.alive=false;lost++;if(M.removeBuildingVisual)M.removeBuildingVisual(b);}});
   s.ruins+=lost;s.pop=Math.max(20,s.pop-lost*W.rng.range(1,4));
   M.chron('fate',s.name+' 아래에서 땅이 흔들려 집 '+lost+'채가 무너짐.',s.id,5);
 }
@@ -824,6 +932,24 @@ function snapshot(W){
   if(W.history.length>180)W.history.shift();
 }
 
+function researchDay(W){
+  // 백성·번영이 학문을 키움. 연구력을 모아 기술을 해금함.
+  const pros=W.settlements.reduce(function(a,s){return a+s.prosperity;},0)/Math.max(1,W.settlements.length);
+  W.tech.points+=W.realmPop*(.28+pros*.9)*.0003*W.tech.bonus.research;
+}
+
+function developMilestone(W){
+  const step=200,mark=Math.floor(W.dev/step);
+  if(mark>W.devMark&&W.dev>=step){
+    W.devMark=mark;
+    M.chron('crown','왕국 발전도가 '+(mark*step)+'을 넘어 「'+W.devTier+'」의 격을 갖춤.',0,5);
+  }
+  if(!W.victory&&W.dev>=M.DEV_WIN&&W.tech.era>=M.ERAS.length-1){
+    W.victory=true;
+    M.chron('myth','다섯 가문이 한자리에 모여 '+W.realmName+'을 전설의 왕국으로 선포함. 황금 방울 소리가 사계절 내내 울림.',0,7);
+  }
+}
+
 M.tickDay=function(day){
   const W=M.state;
   if(day%360===0&&day>0)M.chron('year','모구력 '+(Math.floor(day/360)+1)+'년',0,1);
@@ -837,7 +963,9 @@ M.tickDay=function(day){
   banditDay(W,day);
   dragonDay(W,day);
   rareEvent(W,day);
+  researchDay(W);
   M.worldMetrics(W);
+  developMilestone(W);
   if(day%30===0)snapshot(W);
   if(M.onSimDay)M.onSimDay(day);
 };
@@ -852,11 +980,45 @@ M.advanceSimulation=function(realDt){
   for(let d=before+1;d<=after&&guard<5000;d++,guard++)M.tickDay(d);
 };
 
+// 국왕이 츄르를 들여 고을에 문물을 세움
+const CIVIC_DEFS={
+  granary:{key:'granary',name:'곡창',base:800, note:'곡물 수확과 식량 보존이 좋아짐'},
+  market: {key:'market', base:950, name:'시장',note:'교역과 세수, 번영이 함께 오름'},
+  harbor: {key:'harbor', base:1100,name:'항구',note:'포구가 열려 생선 어획이 늘어남'},
+  wall:   {key:'wall',   base:850, name:'성벽',note:'재난과 전란의 피해를 크게 막음'},
+  temple: {key:'temple', base:1000,name:'신전',note:'백성의 불만이 가라앉음'}
+};
+M.civicCost=function(s,key){
+  const d=CIVIC_DEFS[key];if(!d||!s.civic)return Infinity;
+  return Math.round(d.base*Math.pow(1.5,s.civic[key]||0));
+};
+function buildCivic(W,s,key){
+  const d=CIVIC_DEFS[key];if(!d||!s)return;
+  const cost=M.civicCost(s,key);
+  if(W.treasury<cost){M.chron('realm',s.name+'에 '+d.name+'을 세우려 했으나 왕실 창고의 츄르가 모자람('+M.fmt(cost)+' 필요).',s.id,2);return;}
+  W.treasury-=cost;
+  s.civic[key]=(s.civic[key]||0)+1;
+  if(key==='harbor')s.harbor=true;
+  if(key==='temple')W.legitimacy=M.clamp(W.legitimacy+2,0,100);
+  if(key==='market'||key==='wall'){s.unrest=M.clamp(s.unrest-3,0,100);}
+  // 시각적으로 새 건물 한 채를 올림
+  const r=W.rng,a=r.range(0,Math.PI*2),rad=r.range(s.radius*.35,s.radius*.8);
+  const b={x:s.x+Math.cos(a)*rad,z:s.z+Math.sin(a)*rad,w:r.range(12,18),d:r.range(12,18),h:r.range(11,20),rot:r.range(-.3,.3),roof:r.int(0,3),color:r.int(0,5),alive:true};
+  s.buildings.push(b);if(M.addBuildingVisual)M.addBuildingVisual(s,b);
+  M.chron('crown',s.name+'에 '+d.name+'('+(s.civic[key])+'째)이 세워짐. '+d.note+'. 츄르 '+M.fmt(cost)+' 사용.',s.id,4);
+}
+
 M.runAct=function(act,target){
   const W=M.state;
   let s=typeof target==='number'?settlement(W,target):target&&target.id!=null?settlement(W,target.id):null;
   if(!s&&target&&target.x!=null)s=M.nearestSettlement(target.x,target.z);
-  if(act==='plague'){infect(W,s||W.rng.pick(W.settlements),'궁정의 명령으로');}
+  if(act.indexOf('build_')===0){buildCivic(W,s||W.settlements[0],act.slice(6));}
+  else if(act==='invest'){
+    s=s||W.settlements[0];const cost=700;
+    if(W.treasury<cost){M.chron('realm',s.name+'에 투자하려 했으나 츄르가 모자람.',s.id,2);}
+    else{W.treasury-=cost;s.prosperity=M.clamp(s.prosperity+.07,0,1);s.unrest=M.clamp(s.unrest-5,0,100);M.chron('crown',s.name+'의 저잣거리에 왕실 츄르 '+M.fmt(cost)+'가 풀려 살림이 넉넉해짐.',s.id,3);}
+  }
+  else if(act==='plague'){infect(W,s||W.rng.pick(W.settlements),'궁정의 명령으로');}
   else if(act==='fire'){s=s||W.rng.pick(W.settlements);s.fire=45;M.chron('fate',s.name+'에 인위적인 대화재가 시작됨.',s.id,5);}
   else if(act==='flood'){const ports=W.settlements.filter(function(x){return x.harbor;});s=W.rng.pick(ports.length?ports:W.settlements);if(s){s.flood=80;M.chron('fate',s.name+'의 강물이 갑자기 불어 시장까지 넘침.',s.id,5);}}
   else if(act==='drought'){W.drought=120;M.chron('fate','왕국 전역에 가뭄이 선포되어 우물과 곡물 창고를 함께 관리함.',0,5);}
@@ -891,6 +1053,7 @@ M.foundSettlement=function(x,z){
   const name=W.rng.pick(['새봄마을','은방울터','고운털고을','참치나루','달수염골'])+W.nextIds.settlement;
   const s={id:W.nextIds.settlement++,name:name,kind:'village',x:x,z:z,y:M.heightAt(x,z),pop:80,radius:64,harbor:Math.abs(x-M.riverX(z,W.seed))<220,
     buildings:[],owner:W.rng.int(0,W.houses.length-1),prosperity:.45,hunger:0,unrest:6,inf:0,sus:1,fire:0,flood:0,ruins:0,
+    civic:{granary:0,market:0,harbor:0,wall:0,temple:0},
     stores:{grain:5600,fish:500,timber:180,ore:12,tools:36,cloth:24,churu:10},production:{},trade:0,lastEvent:0};
   for(let i=0;i<12;i++){const a=W.rng.range(0,Math.PI*2),r=W.rng.range(8,58);s.buildings.push({x:x+Math.cos(a)*r,z:z+Math.sin(a)*r,w:W.rng.range(8,13),d:W.rng.range(8,13),h:W.rng.range(7,12),rot:W.rng.range(-.3,.3),roof:W.rng.int(0,3),color:W.rng.int(0,5),alive:true});}
   let nearest=W.settlements[0],bd=Infinity;W.settlements.forEach(function(o){const d=M.dist(s,o);if(d<bd){bd=d;nearest=o;}});
@@ -1401,14 +1564,42 @@ function refreshHud(){
   q('dateTxt').textContent=M.dateStr(Math.floor(W.clock.day));
   q('popTxt').textContent=M.fmt(W.realmPop);
   q('treasuryTxt').textContent=M.fmt(W.treasury);
+  q('researchTxt').textContent=M.fmt(W.tech.points);
+  q('devTxt').textContent=M.fmt(W.dev);
+  q('eraTxt').textContent=M.ERAS[W.tech.era];
   qa('#speeds button').forEach(function(b){b.classList.toggle('on',Number(b.dataset.speed)===W.clock.speed);});
   q('watchDate').textContent=M.dateStr(Math.floor(W.clock.day));
   if(W.watch)q('watchDate').classList.remove('hidden');else q('watchDate').classList.add('hidden');
 }
 
+function renderDevelop(){
+  const W=M.state;
+  const nextTier=M.DEV_TIERS.map(function(t){return t[0];}).filter(function(v){return v>W.dev;}).sort(function(a,b){return a-b;})[0]||M.DEV_WIN;
+  q('devTier').textContent=W.devTier;
+  q('devNum').textContent='발전도 '+M.fmt(W.dev);
+  q('devFill').style.width=M.clamp(W.dev/nextTier*100,3,100)+'%';
+  q('eraName').textContent=M.ERAS[W.tech.era]+(W.victory?' · 전설 달성':'');
+  q('devPoints').textContent=M.fmt(W.tech.points);
+  let out='';
+  M.TECHS.forEach(function(t){
+    const done=W.tech.unlocked.indexOf(t.id)>=0;
+    const locked=t.era>W.tech.era;
+    const afford=W.tech.points>=t.cost;
+    const cls=done?'tech done':locked?'tech locked':'tech';
+    let btn;
+    if(done)btn='<span class="tbuy" style="border:0;background:none;color:#50683b">보유</span>';
+    else if(locked)btn='<button class="tbuy" disabled>'+M.ERAS[t.era]+'</button>';
+    else btn='<button class="tbuy" data-tech="'+t.id+'"'+(afford?'':' disabled')+'>연구 '+t.cost+'</button>';
+    out+='<div class="'+cls+'"><div class="ti"><div class="tn">'+htmlSafe(t.name)+'</div><div class="td">'+htmlSafe(t.desc)+'</div></div>'+btn+'</div>';
+  });
+  q('techList').innerHTML=out;
+  qa('#techList [data-tech]').forEach(function(b){b.addEventListener('click',function(){M.unlockTech(b.dataset.tech);});});
+}
+M.renderDevelop=renderDevelop;
+
 M.refreshUI=function(full){
   refreshHud();renderWar();
-  if(full)renderHouses();
+  if(full){renderHouses();renderDevelop();}
   if(chartOn)drawChart();
 };
 
@@ -1445,6 +1636,7 @@ function setTab(name){
   qa('#drawerTabs [data-tab]').forEach(function(b){b.classList.toggle('on',b.dataset.tab===name);});
   qa('#drawer .tab').forEach(function(el){el.classList.toggle('hidden',el.id!=='tab-'+name);});
   if(name==='houses')renderHouses();
+  if(name==='develop')renderDevelop();
 }
 
 function setWatch(on){

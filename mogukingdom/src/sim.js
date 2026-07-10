@@ -39,16 +39,45 @@ function initialChronicle(W){
 
 M.initSimulation=function(){
   const W=M.state;
+  M.recomputeTech(W);
   M.worldMetrics(W);
   initialChronicle(W);
   snapshot(W);
 };
 
+M.recomputeTech=function(W){
+  const b=M.techBonusDefault();
+  W.tech.unlocked.forEach(function(id){
+    const t=M.TECHS.find(function(x){return x.id===id;});
+    if(t&&t.mult)Object.keys(t.mult).forEach(function(k){b[k]=(b[k]||1)*t.mult[k];});
+  });
+  W.tech.bonus=b;
+  W.tech.era=Math.min(M.ERAS.length-1,Math.floor(W.tech.unlocked.length/M.ERA_STEP));
+};
+
+M.unlockTech=function(id){
+  const W=M.state,t=M.TECHS.find(function(x){return x.id===id;});
+  if(!t||W.tech.unlocked.indexOf(id)>=0)return false;
+  if(t.era>W.tech.era)return false;                 // 아직 열리지 않은 시대
+  if(W.tech.points<t.cost)return false;             // 연구력 부족
+  W.tech.points-=t.cost;
+  const prevEra=W.tech.era;
+  W.tech.unlocked.push(id);
+  M.recomputeTech(W);
+  M.chron('crown','왕실 서고가 「'+t.name+'」의 지혜를 갖춤. '+t.desc+'.',0,3);
+  if(W.tech.era>prevEra)M.chron('crown','왕국이 '+M.ERAS[W.tech.era]+'로 들어섬. 새 지혜의 길이 열림.',0,6);
+  M.worldMetrics(W);
+  if(M.refreshUI)M.refreshUI(true);
+  return true;
+};
+
 function productionRates(s,season,W){
   const winter=season===3?.38:season===2?1.25:season===1?1.12:.9;
+  const tb=W.tech.bonus,c=s.civic||{};
+  const harborLvl=(s.harbor?1:0)+(c.harbor||0);
   return{
-    grain:s.pop*.055*winter*W.rates.harvest*(s.flood>0?.65:1)*(W.drought>0?.55:1),
-    fish:s.pop*(s.harbor?.025:.008)*(W.weather.state==='폭풍'?.6:1),
+    grain:s.pop*.055*winter*W.rates.harvest*tb.grain*(1+(c.granary||0)*.12)*(s.flood>0?.65:1)*(W.drought>0?.55:1),
+    fish:s.pop*(harborLvl?.025*(1+(c.harbor||0)*.35):.008)*tb.fish*(W.weather.state==='폭풍'?.6:1),
     timber:s.pop*.006,ore:s.kind==='village'?0:s.pop*.0035,
     tools:s.pop*.0018,cloth:s.pop*.0015,churu:s.pop*.001
   };
@@ -64,16 +93,17 @@ function economyDay(W,s,day){
   const left=food-grainUse;
   s.stores.fish=Math.max(0,s.stores.fish-left);
   const shortage=Math.max(0,left-s.stores.fish)/Math.max(1,food);
-  s.hunger=M.clamp(s.hunger*.985+shortage*.045,0,1);
+  const tb=W.tech.bonus,c=s.civic||{};
+  s.hunger=M.clamp(s.hunger*.985+shortage*.045/tb.food,0,1);
 
   const cap=Math.max(120,s.buildings.filter(function(b){return b.alive;}).length*15);
   const crowd=M.clamp(1-s.pop/cap,0,1);
   const births=s.pop*.00017*W.rates.birth*(.4+.6*crowd)*(1-s.hunger*.8);
   const deaths=s.pop*.00009*W.rates.mortality*(1+s.hunger*7+s.inf*8);
   s.pop=Math.max(20,s.pop+births-deaths);
-  s.prosperity=M.clamp(s.prosperity+(s.hunger<.08?.00035:-.0012)+(s.trade>0?.0003:0)-(s.inf*.001),0,1);
-  s.unrest=M.clamp(s.unrest+(s.hunger*1.4+s.inf*.7+W.rates.tax*.45-.085),0,100);
-  W.treasury+=s.pop*s.prosperity*W.rates.tax*.00038;
+  s.prosperity=M.clamp(s.prosperity+((s.hunger<.08?.00035:-.0012)+(s.trade>0?.0003:0))*tb.culture+(c.market||0)*.00026-(s.inf*.001),0,1);
+  s.unrest=M.clamp(s.unrest+(s.hunger*1.4+s.inf*.7+W.rates.tax*.45-.085)-(c.temple||0)*.02,0,100);
+  W.treasury+=s.pop*s.prosperity*W.rates.tax*.0015*tb.tax*(1+(c.market||0)*.08);
   s.trade*=.985;
 
   if(day%30===8&&s.hunger>.28&&day-s.lastEvent>90){
@@ -93,7 +123,7 @@ function economyDay(W,s,day){
   }
   if(s.fire>0){
     s.fire--;
-    if(W.rng.chance(.055)){
+    if(W.rng.chance(.055/(1+(c.wall||0)*.4+(tb.ward-1)))){
       const alive=s.buildings.filter(function(b){return b.alive;});
       if(alive.length){const b=W.rng.pick(alive);b.alive=false;s.ruins++;if(M.removeBuildingVisual)M.removeBuildingVisual(b);}
       s.pop=Math.max(20,s.pop-W.rng.range(2,12));
@@ -117,7 +147,7 @@ function findTrade(W){
     });
   });
   if(!src||best<.12)return;
-  const qty=Math.max(8,Math.min(src.stores[good]*.08,src.pop*.8))*W.rates.trade;
+  const qty=Math.max(8,Math.min(src.stores[good]*.08,src.pop*.8))*W.rates.trade*W.tech.bonus.trade;
   src.stores[good]-=qty;
   W.caravans.push({id:Date.now()+W.rng.int(0,9999),from:src.id,to:dst.id,good:good,qty:qty,start:W.clock.day,duration:M.dist(src,dst)/95+3,progress:0,robbed:false});
   if(M.spawnCaravanVisual)M.spawnCaravanVisual(W.caravans[W.caravans.length-1]);
@@ -144,11 +174,12 @@ function caravansDay(W,day){
 }
 
 function plagueDay(W,s,day){
+  const med=W.tech.bonus.med;
   if(s.inf>0){
-    const catching=s.inf*s.sus*.105*W.rates.plagueV;
+    const catching=s.inf*s.sus*.105*W.rates.plagueV/med;
     s.sus=Math.max(0,s.sus-catching);
     s.inf=M.clamp(s.inf+catching-s.inf*.047,0,1);
-    const dead=s.pop*s.inf*.0011*W.rates.plagueL;
+    const dead=s.pop*s.inf*.0011*W.rates.plagueL/med;
     s.pop=Math.max(20,s.pop-dead);
     if(s.inf<.012){
       s.inf=0;
@@ -289,7 +320,7 @@ function weatherDay(W,day){
     W.weather.until=day+W.rng.int(3,16);
   }
   if(W.drought>0)W.drought--;
-  if(day%30===21&&W.rng.chance(.018*W.rates.disaster)){
+  if(day%30===21&&W.rng.chance(.018*W.rates.disaster/W.tech.bonus.ward)){
     const roll=W.rng.next();
     if(roll<.25){W.drought=W.rng.int(60,150);M.chron('fate','비구름이 왕국을 비껴가며 긴 가뭄이 시작됨.',0,5);}
     else if(roll<.5){const s=W.rng.pick(W.settlements);s.fire=W.rng.int(20,55);M.chron('fate',s.name+'의 건어물 창고에서 불이 번져 지붕 사이로 불티가 날림.',s.id,5);}
@@ -299,7 +330,8 @@ function weatherDay(W,day){
 }
 function quake(W,s){
   if(!s)return;let lost=0;
-  s.buildings.filter(function(b){return b.alive;}).forEach(function(b){if(W.rng.chance(.05)){b.alive=false;lost++;if(M.removeBuildingVisual)M.removeBuildingVisual(b);}});
+  const guard=.05/(1+(s.civic?s.civic.wall:0)*.45+(W.tech.bonus.ward-1));
+  s.buildings.filter(function(b){return b.alive;}).forEach(function(b){if(W.rng.chance(guard)){b.alive=false;lost++;if(M.removeBuildingVisual)M.removeBuildingVisual(b);}});
   s.ruins+=lost;s.pop=Math.max(20,s.pop-lost*W.rng.range(1,4));
   M.chron('fate',s.name+' 아래에서 땅이 흔들려 집 '+lost+'채가 무너짐.',s.id,5);
 }
@@ -356,6 +388,24 @@ function snapshot(W){
   if(W.history.length>180)W.history.shift();
 }
 
+function researchDay(W){
+  // 백성·번영이 학문을 키움. 연구력을 모아 기술을 해금함.
+  const pros=W.settlements.reduce(function(a,s){return a+s.prosperity;},0)/Math.max(1,W.settlements.length);
+  W.tech.points+=W.realmPop*(.28+pros*.9)*.0003*W.tech.bonus.research;
+}
+
+function developMilestone(W){
+  const step=200,mark=Math.floor(W.dev/step);
+  if(mark>W.devMark&&W.dev>=step){
+    W.devMark=mark;
+    M.chron('crown','왕국 발전도가 '+(mark*step)+'을 넘어 「'+W.devTier+'」의 격을 갖춤.',0,5);
+  }
+  if(!W.victory&&W.dev>=M.DEV_WIN&&W.tech.era>=M.ERAS.length-1){
+    W.victory=true;
+    M.chron('myth','다섯 가문이 한자리에 모여 '+W.realmName+'을 전설의 왕국으로 선포함. 황금 방울 소리가 사계절 내내 울림.',0,7);
+  }
+}
+
 M.tickDay=function(day){
   const W=M.state;
   if(day%360===0&&day>0)M.chron('year','모구력 '+(Math.floor(day/360)+1)+'년',0,1);
@@ -369,7 +419,9 @@ M.tickDay=function(day){
   banditDay(W,day);
   dragonDay(W,day);
   rareEvent(W,day);
+  researchDay(W);
   M.worldMetrics(W);
+  developMilestone(W);
   if(day%30===0)snapshot(W);
   if(M.onSimDay)M.onSimDay(day);
 };
@@ -384,11 +436,45 @@ M.advanceSimulation=function(realDt){
   for(let d=before+1;d<=after&&guard<5000;d++,guard++)M.tickDay(d);
 };
 
+// 국왕이 츄르를 들여 고을에 문물을 세움
+const CIVIC_DEFS={
+  granary:{key:'granary',name:'곡창',base:800, note:'곡물 수확과 식량 보존이 좋아짐'},
+  market: {key:'market', base:950, name:'시장',note:'교역과 세수, 번영이 함께 오름'},
+  harbor: {key:'harbor', base:1100,name:'항구',note:'포구가 열려 생선 어획이 늘어남'},
+  wall:   {key:'wall',   base:850, name:'성벽',note:'재난과 전란의 피해를 크게 막음'},
+  temple: {key:'temple', base:1000,name:'신전',note:'백성의 불만이 가라앉음'}
+};
+M.civicCost=function(s,key){
+  const d=CIVIC_DEFS[key];if(!d||!s.civic)return Infinity;
+  return Math.round(d.base*Math.pow(1.5,s.civic[key]||0));
+};
+function buildCivic(W,s,key){
+  const d=CIVIC_DEFS[key];if(!d||!s)return;
+  const cost=M.civicCost(s,key);
+  if(W.treasury<cost){M.chron('realm',s.name+'에 '+d.name+'을 세우려 했으나 왕실 창고의 츄르가 모자람('+M.fmt(cost)+' 필요).',s.id,2);return;}
+  W.treasury-=cost;
+  s.civic[key]=(s.civic[key]||0)+1;
+  if(key==='harbor')s.harbor=true;
+  if(key==='temple')W.legitimacy=M.clamp(W.legitimacy+2,0,100);
+  if(key==='market'||key==='wall'){s.unrest=M.clamp(s.unrest-3,0,100);}
+  // 시각적으로 새 건물 한 채를 올림
+  const r=W.rng,a=r.range(0,Math.PI*2),rad=r.range(s.radius*.35,s.radius*.8);
+  const b={x:s.x+Math.cos(a)*rad,z:s.z+Math.sin(a)*rad,w:r.range(12,18),d:r.range(12,18),h:r.range(11,20),rot:r.range(-.3,.3),roof:r.int(0,3),color:r.int(0,5),alive:true};
+  s.buildings.push(b);if(M.addBuildingVisual)M.addBuildingVisual(s,b);
+  M.chron('crown',s.name+'에 '+d.name+'('+(s.civic[key])+'째)이 세워짐. '+d.note+'. 츄르 '+M.fmt(cost)+' 사용.',s.id,4);
+}
+
 M.runAct=function(act,target){
   const W=M.state;
   let s=typeof target==='number'?settlement(W,target):target&&target.id!=null?settlement(W,target.id):null;
   if(!s&&target&&target.x!=null)s=M.nearestSettlement(target.x,target.z);
-  if(act==='plague'){infect(W,s||W.rng.pick(W.settlements),'궁정의 명령으로');}
+  if(act.indexOf('build_')===0){buildCivic(W,s||W.settlements[0],act.slice(6));}
+  else if(act==='invest'){
+    s=s||W.settlements[0];const cost=700;
+    if(W.treasury<cost){M.chron('realm',s.name+'에 투자하려 했으나 츄르가 모자람.',s.id,2);}
+    else{W.treasury-=cost;s.prosperity=M.clamp(s.prosperity+.07,0,1);s.unrest=M.clamp(s.unrest-5,0,100);M.chron('crown',s.name+'의 저잣거리에 왕실 츄르 '+M.fmt(cost)+'가 풀려 살림이 넉넉해짐.',s.id,3);}
+  }
+  else if(act==='plague'){infect(W,s||W.rng.pick(W.settlements),'궁정의 명령으로');}
   else if(act==='fire'){s=s||W.rng.pick(W.settlements);s.fire=45;M.chron('fate',s.name+'에 인위적인 대화재가 시작됨.',s.id,5);}
   else if(act==='flood'){const ports=W.settlements.filter(function(x){return x.harbor;});s=W.rng.pick(ports.length?ports:W.settlements);if(s){s.flood=80;M.chron('fate',s.name+'의 강물이 갑자기 불어 시장까지 넘침.',s.id,5);}}
   else if(act==='drought'){W.drought=120;M.chron('fate','왕국 전역에 가뭄이 선포되어 우물과 곡물 창고를 함께 관리함.',0,5);}
@@ -423,6 +509,7 @@ M.foundSettlement=function(x,z){
   const name=W.rng.pick(['새봄마을','은방울터','고운털고을','참치나루','달수염골'])+W.nextIds.settlement;
   const s={id:W.nextIds.settlement++,name:name,kind:'village',x:x,z:z,y:M.heightAt(x,z),pop:80,radius:64,harbor:Math.abs(x-M.riverX(z,W.seed))<220,
     buildings:[],owner:W.rng.int(0,W.houses.length-1),prosperity:.45,hunger:0,unrest:6,inf:0,sus:1,fire:0,flood:0,ruins:0,
+    civic:{granary:0,market:0,harbor:0,wall:0,temple:0},
     stores:{grain:5600,fish:500,timber:180,ore:12,tools:36,cloth:24,churu:10},production:{},trade:0,lastEvent:0};
   for(let i=0;i<12;i++){const a=W.rng.range(0,Math.PI*2),r=W.rng.range(8,58);s.buildings.push({x:x+Math.cos(a)*r,z:z+Math.sin(a)*r,w:W.rng.range(8,13),d:W.rng.range(8,13),h:W.rng.range(7,12),rot:W.rng.range(-.3,.3),roof:W.rng.int(0,3),color:W.rng.int(0,5),alive:true});}
   let nearest=W.settlements[0],bd=Infinity;W.settlements.forEach(function(o){const d=M.dist(s,o);if(d<bd){bd=d;nearest=o;}});

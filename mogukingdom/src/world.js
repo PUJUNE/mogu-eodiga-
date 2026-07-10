@@ -8,6 +8,32 @@ M.SPEEDS=[0,.1,1,5,30,120];
 M.SEASONS=['봄','여름','가을','겨울'];
 M.SEASON_ICONS=['🌸','☀','🍁','❄'];
 
+// 문명 발전: 시대·기술 트리
+M.ERAS=['털가죽 시대','방울 시대','비단 시대','황금 시대'];
+M.ERA_STEP=3; // 시대마다 필요한 기술 수
+// 기술 하나를 해금하면 mult 값이 왕국 전체 보너스에 곱해짐
+M.TECHS=[
+  {id:'net',   era:0,name:'그물 코 개량', cost:90, mult:{fish:1.28},            desc:'포구의 생선 어획이 크게 늘어남'},
+  {id:'plow',  era:0,name:'나무 쟁기',   cost:90, mult:{grain:1.22},           desc:'밭갈이가 쉬워져 곡물 수확이 늘어남'},
+  {id:'store', era:0,name:'마른 곳간',   cost:100,mult:{food:1.25},            desc:'식량 보존이 좋아져 굶주림이 줄어듦'},
+  {id:'road',  era:1,name:'다진 흙길',   cost:200,mult:{trade:1.3},            desc:'수레가 빨라져 교역량이 늘어남'},
+  {id:'herb',  era:1,name:'들풀 약방',   cost:210,mult:{med:1.4},             desc:'고양이 감기의 전파와 치명률이 낮아짐'},
+  {id:'coin',  era:1,name:'조개 화폐',   cost:220,mult:{tax:1.3,research:1.12},desc:'세금이 잘 걷히고 배움이 빨라짐'},
+  {id:'stone', era:2,name:'돌쌓기 기술', cost:400,mult:{ward:1.5},            desc:'재난 피해가 줄고 성벽이 튼튼해짐'},
+  {id:'loom',  era:2,name:'비단 물레',   cost:420,mult:{culture:1.2,tax:1.1}, desc:'비단 교역으로 번영과 재정이 함께 오름'},
+  {id:'lib',   era:2,name:'필사 서고',   cost:450,mult:{research:1.4},        desc:'서고에서 배움이 크게 빨라짐'},
+  {id:'sail',  era:3,name:'먼바다 돛',   cost:750,mult:{trade:1.35,fish:1.2}, desc:'먼 포구까지 교역과 어획이 뻗어감'},
+  {id:'med',   era:3,name:'고양이 의학', cost:800,mult:{med:1.8},             desc:'역병이 왕국을 거의 넘보지 못함'},
+  {id:'edict', era:3,name:'황금 율령',   cost:900,mult:{tax:1.35,culture:1.25},desc:'율령으로 나라가 부강하고 번영함'}
+];
+M.techBonusDefault=function(){return{fish:1,grain:1,food:1,trade:1,med:1,ward:1,tax:1,research:1,culture:1};};
+M.DEV_TIERS=[[1050,'전설의 왕국'],[850,'황금 왕국'],[620,'융성한 왕국'],[420,'번성하는 왕국'],[250,'자리잡은 왕국'],[120,'싹트는 왕국'],[0,'갓 세운 왕국']];
+M.DEV_WIN=1050;
+M.devTier=function(dev){
+  for(let i=0;i<M.DEV_TIERS.length;i++)if(dev>=M.DEV_TIERS[i][0])return M.DEV_TIERS[i][1];
+  return'갓 세운 왕국';
+};
+
 const PLACE_A=['보드라','나비','구름','달빛','참치','연어','보리','별빛','단풍','하늘','호박','복숭아','은방울','새벽','산들','초롱'];
 const PLACE_B=['성','골','마루','포구','뜰','고개','내','들','숲','울','터','평야','나루','샘','고을','항'];
 const HOUSE_A=['턱시도','치즈','고등어','삼색','검은발','흰수염','노랑눈','긴꼬리','점박이','은갈기'];
@@ -92,7 +118,8 @@ M.generateWorld=function(seed){
       id:i,name:namePlace(r,used),kind:kind,x:p.x,z:p.z,y:terrainHeight(seed,p.x,p.z),
       pop:pop,radius:radius,harbor:Math.abs(p.x-M.riverX(p.z,seed))<230,
       buildings:[],owner:i===0?-1:0,prosperity:.5,hunger:0,unrest:r.range(5,13),inf:0,sus:1,
-      fire:0,flood:0,ruins:0,stores:{grain:pop*72,fish:pop*7,timber:pop*2,ore:pop*.3,tools:pop*.5,cloth:pop*.35,churu:pop*.15},
+      fire:0,flood:0,ruins:0,civic:{granary:0,market:0,harbor:0,wall:0,temple:0},
+      stores:{grain:pop*72,fish:pop*7,timber:pop*2,ore:pop*.3,tools:pop*.5,cloth:pop*.35,churu:pop*.15},
       production:{},trade:0,lastEvent:0
     };
     s.buildings=planBuildings(s,M.rng(seed+':build:'+i));
@@ -138,6 +165,7 @@ M.generateWorld=function(seed){
     settlements:settlements,houses:houses,notables:notables,roads:roads,
     clock:{day:0,speed:2,last:performance.now()},treasury:800,realmPop:0,
     monarch:monarch.id,legitimacy:62,regency:false,war:null,peaceUntil:0,
+    tech:{points:0,era:0,unlocked:[],bonus:M.techBonusDefault()},dev:0,devTier:'갓 세운 왕국',devMark:0,victory:false,
     rates:{harvest:1,birth:1,mortality:1,trade:1,tax:.12,plagueV:1,plagueL:1,disaster:1,bandit:1,aggression:1,fertility:1,myth:1},
     weather:{state:'맑음',until:0},drought:0,bandits:[],dragon:{name:'솜구름용 냥그라',state:'sleeping',until:720,dead:false,target:null},
     caravans:[],armies:[],events:[],history:[],selected:null,overlay:'',watch:false,director:true,labels:true,
@@ -147,6 +175,19 @@ M.generateWorld=function(seed){
 
 M.worldMetrics=function(W){
   W.realmPop=W.settlements.reduce(function(a,s){return a+s.pop;},0);
+  let pros=0,unrest=0,civic=0;
+  W.settlements.forEach(function(s){
+    pros+=s.prosperity;unrest+=s.unrest;
+    const c=s.civic;if(c)civic+=c.granary+c.market+c.harbor+c.wall+c.temple;
+  });
+  const n=Math.max(1,W.settlements.length);
+  pros/=n;unrest/=n;
+  const tech=W.tech?W.tech.unlocked.length:0,era=W.tech?W.tech.era:0;
+  W.dev=Math.max(0,Math.round(
+    W.realmPop/45 + pros*240 + tech*30 + era*15 + civic*14 +
+    Math.min(180,W.treasury/70) + W.legitimacy*.6 - unrest*1.4
+  ));
+  W.devTier=M.devTier(W.dev);
   return W;
 };
 }

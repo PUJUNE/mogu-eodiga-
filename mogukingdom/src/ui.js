@@ -86,14 +86,42 @@ function refreshHud(){
   q('dateTxt').textContent=M.dateStr(Math.floor(W.clock.day));
   q('popTxt').textContent=M.fmt(W.realmPop);
   q('treasuryTxt').textContent=M.fmt(W.treasury);
+  q('researchTxt').textContent=M.fmt(W.tech.points);
+  q('devTxt').textContent=M.fmt(W.dev);
+  q('eraTxt').textContent=M.ERAS[W.tech.era];
   qa('#speeds button').forEach(function(b){b.classList.toggle('on',Number(b.dataset.speed)===W.clock.speed);});
   q('watchDate').textContent=M.dateStr(Math.floor(W.clock.day));
   if(W.watch)q('watchDate').classList.remove('hidden');else q('watchDate').classList.add('hidden');
 }
 
+function renderDevelop(){
+  const W=M.state;
+  const nextTier=M.DEV_TIERS.map(function(t){return t[0];}).filter(function(v){return v>W.dev;}).sort(function(a,b){return a-b;})[0]||M.DEV_WIN;
+  q('devTier').textContent=W.devTier;
+  q('devNum').textContent='발전도 '+M.fmt(W.dev);
+  q('devFill').style.width=M.clamp(W.dev/nextTier*100,3,100)+'%';
+  q('eraName').textContent=M.ERAS[W.tech.era]+(W.victory?' · 전설 달성':'');
+  q('devPoints').textContent=M.fmt(W.tech.points);
+  let out='';
+  M.TECHS.forEach(function(t){
+    const done=W.tech.unlocked.indexOf(t.id)>=0;
+    const locked=t.era>W.tech.era;
+    const afford=W.tech.points>=t.cost;
+    const cls=done?'tech done':locked?'tech locked':'tech';
+    let btn;
+    if(done)btn='<span class="tbuy" style="border:0;background:none;color:#50683b">보유</span>';
+    else if(locked)btn='<button class="tbuy" disabled>'+M.ERAS[t.era]+'</button>';
+    else btn='<button class="tbuy" data-tech="'+t.id+'"'+(afford?'':' disabled')+'>연구 '+t.cost+'</button>';
+    out+='<div class="'+cls+'"><div class="ti"><div class="tn">'+htmlSafe(t.name)+'</div><div class="td">'+htmlSafe(t.desc)+'</div></div>'+btn+'</div>';
+  });
+  q('techList').innerHTML=out;
+  qa('#techList [data-tech]').forEach(function(b){b.addEventListener('click',function(){M.unlockTech(b.dataset.tech);});});
+}
+M.renderDevelop=renderDevelop;
+
 M.refreshUI=function(full){
   refreshHud();renderWar();
-  if(full)renderHouses();
+  if(full){renderHouses();renderDevelop();}
   if(chartOn)drawChart();
 };
 
@@ -130,6 +158,7 @@ function setTab(name){
   qa('#drawerTabs [data-tab]').forEach(function(b){b.classList.toggle('on',b.dataset.tab===name);});
   qa('#drawer .tab').forEach(function(el){el.classList.toggle('hidden',el.id!=='tab-'+name);});
   if(name==='houses')renderHouses();
+  if(name==='develop')renderDevelop();
 }
 
 function setWatch(on){
