@@ -247,7 +247,7 @@ function bindCamera(){
     if(touches.size===2&&pinch){
       const a=Array.from(touches.values()),d=Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),cx=(a[0].x+a[1].x)/2,cy=(a[0].y+a[1].y)/2;
       cam.dist=M.clamp(cam.dist*pinch.d/Math.max(1,d),cam.min,cam.max);
-      panCamera((cx-pinch.cx)*-1,(cy-pinch.cy)*-1);pinch={d:d,cx:cx,cy:cy};updateCamera();return;
+      panCamera(cx-pinch.cx,cy-pinch.cy);pinch={d:d,cx:cx,cy:cy};updateCamera();return;
     }
     if(!pointer.down||e.pointerId!==pointer.id)return;
     const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;if(Math.abs(dx)+Math.abs(dy)>3)pointer.moved=true;
