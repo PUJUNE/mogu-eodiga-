@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>모구 고양이 왕국</title>
+<meta name="description" content="씨앗마다 다른 고양이 왕국이 살아 움직이는 3D 연대기 시뮬레이션">
+<link rel="icon" href="../game/assets/mogu-icon.png">
+<style>
+:root{
+  --paper:#f1e6c9;--paper2:#dfcfaa;--ink:#302820;--soft:#625747;--gold:#c59627;
+  --rule:#b19d70;--wine:#7c3028;--leaf:#50683b;--night:#11182a;
+  --serif:'Batang','바탕','Nanum Myeongjo','Malgun Gothic',serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--night);font-family:var(--serif);
+  color:var(--ink);overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+body{-webkit-user-select:none;user-select:none}
+button,input{font:inherit}
+button{color:inherit}
+canvas{display:block;touch-action:none}
+#app{position:fixed;inset:0}
+.hidden{display:none!important}
+.paper{background:linear-gradient(170deg,var(--paper),var(--paper2));border:1px solid var(--rule);
+  box-shadow:0 3px 14px rgba(0,0,0,.46),inset 0 0 24px rgba(135,102,40,.12);border-radius:5px}
+#shade{position:fixed;inset:0;pointer-events:none;z-index:4;
+  background:radial-gradient(ellipse at center,transparent 55%,rgba(15,12,8,.33) 100%)}
+
+/* 상단 왕국 정보 */
+#hud{position:fixed;z-index:20;top:10px;left:50%;transform:translateX(-50%);max-width:min(96vw,940px);
+  display:flex;align-items:center;justify-content:center;gap:14px;row-gap:4px;flex-wrap:wrap;
+  padding:7px 15px;white-space:nowrap}
+#hudTitle{font-size:18px;font-weight:700;letter-spacing:.06em}
+#hudTitle .paw{color:var(--gold);padding:0 5px}
+.stat{font-size:13px;color:var(--soft)} .stat b{font-weight:700;color:var(--ink)}
+#dateTxt{font-size:13px;font-style:italic;color:var(--soft)}
+#speeds{display:flex;gap:3px}
+#speeds button{border:1px solid transparent;background:transparent;padding:4px 6px;cursor:pointer;border-radius:3px}
+#speeds button:hover{background:rgba(104,76,25,.12)}
+#speeds button.on{border-color:var(--gold);background:rgba(197,150,39,.16);color:#725612}
+#warStrip{position:fixed;z-index:19;top:72px;left:50%;transform:translateX(-50%);
+  color:#f6e8d2;background:linear-gradient(#8a352d,#5b201b);border:1px solid #3c120f;border-radius:4px;
+  padding:4px 17px;font-size:13px;letter-spacing:.05em;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.46)}
+
+/* 좌측 조정 장부 */
+#drawer{position:fixed;z-index:18;left:12px;top:66px;width:278px;max-height:calc(100vh - 80px);overflow:auto}
+#drawerTabs{display:flex;gap:2px;align-items:center;padding:7px 9px;border-bottom:1px solid var(--rule);position:sticky;top:0;
+  background:linear-gradient(170deg,var(--paper),var(--paper2));z-index:2}
+#drawerTabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:3px 7px;cursor:pointer;font-size:14px}
+#drawerTabs button.on{border-bottom-color:var(--gold);color:#6e5110;font-weight:700}
+#drawerTabs .space{flex:1}
+#drawerFold{border:1px solid #8d7b50!important;border-radius:3px!important;font-size:12px!important}
+.tab{padding:9px 13px 12px}
+.srow{margin:8px 0}
+.srow label{display:flex;justify-content:space-between;font-size:12px;color:var(--soft);font-style:italic}
+.srow label span{color:var(--ink);font-style:normal}
+.srow input[type=range]{width:100%;height:18px;accent-color:#806419;cursor:pointer}
+.hint{font-size:11px;line-height:1.5;color:#6d604d;font-style:italic;margin-top:8px}
+.mythrow{display:flex;align-items:center;gap:4px;margin:8px 0}.mythrow label{flex:1;font-size:12px;color:var(--soft)}
+.mythrow button,.smallbtn{border:1px solid #8d7b50;background:transparent;border-radius:3px;padding:3px 8px;cursor:pointer;font-size:12px}
+.mythrow button.on,.smallbtn.on{border-color:var(--gold);background:rgba(197,150,39,.17);color:#6e5110}
+.actrow{display:flex;flex-wrap:wrap;gap:5px}
+.actrow button{border:1px solid #8d7b50;background:rgba(255,255,255,.15);border-radius:3px;padding:4px 7px;cursor:pointer;font-size:12px}
+.actrow button:hover{background:rgba(120,90,30,.13)}
+.drow{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin:7px 0}
+.uin{width:105px;background:rgba(255,255,255,.55);border:1px solid var(--rule);border-radius:3px;padding:4px 6px}
+#drawerHandle{position:fixed;z-index:18;left:12px;top:66px;padding:7px 13px;cursor:pointer;font-size:13px}
+.monarch{display:flex;gap:9px;padding:4px 0 8px;border-bottom:1px solid var(--rule);align-items:center}
+.sigil{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:16px;border:2px solid rgba(255,255,255,.65);
+  box-shadow:0 1px 4px rgba(0,0,0,.3)}
+.house{padding:7px 2px;border-bottom:1px dotted rgba(128,103,58,.45);cursor:pointer}
+.house:hover{background:rgba(110,83,30,.08)}
+.houseTop{display:flex;gap:7px;align-items:center;font-size:12px}.houseTop b{flex:1}
+.loyal{height:5px;background:rgba(100,75,30,.14);border-radius:4px;margin-top:4px;overflow:hidden}
+.loyal i{display:block;height:100%;background:linear-gradient(90deg,#87513c,#c6a345)}
+
+/* 우측 연대기 */
+#chronicle{position:fixed;z-index:18;right:12px;top:66px;bottom:12px;width:318px;display:flex;flex-direction:column}
+#chronHead{display:flex;align-items:center;gap:6px;padding:8px 11px;border-bottom:1px solid var(--rule)}
+#chronHead b{font-size:15px;letter-spacing:.04em}#chronHead .space{flex:1}
+#chronHead button,#chronFilters button{border:1px solid #8d7b50;background:transparent;border-radius:3px;padding:2px 7px;cursor:pointer;font-size:11px}
+#chronFilters{display:flex;gap:3px;padding:5px 8px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
+#chronFilters button{border-color:transparent;border-radius:10px}
+#chronFilters button.on{border-color:var(--gold);color:#6e5110}
+#chronScroll{flex:1;overflow-y:auto;padding:6px 13px 13px;scrollbar-width:thin;-webkit-user-select:text;user-select:text}
+.event{padding:3px 4px;margin:5px 0;font-size:12px;line-height:1.48;border-radius:3px;cursor:pointer}
+.event:hover{background:rgba(105,78,30,.09)}
+.event time{display:block;color:#8a795c;font-size:10px;font-style:italic}
+.event.year{text-align:center;border-top:1px solid var(--rule);margin-top:11px;padding-top:8px;font-size:14px;font-weight:700}
+.event.crown{color:#71550e}.event.war{color:#7b2822}.event.fate{color:#66382f}.event.trade{color:#3e6042}.event.myth{color:#5b3970}
+#chartBox{height:190px;padding:7px 9px 9px;border-top:1px solid var(--rule)}
+#chart{width:100%;height:100%}
+#chronicle.folded{bottom:auto}#chronicle.folded #chronFilters,#chronicle.folded #chronScroll,#chronicle.folded #chartBox{display:none}
+
+/* 지도 도구와 오버레이 */
+#quick{position:fixed;z-index:22;right:12px;top:12px;display:flex;gap:5px}
+#quick button{width:34px;height:34px;border:1px solid var(--rule);border-radius:4px;background:linear-gradient(var(--paper),var(--paper2));
+  box-shadow:0 2px 8px rgba(0,0,0,.4);cursor:pointer;font-size:17px}
+#quick button.on{outline:1px solid var(--gold);background:#eee0b9}
+#overlayMenu{position:fixed;z-index:22;right:12px;top:52px;width:145px;padding:8px}
+#overlayMenu b{font-size:11px;color:var(--soft);font-style:italic}
+#overlayMenu button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:4px 5px;cursor:pointer;font-size:12px}
+#overlayMenu button.on{color:#6e5110;font-weight:700;background:rgba(197,150,39,.12)}
+#labels{position:fixed;inset:0;z-index:7;pointer-events:none}
+.mapLabel{position:absolute;transform:translate(-50%,-100%);color:#fff;font-size:11px;font-weight:700;text-shadow:0 2px 3px #000;
+  white-space:nowrap}.mapLabel.cap{font-size:13px;color:#ffe6a3}
+#inspector{position:fixed;z-index:21;left:50%;bottom:18px;transform:translateX(-50%);width:min(470px,92vw);padding:9px 13px;font-size:12px}
+#inspector h3{font-size:15px;margin-bottom:3px}#inspector p{line-height:1.5;color:var(--soft)}
+#beatCard{position:fixed;z-index:21;left:50%;bottom:23px;transform:translateX(-50%);max-width:520px;padding:9px 18px;text-align:center}
+#beatCard time{font-size:10px;color:#8a795c;font-style:italic}#beatCard p{font-size:14px;line-height:1.45}
+#watchDate{position:fixed;z-index:21;left:50%;top:12px;transform:translateX(-50%);padding:4px 14px;font-size:13px;font-style:italic}
+#aimNotice{position:fixed;z-index:23;left:50%;top:84px;transform:translateX(-50%);padding:6px 13px;color:#fff;
+  background:rgba(91,35,30,.88);border:1px solid #d3a579;border-radius:4px;font-size:12px}
+#fps{position:fixed;z-index:23;left:8px;bottom:7px;color:#fff;background:rgba(0,0,0,.55);padding:3px 6px;font:11px monospace}
+
+/* 시작 화면 */
+#loading{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:
+  radial-gradient(circle at 50% 42%,#37435e 0,#182036 55%,#0d1221 100%);color:#f4e6c7}
+#loading .frame{text-align:center;width:min(540px,88vw);padding:28px 24px;border:1px solid rgba(221,193,126,.45);
+  background:rgba(22,22,28,.52);box-shadow:0 0 70px rgba(0,0,0,.5)}
+#loading img{width:86px;height:auto;filter:drop-shadow(0 7px 8px rgba(0,0,0,.45));animation:float 1.7s ease-in-out infinite}
+@keyframes float{50%{transform:translateY(-8px) rotate(3deg)}}
+#loading h1{font-size:clamp(30px,7vw,55px);margin:7px 0 3px;letter-spacing:.06em;text-shadow:0 3px 0 #5d4521}
+#loading .sub{font-size:13px;color:#d5c39d;margin-bottom:20px}
+#loadBar{height:7px;background:rgba(255,255,255,.12);border:1px solid rgba(221,193,126,.45);overflow:hidden}
+#loadFill{height:100%;width:0;background:linear-gradient(90deg,#9b7227,#ebca70);transition:width .2s}
+#loadStep{font-size:12px;color:#d5c39d;margin-top:8px;font-style:italic;min-height:18px}
+#fatal{position:fixed;z-index:60;inset:0;display:grid;place-items:center;background:#18131a;color:#f2d7ca;padding:24px;text-align:center}
+
+body.ui-hidden #hud,body.ui-hidden #drawer,body.ui-hidden #drawerHandle,body.ui-hidden #chronicle,body.ui-hidden #quick{display:none!important}
+body.ui-hidden #inspector{display:none!important}
+body.aiming canvas{cursor:crosshair}
+
+@media(max-width:800px){
+  #hud{top:6px;width:calc(100vw - 12px);display:grid;grid-template-columns:1fr 1fr;gap:2px 7px;padding:5px 8px}
+  #hudTitle{font-size:13px;text-align:left;overflow:hidden;text-overflow:ellipsis}
+  #dateTxt{font-size:10px;text-align:right;white-space:normal}
+  .stat{font-size:10px}.stat:nth-of-type(2){text-align:right}
+  #speeds{grid-column:1/3;justify-content:center}
+  #speeds button{padding:3px 5px}
+  #drawer{left:6px;top:88px;width:min(278px,88vw);max-height:calc(100vh - 96px)}
+  #drawerHandle{left:6px;top:88px}
+  #chronicle{right:6px;top:126px;width:min(310px,88vw);bottom:6px}
+  #chronicle:not(.open-mobile){bottom:auto}
+  #chronicle:not(.open-mobile) #chronFilters,#chronicle:not(.open-mobile) #chronScroll,#chronicle:not(.open-mobile) #chartBox{display:none}
+  #quick{right:6px;top:auto;bottom:7px}
+  #overlayMenu{right:6px;top:auto;bottom:47px}
+  #warStrip{top:166px;font-size:11px}
+  #inspector{bottom:54px}
+  #beatCard{bottom:55px;width:90vw}
+  #watchDate{display:none!important}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="shade"></div>
+<div id="labels"></div>
+
+<div id="hud" class="paper hidden">
+  <span id="hudTitle"><span class="paw">🐾</span>모구 고양이 왕국<span class="paw">🐾</span></span>
+  <span id="dateTxt"></span>
+  <span class="stat">백성 <b id="popTxt">0</b>마리</span>
+  <span class="stat">왕실 츄르 <b id="treasuryTxt">0</b></span>
+  <span id="speeds">
+    <button data-speed="0" title="멈춤">⏸</button><button data-speed="1">▶</button><button data-speed="2">▶▶</button>
+    <button data-speed="3">▶▶▶</button><button data-speed="4">▶▶▶▶</button><button data-speed="5">▶▶▶▶▶</button>
+  </span>
+</div>
+<div id="warStrip" class="hidden"></div>
+
+<div id="drawer" class="paper hidden">
+  <div id="drawerTabs">
+    <button data-tab="rates" class="on">조정</button><button data-tab="acts">사건</button>
+    <button data-tab="houses">가문</button><button data-tab="world">세계</button>
+    <span class="space"></span><button id="drawerFold">⟨</button>
+  </div>
+  <div class="tab" id="tab-rates">
+    <div class="srow"><label>수확량 <span data-value="harvest">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="harvest"></div>
+    <div class="srow"><label>출산율 <span data-value="birth">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="birth"></div>
+    <div class="srow"><label>자연 사망률 <span data-value="mortality">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="mortality"></div>
+    <div class="srow"><label>교역량 <span data-value="trade">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="trade"></div>
+    <div class="srow"><label>세율 <span data-value="tax">12%</span></label><input type="range" min="5" max="30" step="1" value="12" data-rate="tax"></div>
+    <div class="srow"><label>고양이 감기 전파력 <span data-value="plagueV">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="plagueV"></div>
+    <div class="srow"><label>고양이 감기 치명률 <span data-value="plagueL">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="plagueL"></div>
+    <div class="srow"><label>재난 빈도 <span data-value="disaster">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="disaster"></div>
+    <div class="srow"><label>들개 도적 활동 <span data-value="bandit">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="bandit"></div>
+    <div class="srow"><label>가문 야심 <span data-value="aggression">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="aggression"></div>
+    <div class="srow"><label>왕실 번성도 <span data-value="fertility">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="fertility"></div>
+    <div class="mythrow"><label>신화 사건</label><button data-myth="0">끔</button><button data-myth="1" class="on">낮음</button><button data-myth="2">높음</button></div>
+    <div class="hint">조정값은 즉시 적용되며 변경 기록은 연대기에 남음.</div>
+  </div>
+  <div class="tab hidden" id="tab-acts">
+    <div class="actrow">
+      <button data-act="plague">고양이 감기 유행 ⌖</button><button data-act="fire">대화재 ⌖</button>
+      <button data-act="flood">강 범람</button><button data-act="drought">가뭄 선포</button>
+      <button data-act="quake">대지진 ⌖</button><button data-act="dragon">구름용 깨우기</button>
+      <button data-act="bandits">들개 도적단 ⌖</button><button data-act="assassinate">국왕 암살</button>
+      <button data-act="contest">왕위 계승 다툼</button><button data-act="marriage">왕실 혼인</button>
+      <button data-act="bless">풍어의 축복</button><button data-act="comet">별똥별</button>
+      <button data-act="found">새 마을 건립 ⌖</button><button data-act="gold">츄르 5,000 지급</button>
+      <button data-act="raze">건물 철거 ⌖</button>
+    </div>
+    <div class="hint">⌖ 표시는 지도에서 위치를 선택한 뒤 실행됨.</div>
+  </div>
+  <div class="tab hidden" id="tab-houses"></div>
+  <div class="tab hidden" id="tab-world">
+    <div class="drow"><label>씨앗</label><input id="seedInput" class="uin" spellcheck="false"><button id="btnReforge" class="smallbtn">새 왕국</button></div>
+    <div class="drow"><button id="btnLink" class="smallbtn">링크 복사</button><button id="btnLabels" class="smallbtn on">지명</button>
+      <button id="btnWatch" class="smallbtn">관람</button><button id="btnDirector" class="smallbtn on">연출 켬</button>
+      <button id="btnHideUI" class="smallbtn">화면만 보기</button><button id="btnFps" class="smallbtn">FPS</button></div>
+    <div class="hint">드래그 회전 · 휠 확대 · 오른쪽 드래그 이동 · 더블클릭 이동 · 클릭 조사<br>
+      터치 한 손가락 회전 · 두 손가락 확대/이동 · 탭 조사<br>
+      Space 멈춤 · 1~5 배속 · T 영토 · C 관람 · G 연출 · H UI · L 지명 · F FPS</div>
+  </div>
+</div>
+<div id="drawerHandle" class="paper hidden">⚖ 왕국 장부</div>
+
+<div id="chronicle" class="paper hidden">
+  <div id="chronHead"><b>❧ 모구 왕국 연대기</b><span class="space"></span><button id="btnExport">내보내기</button><button id="chronToggle">▾</button></div>
+  <div id="chronFilters">
+    <button data-filter="" class="on">전체</button><button data-filter="crown">왕실</button><button data-filter="war">전쟁</button>
+    <button data-filter="trade">교역</button><button data-filter="fate">사건</button><button id="btnChart">그래프</button>
+  </div>
+  <div id="chronScroll"></div>
+  <div id="chartBox" class="hidden"><canvas id="chart"></canvas></div>
+</div>
+
+<div id="quick">
+  <button id="btnOverlay" title="지도 표시">🗺</button><button id="btnQuickWatch" title="관람 모드">👁</button><button id="btnQuickDirector" class="on" title="자동 연출">🎬</button>
+</div>
+<div id="overlayMenu" class="paper hidden">
+  <b>지도 표시</b>
+  <button data-overlay="" class="on">기본</button><button data-overlay="territory">영토</button><button data-overlay="trade">교역로</button>
+  <button data-overlay="pop">인구</button><button data-overlay="prosperity">번영</button>
+  <button data-overlay="plague">감염</button><button data-overlay="unrest">불만</button>
+</div>
+
+<div id="inspector" class="paper hidden"></div>
+<div id="beatCard" class="paper hidden"><time></time><p></p></div>
+<div id="watchDate" class="paper hidden"></div>
+<div id="aimNotice" class="hidden"></div>
+<div id="fps" class="hidden"></div>
+<div id="warStripTarget"></div>
+
+<div id="loading">
+  <div class="frame">
+    <img src="../game/assets/mogu-icon.png" alt="모구">
+    <h1>모구 고양이 왕국</h1>
+    <div class="sub">씨앗 하나에서 왕조와 마을의 역사가 자라남</div>
+    <div id="loadBar"><div id="loadFill"></div></div>
+    <div id="loadStep">왕국의 터를 고르는 중…</div>
+  </div>
+</div>
+<div id="fatal" class="hidden"><div><h2>왕국을 열 수 없음</h2><p id="fatalText"></p></div></div>
+
+<script>window.MKR={ASSETS:{mogu:"../game/assets/mogu-icon.png"}};</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="src/rng.js"></script>
+<script src="src/world.js"></script>
+<script src="src/sim.js"></script>
+<script src="src/render.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
