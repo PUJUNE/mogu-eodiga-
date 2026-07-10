@@ -126,7 +126,10 @@ canvas{display:block;touch-action:none}
 .mapLabel{position:absolute;transform:translate(-50%,-100%);color:#fff;font-size:11px;font-weight:700;text-shadow:0 2px 3px #000;
   white-space:nowrap}.mapLabel.cap{font-size:13px;color:#ffe6a3}
 #inspector{position:fixed;z-index:21;left:50%;bottom:18px;transform:translateX(-50%);width:min(470px,92vw);padding:9px 13px;font-size:12px}
-#inspector h3{font-size:15px;margin-bottom:3px}#inspector p{line-height:1.5;color:var(--soft)}
+#inspector h3{font-size:15px;margin-bottom:3px;padding-right:24px}#inspector p{line-height:1.5;color:var(--soft)}
+.closeBtn{position:absolute;top:6px;right:7px;width:23px;height:23px;padding:0;display:grid;place-items:center;
+  border:1px solid var(--rule);background:rgba(255,255,255,.4);border-radius:4px;cursor:pointer;font-size:12px;line-height:1;color:var(--soft)}
+.closeBtn:hover{background:rgba(120,90,30,.16);color:var(--ink)}
 #beatCard{position:fixed;z-index:21;left:50%;bottom:23px;transform:translateX(-50%);max-width:520px;padding:9px 18px;text-align:center}
 #beatCard time{font-size:10px;color:#8a795c;font-style:italic}#beatCard p{font-size:14px;line-height:1.45}
 #watchDate{position:fixed;z-index:21;left:50%;top:12px;transform:translateX(-50%);padding:4px 14px;font-size:13px;font-style:italic}
@@ -1679,12 +1682,14 @@ M.inspectSettlement=function(s){
   const W=M.state,h=s.owner<0?null:house(s.owner),box=q('inspector');
   q('beatCard').classList.add('hidden');
   const food=(s.stores.grain+s.stores.fish)/Math.max(1,s.pop);
-  box.innerHTML='<h3>'+(s.kind==='capital'?'♛ ':'')+htmlSafe(s.name)+'</h3><p>'+
+  box.innerHTML='<button class="closeBtn" title="닫기">✕</button><h3>'+(s.kind==='capital'?'♛ ':'')+htmlSafe(s.name)+'</h3><p>'+
     (s.kind==='capital'?'수도':s.kind==='town'?'도시':'마을')+' · 주민 '+M.fmt(s.pop)+'마리 · 번영 '+Math.round(s.prosperity*100)+
     ' · 불만 '+Math.round(s.unrest)+' · 식량 '+food.toFixed(1)+'일분'+(s.inf>0?' · 감염 '+Math.round(s.inf*100)+'%':'')+
     '<br>영주 '+htmlSafe(h?h.name:'왕실 직할')+' · 건물 '+s.buildings.filter(function(b){return b.alive;}).length+'채 · 폐허 '+s.ruins+
     '<br>창고: 곡물 '+M.fmt(s.stores.grain)+' · 생선 '+M.fmt(s.stores.fish)+' · 목재 '+M.fmt(s.stores.timber)+' · 츄르 '+M.fmt(s.stores.churu)+'</p>';
   box.classList.remove('hidden');
+  const cb=box.querySelector('.closeBtn');
+  if(cb)cb.addEventListener('click',function(e){e.stopPropagation();box.classList.add('hidden');M.state.selected=null;});
 };
 
 function drawChart(){

@@ -126,7 +126,10 @@ canvas{display:block;touch-action:none}
 .mapLabel{position:absolute;transform:translate(-50%,-100%);color:#fff;font-size:11px;font-weight:700;text-shadow:0 2px 3px #000;
   white-space:nowrap}.mapLabel.cap{font-size:13px;color:#ffe6a3}
 #inspector{position:fixed;z-index:21;left:50%;bottom:18px;transform:translateX(-50%);width:min(470px,92vw);padding:9px 13px;font-size:12px}
-#inspector h3{font-size:15px;margin-bottom:3px}#inspector p{line-height:1.5;color:var(--soft)}
+#inspector h3{font-size:15px;margin-bottom:3px;padding-right:24px}#inspector p{line-height:1.5;color:var(--soft)}
+.closeBtn{position:absolute;top:6px;right:7px;width:23px;height:23px;padding:0;display:grid;place-items:center;
+  border:1px solid var(--rule);background:rgba(255,255,255,.4);border-radius:4px;cursor:pointer;font-size:12px;line-height:1;color:var(--soft)}
+.closeBtn:hover{background:rgba(120,90,30,.16);color:var(--ink)}
 #beatCard{position:fixed;z-index:21;left:50%;bottom:23px;transform:translateX(-50%);max-width:520px;padding:9px 18px;text-align:center}
 #beatCard time{font-size:10px;color:#8a795c;font-style:italic}#beatCard p{font-size:14px;line-height:1.45}
 #watchDate{position:fixed;z-index:21;left:50%;top:12px;transform:translateX(-50%);padding:4px 14px;font-size:13px;font-style:italic}

@@ -181,12 +181,14 @@ M.inspectSettlement=function(s){
   const W=M.state,h=s.owner<0?null:house(s.owner),box=q('inspector');
   q('beatCard').classList.add('hidden');
   const food=(s.stores.grain+s.stores.fish)/Math.max(1,s.pop);
-  box.innerHTML='<h3>'+(s.kind==='capital'?'♛ ':'')+htmlSafe(s.name)+'</h3><p>'+
+  box.innerHTML='<button class="closeBtn" title="닫기">✕</button><h3>'+(s.kind==='capital'?'♛ ':'')+htmlSafe(s.name)+'</h3><p>'+
     (s.kind==='capital'?'수도':s.kind==='town'?'도시':'마을')+' · 주민 '+M.fmt(s.pop)+'마리 · 번영 '+Math.round(s.prosperity*100)+
     ' · 불만 '+Math.round(s.unrest)+' · 식량 '+food.toFixed(1)+'일분'+(s.inf>0?' · 감염 '+Math.round(s.inf*100)+'%':'')+
     '<br>영주 '+htmlSafe(h?h.name:'왕실 직할')+' · 건물 '+s.buildings.filter(function(b){return b.alive;}).length+'채 · 폐허 '+s.ruins+
     '<br>창고: 곡물 '+M.fmt(s.stores.grain)+' · 생선 '+M.fmt(s.stores.fish)+' · 목재 '+M.fmt(s.stores.timber)+' · 츄르 '+M.fmt(s.stores.churu)+'</p>';
   box.classList.remove('hidden');
+  const cb=box.querySelector('.closeBtn');
+  if(cb)cb.addEventListener('click',function(e){e.stopPropagation();box.classList.add('hidden');M.state.selected=null;});
 };
 
 function drawChart(){
