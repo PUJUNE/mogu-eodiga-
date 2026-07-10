@@ -251,6 +251,36 @@ function exportChronicle(){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='모구_고양이_왕국_'+W.seed+'_연대기.txt';a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},500);
 }
 
+function fmtClock(ms){
+  try{return new Date(ms).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});}catch(e){return '';}
+}
+function setSaveStatus(msg){const el=q('saveStatus');if(el)el.textContent=msg;}
+M.onAutosaved=function(save){setSaveStatus('자동 저장됨 · '+M.dateStr(save.day)+' · '+fmtClock(save.savedAt));};
+M.onSaveError=function(){setSaveStatus('저장 공간이 부족해 자동 저장에 실패했습니다. 세이브를 파일로 내보내 두세요.');};
+
+function exportSave(){
+  const save=M.serialize();if(!save){setSaveStatus('내보낼 왕국이 없습니다.');return;}
+  const blob=new Blob([JSON.stringify(save)],{type:'application/json;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='모구_고양이_왕국_'+save.seed+'_'+M.fmt(save.day)+'일.json';a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},500);
+  setSaveStatus('세이브 파일을 내보냈습니다 · '+M.dateStr(save.day));
+}
+function importSaveFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(){
+    try{M.importSave(String(reader.result));}
+    catch(e){alert((e&&e.message)||'세이브 파일을 불러오지 못했습니다.');}
+  };
+  reader.onerror=function(){alert('파일을 읽지 못했습니다.');};
+  reader.readAsText(file);
+}
+function saveNow(){
+  if(M.autosave(true)){const s=M.serialize();setSaveStatus('지금 저장됨 · '+M.dateStr(s.day)+' · '+fmtClock(s.savedAt));}
+  else setSaveStatus('저장에 실패했습니다.');
+}
+
 function copyLink(){
   const url=location.href.split('#')[0]+'#s='+encodeURIComponent(M.state.seed);
   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(url).then(function(){q('btnLink').textContent='복사됨';setTimeout(function(){q('btnLink').textContent='링크 복사';},1200);});
@@ -280,8 +310,16 @@ M.initUI=function(){
   qa('#tab-rates input[data-rate]').forEach(function(r){r.addEventListener('input',readRates);r.addEventListener('change',function(){M.chron('realm','왕국 장부의 '+r.parentElement.querySelector('label').childNodes[0].textContent.trim()+' 조정값이 변경됨.',0,1);});});
   qa('[data-myth]').forEach(function(b){b.addEventListener('click',function(){qa('[data-myth]').forEach(function(x){x.classList.remove('on');});b.classList.add('on');W.rates.myth=Number(b.dataset.myth);M.chron('myth','신화 사건 빈도가 '+b.textContent+'으로 변경됨.',0,1);});});
   qa('[data-act]').forEach(function(b){b.addEventListener('click',function(){const act=b.dataset.act;if(b.textContent.indexOf('⌖')>=0)setPending(act);else M.runAct(act,null);});});
-  q('btnReforge').addEventListener('click',function(){M.reforge(q('seedInput').value.trim()||String(Math.floor(Math.random()*9000000+1000000)));});
-  q('seedInput').addEventListener('keydown',function(e){if(e.key==='Enter')q('btnReforge').click();});
+  function startNewKingdom(){
+    if(M.hasProgress()&&!confirm('현재 왕국의 자동 저장을 지우고 새 왕국을 시작합니다.\n먼저 「세이브 내보내기」로 백업할 수 있어요. 계속할까요?'))return;
+    M.reforge(q('seedInput').value.trim()||String(Math.floor(Math.random()*9000000+1000000)));
+  }
+  q('btnReforge').addEventListener('click',startNewKingdom);
+  q('seedInput').addEventListener('keydown',function(e){if(e.key==='Enter')startNewKingdom();});
+  q('btnSaveNow').addEventListener('click',saveNow);
+  q('btnExportSave').addEventListener('click',exportSave);
+  q('btnImportSave').addEventListener('click',function(){q('fileImport').click();});
+  q('fileImport').addEventListener('change',function(e){importSaveFile(e.target.files&&e.target.files[0]);e.target.value='';});
   q('btnLink').addEventListener('click',copyLink);
   q('btnLabels').addEventListener('click',function(){setLabels(!W.labels);});
   q('btnWatch').addEventListener('click',function(){setWatch(!W.watch);});

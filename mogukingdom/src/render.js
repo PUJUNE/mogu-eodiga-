@@ -170,7 +170,7 @@ function addSettlement(s){
   const group=new T.Group();group.position.set(s.x,M.heightAt(s.x,s.z),s.z);scene.add(group);
   visuals.settlements.set(s.id,{group:group,s:s});
   if(s.kind==='capital'){addKeep(s,group);addWalls(s,group);}
-  s.buildings.forEach(function(b){addBuilding({id:s.id},b);});
+  s.buildings.forEach(function(b){if(b.alive!==false)addBuilding({id:s.id},b);});
   addTerritory(s);
 }
 
