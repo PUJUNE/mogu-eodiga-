@@ -132,6 +132,11 @@ canvas{display:block;touch-action:none}
 #watchDate{position:fixed;z-index:21;left:50%;top:12px;transform:translateX(-50%);padding:4px 14px;font-size:13px;font-style:italic}
 #aimNotice{position:fixed;z-index:23;left:50%;top:84px;transform:translateX(-50%);padding:6px 13px;color:#fff;
   background:rgba(91,35,30,.88);border:1px solid #d3a579;border-radius:4px;font-size:12px}
+.toast{position:fixed;z-index:24;left:50%;top:110px;transform:translateX(-50%);max-width:min(92vw,460px);
+  padding:9px 16px;font-size:13px;text-align:center;box-shadow:0 6px 20px rgba(0,0,0,.5);animation:toastIn .18s ease-out}
+.toast.ok{border-color:#5a7a2a;color:#3f5416}
+.toast.warn{border-color:#a85a2a;color:#8a3f1a}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,-6px)}to{opacity:1;transform:translate(-50%,0)}}
 #fps{position:fixed;z-index:23;left:8px;bottom:7px;color:#fff;background:rgba(0,0,0,.55);padding:3px 6px;font:11px monospace}
 
 /* 시작 화면 */
@@ -206,12 +211,14 @@ body.aiming canvas{cursor:crosshair}
     <div id="techList"></div>
     <div class="devHead">🏛 고을 건설 <span class="devHint">(⌖ 지도에서 고을 선택)</span></div>
     <div class="actrow" id="buildRow">
-      <button data-act="build_granary">곡창 ⌖</button><button data-act="build_market">시장 ⌖</button>
-      <button data-act="build_harbor">항구 ⌖</button><button data-act="build_wall">성벽 ⌖</button>
-      <button data-act="build_temple">신전 ⌖</button><button data-act="invest">번영 투자 ⌖</button>
-      <button data-act="found">새 마을 ⌖</button>
+      <button data-act="build_granary">곡창 800~ ⌖</button><button data-act="build_market">시장 950~ ⌖</button>
+      <button data-act="build_harbor">항구 1,100~ ⌖</button><button data-act="build_wall">성벽 850~ ⌖</button>
+      <button data-act="build_temple">신전 1,000~ ⌖</button><button data-act="invest">번영 투자 700 ⌖</button>
+      <button data-act="found">새 마을(무료) ⌖</button>
     </div>
-    <div class="hint">연구력은 백성과 번영에서 저절로 쌓임. 기술을 해금하면 왕국이 다음 시대로 나아감.<br>건설·투자는 왕실 츄르를 사용함.</div>
+    <div class="hint">연구력은 백성과 번영에서 저절로 쌓임. 기술을 해금하면 왕국이 다음 시대로 나아감.<br>
+      건설·투자는 <b>왕실 츄르</b>가 듭니다(위 숫자, 지을수록 오름). 츄르가 모자라면 지어지지 않아요 —<br>
+      세율을 올리거나(정책 탭) 시장을 지어 재정을 늘리세요. 건설하면 해당 고을로 화면이 이동합니다.</div>
   </div>
   <div class="tab hidden" id="tab-rates">
     <div class="srow"><label>수확량 <span data-value="harvest">×1.00</span></label><input type="range" min="0" max="1" step=".01" value=".5" data-rate="harvest"></div>
@@ -280,6 +287,7 @@ body.aiming canvas{cursor:crosshair}
 <div id="beatCard" class="paper hidden"><time></time><p></p></div>
 <div id="watchDate" class="paper hidden"></div>
 <div id="aimNotice" class="hidden"></div>
+<div id="toast" class="paper toast hidden"></div>
 <div id="fps" class="hidden"></div>
 <div id="warStripTarget"></div>
 
