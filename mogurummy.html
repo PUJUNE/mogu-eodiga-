@@ -95,7 +95,10 @@
   .tile{width:34px;height:48px;border-radius:6px;flex:0 0 auto;cursor:pointer;position:relative;
     background:linear-gradient(168deg,#fdf6e6 0%,#f3e6c8 78%,#e2d0a8 100%);
     border:1px solid #b8a478;box-shadow:0 2px 3px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.8);
-    display:flex;align-items:center;justify-content:center;}
+    display:flex;align-items:center;justify-content:center;touch-action:none;}
+  .tile.dragging{opacity:.35;}
+  #drag-ghost{position:fixed;z-index:30;pointer-events:none;margin:0;
+    transform:translate(-50%,-60%) scale(1.1);filter:drop-shadow(0 8px 10px rgba(0,0,0,.55));}
   .tile .n{font-size:19px;font-weight:900;line-height:1;text-shadow:0 1px 0 rgba(255,255,255,.6);}
   .tile.c0 .n{color:#d02f36;} .tile.c1 .n{color:#1f63cf;} .tile.c2 .n{color:#e08a00;} .tile.c3 .n{color:#2e3440;}
   .tile.jk img{width:26px;height:26px;object-fit:contain;pointer-events:none;}
@@ -149,6 +152,7 @@
     <p>◆ 첫 등록은 새 묶음 합계 <b>30점 이상</b>(이지는 25점). 등록 후엔 판 위 타일도 자유롭게 재배열!</p>
     <p>◆ <b>모구 타일</b>(조커)은 아무 타일이나 대신해요. 마지막까지 들고 있으면 벌점 30점!</p>
     <p>◆ 조작: 타일을 <b>탭해 집고</b> → 묶음/새 묶음/랙을 탭해 놓기. 낼 게 없으면 <b>뽑기</b>.</p>
+    <p>◆ 손패는 <b>드래그로 자유롭게 정리</b>! 🔢 숫자 정리 · 🎨 색깔 정리 버튼도 있어요.</p>
     <p>◆ <b>2~4인</b> · 난이도 <b>이지·노말·하드·크레이지</b> · 50스테이지, 5의 배수는 ★쥐왕 보스전.</p>
   </div>
   <button class="bigbtn" id="btn-start">스테이지 고르기 →</button>
@@ -189,8 +193,8 @@
   <div id="rack-wrap">
     <div id="turnmsg"></div>
     <div id="actrow">
-      <button class="abtn" id="btn-sortn">7·7·7</button>
-      <button class="abtn" id="btn-sortr">1·2·3</button>
+      <button class="abtn" id="btn-sortn">🔢 숫자 정리</button>
+      <button class="abtn" id="btn-sortr">🎨 색깔 정리</button>
       <button class="abtn" id="btn-undo">↩ 되돌리기</button>
       <button class="abtn" id="btn-hint">💡 힌트</button>
       <button class="abtn" id="btn-draw">타일 뽑기</button>
@@ -465,14 +469,17 @@ function renderTable(){
 function renderRack(){
   var r=$('rack');r.innerHTML='';
   st.hands[0].forEach(function(t){
-    var td=tileEl(t,(st.sel&&st.sel.id===t.id&&st.sel.from==='rack'?' sel':''));
+    var td=tileEl(t,(st.sel&&st.sel.id===t.id&&st.sel.from==='rack'?' sel':'')
+      +(drag&&drag.active&&drag.id===t.id?' dragging':''));
     td.addEventListener('click',function(ev){ev.stopPropagation();tapRackTile(t);});
+    td.addEventListener('pointerdown',function(ev){rackDragStart(ev,t);});
     r.appendChild(td);
   });
 }
 function renderButtons(){
   var my=(st.turn===0&&!st.done);
-  ['btn-sortn','btn-sortr','btn-undo','btn-hint','btn-draw','btn-end'].forEach(function(id){$(id).disabled=!my;});
+  ['btn-undo','btn-hint','btn-draw','btn-end'].forEach(function(id){$(id).disabled=!my;});
+  $('btn-sortn').disabled=$('btn-sortr').disabled=!st||st.done; // 정리는 상대 턴에도 가능
   $('btn-draw').textContent=st.pool.length?'타일 뽑기':'패스';
   $('btn-hint').textContent='💡 힌트'+(st.hints<99?' '+st.hints:'');
   if(st.hints<=0)$('btn-hint').disabled=true;
@@ -504,6 +511,7 @@ function myTurn(){return st&&!st.done&&st.turn===0;}
 function findTile(arr,id){for(var i=0;i<arr.length;i++)if(arr[i].id===id)return i;return -1;}
 
 function tapRackTile(t){
+  if(dragSuppress)return;
   if(!myTurn())return;
   if(st.sel&&st.sel.id===t.id&&st.sel.from==='rack'){st.sel=null;}
   else if(st.sel&&st.sel.from==='table'){ // 판 위 타일 → 랙 회수 (이번 턴에 랙에서 낸 것만)
@@ -541,6 +549,7 @@ function tapNewGroup(){
   st.sel=null;playSound('put');renderAll();
 }
 function tapRackArea(ev){ // 랙 빈 곳 탭 → 판 위 내 타일 회수
+  if(dragSuppress)return;
   if(!myTurn()||!st.sel||st.sel.from!=='table')return;
   if(!st.turnRackIds[st.sel.id]){toast('원래 판에 있던 타일은 랙으로 가져올 수 없어요');playSound('invalid');return;}
   moveSelToRack();
@@ -636,11 +645,67 @@ function highlightTiles(tiles){
   for(i=0;i<all.length;i++)if(ids[all[i].dataset.id])all[i].classList.add('hintt');
 }
 function sortRack(mode){
-  if(!myTurn())return;
+  if(!st||st.done)return;
   st.hands[0].sort(mode==='num'
     ?function(a,b){return (a.joker?99:a.num)-(b.joker?99:b.num)||(a.joker?9:a.color)-(b.joker?9:b.color);}
     :function(a,b){return (a.joker?9:a.color)-(b.joker?9:b.color)||(a.joker?99:a.num)-(b.joker?99:b.num);});
   renderRack();
+}
+
+/* ── 손패 드래그 정리 ── */
+var drag=null, dragSuppress=false;
+function rackReorder(id,to){ // 손패에서 id 타일을 to 위치(제거 후 기준)로 이동
+  var h=st.hands[0],from=findTile(h,id);
+  if(from<0)return;
+  var t=h.splice(from,1)[0];
+  h.splice(clamp(to,0,h.length),0,t);
+  renderRack();
+}
+function rackIndexAt(x,y,skipId){ // 포인터 위치 → 삽입 인덱스(드래그 타일 제외 기준)
+  var ch=$('rack').children,out=0;
+  for(var i=0;i<ch.length;i++){
+    if(+ch[i].dataset.id===skipId)continue;
+    var r=ch[i].getBoundingClientRect();
+    if(y<r.top-2)return out;
+    if(y<=r.bottom+2&&x<r.left+r.width/2)return out;
+    out++;
+  }
+  return out;
+}
+function rackDragStart(ev,t){
+  if(!st||st.done||drag)return;
+  drag={id:t.id,tile:t,sx:ev.clientX,sy:ev.clientY,active:false,ghost:null};
+  window.addEventListener('pointermove',rackDragMove);
+  window.addEventListener('pointerup',rackDragEnd);
+  window.addEventListener('pointercancel',rackDragEnd);
+}
+function rackDragMove(ev){
+  if(!drag)return;
+  if(!drag.active){
+    if(Math.abs(ev.clientX-drag.sx)+Math.abs(ev.clientY-drag.sy)<10)return;
+    drag.active=true;
+    var g=tileEl(drag.tile,'');g.id='drag-ghost';
+    document.body.appendChild(g);drag.ghost=g;
+    renderRack();
+  }
+  drag.ghost.style.left=ev.clientX+'px';drag.ghost.style.top=ev.clientY+'px';
+  var h=st.hands[0],from=findTile(h,drag.id);
+  if(from<0)return;
+  var to=rackIndexAt(ev.clientX,ev.clientY,drag.id);
+  var cur=from; // 제거 후 기준 현재 위치 = from
+  if(to!==cur)rackReorder(drag.id,to);
+}
+function rackDragEnd(){
+  if(!drag)return;
+  window.removeEventListener('pointermove',rackDragMove);
+  window.removeEventListener('pointerup',rackDragEnd);
+  window.removeEventListener('pointercancel',rackDragEnd);
+  if(drag.ghost&&drag.ghost.parentNode)drag.ghost.parentNode.removeChild(drag.ghost);
+  var was=drag.active;drag=null;
+  if(was){ // 드래그 직후 따라오는 click은 선택으로 처리하지 않음
+    dragSuppress=true;setTimeout(function(){dragSuppress=false;},0);
+    renderRack();playSound('put');
+  }
 }
 
 /* ══════════ 턴 진행 ══════════ */
@@ -845,7 +910,8 @@ if(window.__RUMMY_TEST__){
     get st(){return st;}, get save(){return save;},
     validSet:validSet, setValue:setValue, arrangeSet:arrangeSet,
     findSets:findSets, findOpening:findOpening, stageConfig:stageConfig,
-    startStage:startStage, humanTurnStart:humanTurnStart, renderAll:renderAll
+    startStage:startStage, humanTurnStart:humanTurnStart, renderAll:renderAll,
+    rackReorder:rackReorder, rackIndexAt:rackIndexAt, sortRack:sortRack
   };
 }
 })();
