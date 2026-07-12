@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>루미 모구 큐브</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0d1526;
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif;color:#fff;user-select:none;
+    overscroll-behavior:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;}
+  .hidden{display:none!important;}
+  button{font-family:inherit;}
+
+  /* ── 오버레이 화면 ── */
+  .screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;padding:24px 16px;box-sizing:border-box;overflow-y:auto;}
+  #title{background:radial-gradient(120% 90% at 50% 20%,#1c3358 0%,#0d1526 70%);}
+  .logo{font-size:min(54px,11vw);font-weight:900;color:#ffd83d;white-space:nowrap;
+    text-shadow:0 4px 0 #8a5a10,0 9px 20px rgba(0,0,0,.6);letter-spacing:min(4px,1vw);}
+  .sub{margin-top:6px;font-size:15px;letter-spacing:5px;color:#9fb6dc;font-weight:700;}
+  #title-art{display:flex;gap:6px;margin:18px 0 6px;align-items:center;}
+  #title-art .tile{transform:rotate(-6deg);}
+  #title-art .tile:nth-child(2){transform:rotate(3deg);}
+  #title-art .tile:nth-child(3){transform:rotate(-2deg);}
+  #title-art .tile:nth-child(4){transform:rotate(6deg);}
+  .info{max-width:540px;margin:6px auto 0;text-align:left;}
+  .info p{margin:8px 0;font-size:14px;line-height:1.55;color:#cfe0f6;}
+  .info p b{color:#ffd83d;}
+  .bigbtn{margin-top:20px;padding:15px 42px;font-size:19px;font-weight:900;color:#3a2a08;cursor:pointer;
+    background:#ffd83d;border:3px solid rgba(255,255,255,.7);border-radius:14px;
+    box-shadow:0 5px 14px rgba(255,216,61,.4);}
+  .bigbtn:active{transform:translateY(2px);}
+  .linkbtn{margin-top:16px;padding:9px 20px;font-size:14px;font-weight:800;color:#dbe7ff;cursor:pointer;
+    background:rgba(30,44,74,.85);border:2px solid rgba(140,175,230,.5);border-radius:22px;
+    text-decoration:none;display:inline-block;}
+
+  /* ── 스테이지 선택 ── */
+  #stages{background:radial-gradient(120% 90% at 50% 10%,#1c3358 0%,#0d1526 72%);justify-content:flex-start;}
+  #stages h1{font-size:26px;font-weight:900;color:#ffd83d;margin:6px 0 2px;}
+  #stages .hint{font-size:13px;color:#9fb6dc;margin-bottom:10px;}
+  #diffrow,#plrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:4px 0 6px;}
+  .diffbtn,.plbtn{cursor:pointer;padding:8px 18px;font-size:13.5px;font-weight:800;border-radius:20px;
+    background:rgba(40,56,92,.7);border:2px solid rgba(150,180,230,.32);color:#dbe7ff;}
+  .diffbtn:active,.plbtn:active{transform:scale(.95);}
+  .diffbtn.sel{color:#08202c;border-color:rgba(255,255,255,.7);}
+  .diffbtn.sel[data-diff="easy"]{background:#66d98a;}
+  .diffbtn.sel[data-diff="normal"]{background:#57c8e8;}
+  .diffbtn.sel[data-diff="hard"]{background:#ffb347;}
+  .diffbtn.sel[data-diff="crazy"]{background:#ff6a6a;}
+  .plbtn.sel{color:#3a2a08;background:#ffd83d;border-color:rgba(255,255,255,.7);}
+  #diff-desc{font-size:12.5px;color:#9fb6dc;margin-bottom:8px;min-height:1.2em;}
+  #stage-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:9px;
+    width:100%;max-width:560px;overflow-y:auto;padding:4px 4px 20px;}
+  #save-row{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-top:6px;}
+  #save-row .linkbtn{margin-top:0;}
+  .scell{aspect-ratio:1/1;border-radius:11px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;font-weight:900;cursor:pointer;font-size:17px;
+    background:rgba(50,70,110,.7);border:2px solid rgba(150,180,230,.32);color:#eaf2ff;}
+  .scell .boss{font-size:11px;}
+  .scell.clear{background:rgba(60,150,90,.55);border-color:#66d98a;}
+  .scell.lock{background:rgba(30,40,64,.6);border-color:rgba(90,110,150,.3);color:#5a6a86;cursor:default;}
+  .scell.bossst{border-color:#ffb347;}
+  .scell:not(.lock):active{transform:scale(.94);}
+
+  /* ── 게임 화면 ── */
+  #game{position:fixed;inset:0;z-index:5;display:flex;flex-direction:column;}
+  #g-hud{display:flex;flex-wrap:wrap;align-items:center;gap:5px 10px;padding:7px 10px;
+    background:linear-gradient(#141d33f2,#141d33d8);border-bottom:2px solid rgba(120,160,220,.25);}
+  #g-hud .stat{font-size:13px;font-weight:800;white-space:nowrap;color:#cfe0f6;}
+  #g-hud .stat b{color:#ffd83d;}
+  .opp{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:14px;font-size:13px;font-weight:800;
+    background:rgba(40,56,92,.7);border:2px solid rgba(150,180,230,.3);}
+  .opp b{color:#7fd8ff;}
+  .opp.active{border-color:#ffd83d;background:rgba(120,96,30,.55);animation:think 1s ease-in-out infinite;}
+  .opp.opened b{color:#66d98a;}
+  @keyframes think{0%,100%{box-shadow:none;}50%{box-shadow:0 0 10px rgba(255,216,61,.8);}}
+  #g-hud .spacer{flex:1 1 auto;}
+  .hbtn{padding:6px 12px;font-size:13px;font-weight:800;color:#dbe7ff;cursor:pointer;
+    background:rgba(30,44,74,.85);border:2px solid rgba(140,175,230,.5);border-radius:10px;white-space:nowrap;}
+  .hbtn:active{transform:translateY(1px);}
+
+  #table-wrap{flex:1 1 auto;overflow-y:auto;padding:10px 10px 14px;
+    background:radial-gradient(130% 100% at 50% 0%,#1e5c40 0%,#123c2a 68%,#0d2c1f 100%);}
+  #table{display:flex;flex-wrap:wrap;gap:9px;align-content:flex-start;}
+  .tgroup{display:flex;gap:2px;padding:4px;border-radius:9px;background:rgba(0,0,0,.22);
+    border:2px solid rgba(255,255,255,.12);cursor:pointer;}
+  .tgroup.invalid{border-color:#ff6a6a;background:rgba(120,30,30,.3);}
+  .tgroup.hintg{border-color:#ffd83d;box-shadow:0 0 12px rgba(255,216,61,.7);}
+  #newgroup{display:flex;align-items:center;justify-content:center;min-width:74px;min-height:52px;
+    border:2px dashed rgba(255,255,255,.35);border-radius:9px;color:rgba(255,255,255,.55);
+    font-size:12px;font-weight:800;cursor:pointer;padding:4px 8px;}
+  #newgroup.glow{border-color:#ffd83d;color:#ffd83d;}
+
+  /* ── 타일 ── */
+  .tile{width:34px;height:48px;border-radius:6px;flex:0 0 auto;cursor:pointer;position:relative;
+    background:linear-gradient(168deg,#fdf6e6 0%,#f3e6c8 78%,#e2d0a8 100%);
+    border:1px solid #b8a478;box-shadow:0 2px 3px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.8);
+    display:flex;align-items:center;justify-content:center;}
+  .tile .n{font-size:19px;font-weight:900;line-height:1;text-shadow:0 1px 0 rgba(255,255,255,.6);}
+  .tile.c0 .n{color:#d02f36;} .tile.c1 .n{color:#1f63cf;} .tile.c2 .n{color:#e08a00;} .tile.c3 .n{color:#2e3440;}
+  .tile.jk img{width:26px;height:26px;object-fit:contain;pointer-events:none;}
+  .tile.jk::after{content:'';position:absolute;inset:2px;border-radius:4px;border:1.5px dashed rgba(200,120,40,.55);pointer-events:none;}
+  .tile.sel{outline:3px solid #ffd83d;transform:translateY(-6px);box-shadow:0 8px 12px rgba(0,0,0,.5);z-index:2;}
+  .tile.hintt{outline:3px solid #66d98a;animation:hintblink .6s ease-in-out 3;}
+  @keyframes hintblink{50%{outline-color:transparent;}}
+  .tile.fresh{box-shadow:0 0 8px rgba(127,216,255,.9),0 2px 3px rgba(0,0,0,.4);}
+
+  /* ── 내 랙/버튼 ── */
+  #rack-wrap{background:linear-gradient(#20180ef0,#181207f5);border-top:3px solid #6a4e26;padding:7px 8px 10px;}
+  #rack-wrap.myturn{border-top-color:#ffd83d;}
+  #actrow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:7px;}
+  .abtn{padding:8px 13px;font-size:13px;font-weight:800;border-radius:10px;cursor:pointer;
+    color:#dbe7ff;background:rgba(50,64,100,.9);border:2px solid rgba(150,180,230,.4);}
+  .abtn:disabled{opacity:.45;}
+  .abtn:active:not(:disabled){transform:translateY(1px);}
+  #btn-end{background:#3aa84f;color:#fff;border-color:rgba(255,255,255,.5);}
+  #btn-draw{background:#b0743a;color:#fff;border-color:rgba(255,255,255,.5);}
+  #rack{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;max-height:118px;overflow-y:auto;
+    padding:3px;border-radius:8px;}
+  #turnmsg{text-align:center;font-size:12.5px;font-weight:800;color:#e8c86a;margin-bottom:5px;min-height:1.1em;}
+
+  #toast{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:25;pointer-events:none;
+    background:rgba(10,16,30,.92);color:#ffe08a;font-size:14px;font-weight:800;padding:8px 16px;border-radius:20px;
+    opacity:0;transition:opacity .25s;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis;}
+
+  /* ── 결과 ── */
+  #end .big{font-size:min(44px,11vw);font-weight:900;}
+  #end.win .big{color:#66d98a;}
+  #end.lose .big{color:#ff6a6a;}
+  #end .stat{margin-top:10px;font-size:16px;color:#dbe7ff;line-height:1.8;}
+  #end .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:20px;}
+</style>
+</head>
+<body>
+
+<!-- 타이틀 -->
+<div id="title" class="screen">
+  <div class="logo">루미 모구 큐브</div>
+  <div class="sub">RUMMY MOGU CUBE</div>
+  <div id="title-art">
+    <div class="tile c0"><div class="n">7</div></div>
+    <div class="tile c1"><div class="n">7</div></div>
+    <div class="tile c2"><div class="n">7</div></div>
+    <div class="tile jk"><img src="game/assets/mogu-icon.png" alt="모구"></div>
+  </div>
+  <div class="info">
+    <p>◆ 루미큐브에서 모티브를 딴 타일 퍼즐! 손의 타일을 <b>가장 먼저 다 내면 승리</b>.</p>
+    <p>◆ <b>런</b> = 같은 색 연속 숫자 3개 이상 · <b>그룹</b> = 같은 숫자 다른 색 3~4개.</p>
+    <p>◆ 첫 등록은 새 묶음 합계 <b>30점 이상</b>(이지는 25점). 등록 후엔 판 위 타일도 자유롭게 재배열!</p>
+    <p>◆ <b>모구 타일</b>(조커)은 아무 타일이나 대신해요. 마지막까지 들고 있으면 벌점 30점!</p>
+    <p>◆ 조작: 타일을 <b>탭해 집고</b> → 묶음/새 묶음/랙을 탭해 놓기. 낼 게 없으면 <b>뽑기</b>.</p>
+    <p>◆ <b>2~4인</b> · 난이도 <b>이지·노말·하드·크레이지</b> · 50스테이지, 5의 배수는 ★쥐왕 보스전.</p>
+  </div>
+  <button class="bigbtn" id="btn-start">스테이지 고르기 →</button>
+  <a class="linkbtn" id="btn-series">🏠 모구 게임 시리즈</a>
+</div>
+
+<!-- 스테이지 선택 -->
+<div id="stages" class="screen hidden">
+  <h1>스테이지 선택</h1>
+  <div id="diffrow"></div>
+  <div id="diff-desc"></div>
+  <div id="plrow"></div>
+  <div class="hint">클리어하면 다음 스테이지가 열립니다 · ★는 쥐왕 보스전 · 난이도별로 진행이 따로 저장돼요</div>
+  <div id="stage-grid"></div>
+  <div id="save-row">
+    <button class="linkbtn" id="btn-export">💾 세이브 내보내기</button>
+    <button class="linkbtn" id="btn-import">📂 세이브 불러오기</button>
+    <button class="linkbtn" id="btn-reset">🗑 진행 초기화</button>
+    <a class="linkbtn" id="btn-stage-back">← 타이틀로</a>
+  </div>
+  <input type="file" id="file-input" accept="application/json,.json" style="display:none">
+</div>
+
+<!-- 게임 -->
+<div id="game" class="hidden">
+  <div id="g-hud">
+    <div class="stat">스테이지 <b id="h-stage">1</b></div>
+    <div class="stat">라운드 <b id="h-round">1</b></div>
+    <div class="stat">더미 <b id="h-pool">0</b></div>
+    <div id="opps" style="display:flex;gap:5px;flex-wrap:wrap;"></div>
+    <div class="spacer"></div>
+    <button class="hbtn" id="btn-sound">🔇</button>
+    <button class="hbtn" id="btn-menu">≡</button>
+  </div>
+  <div id="table-wrap">
+    <div id="table"></div>
+  </div>
+  <div id="rack-wrap">
+    <div id="turnmsg"></div>
+    <div id="actrow">
+      <button class="abtn" id="btn-sortn">7·7·7</button>
+      <button class="abtn" id="btn-sortr">1·2·3</button>
+      <button class="abtn" id="btn-undo">↩ 되돌리기</button>
+      <button class="abtn" id="btn-hint">💡 힌트</button>
+      <button class="abtn" id="btn-draw">타일 뽑기</button>
+      <button class="abtn" id="btn-end">턴 종료 ✔</button>
+    </div>
+    <div id="rack"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- 결과 -->
+<div id="end" class="screen hidden">
+  <div class="big" id="end-big">승리!</div>
+  <div class="stat" id="end-stat"></div>
+  <div class="row">
+    <button class="bigbtn" id="btn-next">다음 스테이지 →</button>
+    <button class="linkbtn" id="btn-retry">다시 도전</button>
+    <button class="linkbtn" id="btn-tostages">스테이지 목록</button>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id);};
+var clamp=function(v,a,b){return v<a?a:v>b?b:v;};
+
+/* ══════════ 설정 데이터 ══════════ */
+var STAGES=50, MAXNUM=13, NCOLORS=4, HAND0=14, JOKER_PEN=30;
+var SAVE_KEY='mogurummy.v1';
+var MOGU_IMG='game/assets/mogu-icon.png';
+
+// 난이도 4단계 — skill: AI 플레이 정확도(스테이지에 따라 소폭 상승), meld: 첫 등록 최소 합계,
+// aiJoker: AI의 조커 활용, hints: 힌트 횟수, score: 점수 배율
+var DIFF_ORDER=['easy','normal','hard','crazy'];
+var DIFFS={
+  easy:  {name:'이지',    skill:0.30, meld:25, aiJoker:false, hints:99, score:0.8},
+  normal:{name:'노말',    skill:0.52, meld:30, aiJoker:true,  hints:3,  score:1.0},
+  hard:  {name:'하드',    skill:0.74, meld:30, aiJoker:true,  hints:1,  score:1.5},
+  crazy: {name:'크레이지',skill:0.92, meld:30, aiJoker:true,  hints:0,  score:2.2}
+};
+var DIFF_COLORS={easy:'#66d98a',normal:'#57c8e8',hard:'#ffb347',crazy:'#ff6a6a'};
+
+// 상대 캐릭터 (보스전에서는 마지막 상대가 쥐왕으로 교체)
+var OPP_POOL=[{e:'🐭',n:'치즈'},{e:'🐹',n:'햄냥'},{e:'🐰',n:'토토'}];
+var BOSS={e:'👹',n:'쥐왕'};
+var AI_DELAY=850;
+
+/* ══════════ 저장/진행 (난이도별 독립) ══════════ */
+function freshProg(){return {unlocked:1, cleared:{}, bestScore:0};}
+function normalizeSave(s){
+  if(!s||typeof s!=='object')return null;
+  if(!s.prog||typeof s.prog!=='object')return null;
+  var out={diff:DIFFS[s.diff]?s.diff:'normal', players:clamp((s.players|0)||2,2,4), prog:{}};
+  for(var i=0;i<DIFF_ORDER.length;i++){var d=DIFF_ORDER[i],p=s.prog[d];
+    out.prog[d]=(p&&typeof p.unlocked==='number')
+      ?{unlocked:clamp(p.unlocked|0,1,STAGES), cleared:(p.cleared&&typeof p.cleared==='object')?p.cleared:{}, bestScore:+p.bestScore||0}
+      :freshProg();}
+  return out;
+}
+function loadSave(){
+  try{var s=normalizeSave(JSON.parse(localStorage.getItem(SAVE_KEY)));if(s)return s;}catch(e){}
+  return normalizeSave({prog:{}});
+}
+function writeSave(s){try{localStorage.setItem(SAVE_KEY,JSON.stringify(s));}catch(e){}}
+var save=loadSave();
+function prog(){return save.prog[save.diff];}
+
+/* ══════════ 타일 ══════════ */
+// 타일: {id, color:0~3, num:1~13} 각 2벌 + 모구(조커) {id, joker:true} 2장 = 106장
+function makeTiles(){
+  var ts=[],id=0;
+  for(var copy=0;copy<2;copy++)
+    for(var c=0;c<NCOLORS;c++)
+      for(var n=1;n<=MAXNUM;n++)ts.push({id:id++,color:c,num:n});
+  ts.push({id:id++,joker:true});ts.push({id:id++,joker:true});
+  return ts;
+}
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=(Math.random()*(i+1))|0,t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function tileVal(t){return t.joker?JOKER_PEN:t.num;} // 벌점 계산용
+
+/* ══════════ 세트 판정 ══════════ */
+// 순서 무관 검사: 그룹(같은 숫자·다른 색 3~4) 또는 런(같은 색 연속 3+, 조커가 빈칸/양끝 채움)
+function splitJk(ts){
+  var jk=0,nj=[];
+  for(var i=0;i<ts.length;i++){if(ts[i].joker)jk++;else nj.push(ts[i]);}
+  return {jk:jk,nj:nj};
+}
+function isGroup(ts){
+  var s=splitJk(ts);if(ts.length<3||ts.length>4||!s.nj.length)return false;
+  var num=s.nj[0].num,cols={};
+  for(var i=0;i<s.nj.length;i++){var t=s.nj[i];
+    if(t.num!==num||cols[t.color])return false;cols[t.color]=1;}
+  return true;
+}
+function runBounds(ts){ // 런이면 {min,max,need,leftover} 아니면 null
+  var s=splitJk(ts);if(ts.length<3||!s.nj.length)return null;
+  var col=s.nj[0].color,seen={},min=99,max=0;
+  for(var i=0;i<s.nj.length;i++){var t=s.nj[i];
+    if(t.color!==col||seen[t.num])return null;seen[t.num]=1;
+    if(t.num<min)min=t.num;if(t.num>max)max=t.num;}
+  var span=max-min+1,need=span-s.nj.length;
+  if(need<0||s.jk<need)return null;
+  var leftover=s.jk-need;
+  if((min-1)+(MAXNUM-max)<leftover)return null;
+  return {min:min,max:max,need:need,leftover:leftover};
+}
+function validSet(ts){return isGroup(ts)||!!runBounds(ts);}
+// 첫 등록 합계용 세트 최대 점수 (조커 = 대신하는 숫자, 남는 조커는 큰 쪽 끝부터)
+function setValue(ts){
+  var best=0;
+  if(isGroup(ts))best=splitJk(ts).nj[0].num*ts.length;
+  var rb=runBounds(ts);
+  if(rb){
+    var v=0,k;for(k=rb.min;k<=rb.max;k++)v+=k;
+    var hi=rb.max,lo=rb.min;
+    for(k=0;k<rb.leftover;k++){if(hi<MAXNUM){hi++;v+=hi;}else{lo--;v+=lo;}}
+    if(v>best)best=v;
+  }
+  return best;
+}
+// 표시용 정렬: 런이면 숫자순+조커를 빈칸에, 그룹이면 색순+조커 끝에
+function arrangeSet(ts){
+  var rb=runBounds(ts),s=splitJk(ts);
+  if(rb&&(s.nj.length>=2||!isGroup(ts))){
+    var by={},i;for(i=0;i<s.nj.length;i++)by[s.nj[i].num]=s.nj[i];
+    var jks=ts.filter(function(t){return t.joker;});
+    var out=[],hi=rb.max,extraHi=0,extraLo=0;
+    for(var k2=0;k2<rb.leftover;k2++){if(hi<MAXNUM){hi++;extraHi++;}else extraLo++;}
+    var lo=rb.min-extraLo;
+    for(var n=lo;n<=hi;n++)out.push(by[n]||jks.pop());
+    return out;
+  }
+  var nj=s.nj.slice().sort(function(a,b){return a.color-b.color;});
+  return nj.concat(ts.filter(function(t){return t.joker;}));
+}
+
+/* ══════════ AI 세트 탐색 ══════════ */
+// 손에서 가능한 세트 나열 (조커 사용 여부 선택), 값 큰 순
+function findSets(hand,useJoker){
+  var grid={},dups={},jokers=[],i,t;
+  for(i=0;i<hand.length;i++){t=hand[i];
+    if(t.joker){jokers.push(t);continue;}
+    var k=t.color*100+t.num;
+    if(grid[k])dups[k]=t;else grid[k]=t;}
+  var sets=[];
+  function push(ts){sets.push({tiles:ts,value:setValue(ts),jk:splitJk(ts).jk});}
+  // 그룹
+  for(var n=1;n<=MAXNUM;n++){
+    var col=[],c;
+    for(c=0;c<NCOLORS;c++)if(grid[c*100+n])col.push(grid[c*100+n]);
+    if(col.length>=3){
+      if(col.length===4){push(col.slice());
+        for(c=0;c<4;c++)push(col.slice(0,c).concat(col.slice(c+1)));}
+      else push(col.slice());
+    }
+    if(useJoker&&jokers.length&&col.length===2)push(col.concat([jokers[0]]));
+    if(useJoker&&jokers.length&&col.length===3)push(col.concat([jokers[0]]));
+  }
+  // 런 (연속 구간의 모든 3+ 윈도)
+  for(c=0;c<NCOLORS;c++){
+    var chain=[];
+    for(n=1;n<=MAXNUM+1;n++){
+      if(n<=MAXNUM&&grid[c*100+n])chain.push(grid[c*100+n]);
+      else{
+        for(var st2=0;st2<chain.length;st2++)
+          for(var len=3;st2+len<=chain.length;len++)push(chain.slice(st2,st2+len));
+        chain=[];
+      }
+    }
+    if(useJoker&&jokers.length){ // 조커 런: n,n+1+조커 / n,n+2 사이 조커
+      for(n=1;n<MAXNUM;n++){
+        if(grid[c*100+n]&&grid[c*100+n+1])push([grid[c*100+n],grid[c*100+n+1],jokers[0]]);
+        if(n+2<=MAXNUM&&grid[c*100+n]&&grid[c*100+n+2]&&!grid[c*100+n+1])
+          push([grid[c*100+n],grid[c*100+n+2],jokers[0]]);
+      }
+    }
+  }
+  // 조커는 아껴 쓰도록 소폭 페널티
+  sets.sort(function(a,b){return (b.value-b.jk*12)-(a.value-a.jk*12);});
+  return sets;
+}
+// 첫 등록 조합: 서로소 세트를 값 큰 순으로 골라 meld 이상이면 반환
+function findOpening(hand,useJoker,meld){
+  var sets=findSets(hand,useJoker),picked=[],used={},total=0;
+  for(var i=0;i<sets.length;i++){
+    var s=sets[i],ok=true,j;
+    for(j=0;j<s.tiles.length;j++)if(used[s.tiles[j].id]){ok=false;break;}
+    if(!ok)continue;
+    picked.push(s);total+=s.value;
+    for(j=0;j<s.tiles.length;j++)used[s.tiles[j].id]=1;
+  }
+  return total>=meld?{sets:picked,total:total}:null;
+}
+function canAppend(t,g){return validSet(g.concat([t]));}
+
+/* ══════════ 스테이지 구성 ══════════ */
+function stageConfig(n){
+  var D=DIFFS[save.diff];
+  var boss=(n%5===0);
+  var skill=clamp(D.skill+(n-1)*0.007,0,0.97);
+  return {n:n, diff:save.diff, players:save.players, boss:boss, skill:skill,
+    meld:D.meld, aiJoker:D.aiJoker, hints:D.hints};
+}
+
+/* ══════════ 게임 상태 ══════════ */
+var st=null, curStage=1, soundOn=false, gameSeq=0;
+function deep(x){return JSON.parse(JSON.stringify(x));}
+function newGame(cfg){
+  var pool=shuffle(makeTiles());
+  var N=cfg.players, hands=[],opps=[],opened=[],i,k;
+  for(i=0;i<N;i++){hands.push([]);opened.push(false);}
+  for(i=1;i<N;i++){
+    var meta=OPP_POOL[(i-1)%OPP_POOL.length];
+    opps.push({e:meta.e,n:meta.n,skill:cfg.skill});
+  }
+  if(cfg.boss){opps[opps.length-1]={e:BOSS.e,n:BOSS.n,skill:clamp(cfg.skill+0.12,0,0.99),boss:true};}
+  for(i=0;i<N;i++){
+    var cnt=HAND0;
+    if(i>0&&opps[i-1].boss)cnt=HAND0-1; // 쥐왕은 13장으로 시작
+    for(k=0;k<cnt;k++)hands[i].push(pool.pop());
+  }
+  st={cfg:cfg, pool:pool, hands:hands, table:[], opened:opened, opps:opps,
+    turn:0, round:1, passStreak:0, done:false, gid:++gameSeq,
+    snap:null, turnRackIds:{}, sel:null, hints:cfg.hints};
+}
+
+/* ══════════ 렌더 ══════════ */
+function tileEl(t,extra){
+  var d=document.createElement('div');
+  d.className='tile '+(t.joker?'jk':'c'+t.color)+(extra||'');
+  d.dataset.id=t.id;
+  if(t.joker)d.innerHTML='<img src="'+MOGU_IMG+'" alt="모구">';
+  else d.innerHTML='<div class="n">'+t.num+'</div>';
+  return d;
+}
+function renderHUD(){
+  $('h-stage').textContent=st.cfg.n+(st.cfg.boss?' ★':'');
+  $('h-round').textContent=st.round;
+  $('h-pool').textContent=st.pool.length;
+  var box=$('opps');box.innerHTML='';
+  for(var i=0;i<st.opps.length;i++){
+    var o=st.opps[i],d=document.createElement('div');
+    d.className='opp'+(st.turn===i+1?' active':'')+(st.opened[i+1]?' opened':'');
+    d.innerHTML=o.e+' '+o.n+' <b>'+st.hands[i+1].length+'</b>';
+    box.appendChild(d);
+  }
+}
+function renderTable(){
+  var tb=$('table');tb.innerHTML='';
+  var myTurn=(st.turn===0&&!st.done);
+  st.table.forEach(function(g,gi){
+    var gd=document.createElement('div');
+    gd.className='tgroup'+(myTurn&&!validSet(g)?' invalid':'');
+    gd.dataset.gi=gi;
+    arrangeSet(g).forEach(function(t){
+      var td=tileEl(t,(st.sel&&st.sel.id===t.id?' sel':'')+(st.turnRackIds[t.id]?' fresh':''));
+      td.addEventListener('click',function(ev){ev.stopPropagation();tapTableTile(t,gi);});
+      gd.appendChild(td);
+    });
+    gd.addEventListener('click',function(){tapGroup(gi);});
+    tb.appendChild(gd);
+  });
+  if(myTurn){
+    var nz=document.createElement('div');nz.id='newgroup';
+    nz.className=st.sel?'glow':'';nz.textContent='+ 새 묶음';
+    nz.addEventListener('click',function(){tapNewGroup();});
+    tb.appendChild(nz);
+  }
+}
+function renderRack(){
+  var r=$('rack');r.innerHTML='';
+  st.hands[0].forEach(function(t){
+    var td=tileEl(t,(st.sel&&st.sel.id===t.id&&st.sel.from==='rack'?' sel':''));
+    td.addEventListener('click',function(ev){ev.stopPropagation();tapRackTile(t);});
+    r.appendChild(td);
+  });
+}
+function renderButtons(){
+  var my=(st.turn===0&&!st.done);
+  ['btn-sortn','btn-sortr','btn-undo','btn-hint','btn-draw','btn-end'].forEach(function(id){$(id).disabled=!my;});
+  $('btn-draw').textContent=st.pool.length?'타일 뽑기':'패스';
+  $('btn-hint').textContent='💡 힌트'+(st.hints<99?' '+st.hints:'');
+  if(st.hints<=0)$('btn-hint').disabled=true;
+  $('rack-wrap').classList.toggle('myturn',my);
+  $('turnmsg').textContent=st.done?'':(my
+    ?(st.opened[0]?'내 차례 — 타일을 내거나 뽑으세요':'내 차례 — 첫 등록: 새 묶음 합계 '+st.cfg.meld+'점 이상')
+    :st.opps[st.turn-1].e+' '+st.opps[st.turn-1].n+' 차례…');
+}
+function renderAll(){renderHUD();renderTable();renderRack();renderButtons();}
+
+var toastT;
+function toast(msg){var t=$('toast');t.textContent=msg;t.style.opacity=1;clearTimeout(toastT);toastT=setTimeout(function(){t.style.opacity=0;},1700);}
+
+/* ══════════ 사운드 ══════════ */
+var actx=null;
+function ensureAudio(){if(!actx){try{actx=new (window.AudioContext||window.webkitAudioContext)();}catch(e){}}}
+function playSound(kind){
+  if(!soundOn||!actx)return;
+  var f={pick:520,put:660,invalid:190,draw:360,turn:440,win:880,lose:150}[kind]||440;
+  var o=actx.createOscillator(),g=actx.createGain();
+  o.type=kind==='invalid'||kind==='lose'?'square':'triangle';o.frequency.value=f;
+  g.gain.value=0.06;o.connect(g);g.connect(actx.destination);
+  var t=actx.currentTime;g.gain.setValueAtTime(0.06,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+  o.start(t);o.stop(t+0.19);
+}
+
+/* ══════════ 플레이어 조작 ══════════ */
+function myTurn(){return st&&!st.done&&st.turn===0;}
+function findTile(arr,id){for(var i=0;i<arr.length;i++)if(arr[i].id===id)return i;return -1;}
+
+function tapRackTile(t){
+  if(!myTurn())return;
+  if(st.sel&&st.sel.id===t.id&&st.sel.from==='rack'){st.sel=null;}
+  else if(st.sel&&st.sel.from==='table'){ // 판 위 타일 → 랙 회수 (이번 턴에 랙에서 낸 것만)
+    if(st.turnRackIds[st.sel.id]){moveSelToRack();return;}
+    st.sel={id:t.id,from:'rack'};playSound('pick');
+  }
+  else{st.sel={id:t.id,from:'rack'};playSound('pick');}
+  renderAll();
+}
+function tapTableTile(t,gi){
+  if(!myTurn())return;
+  if(st.sel){tapGroup(gi);return;} // 선택 중이면 이 묶음에 놓기
+  if(!st.opened[0]&&!st.turnRackIds[t.id]){toast('첫 등록 전에는 판 위 타일을 움직일 수 없어요');playSound('invalid');return;}
+  st.sel={id:t.id,from:'table',gi:gi};playSound('pick');
+  renderAll();
+}
+function tapGroup(gi){
+  if(!myTurn()||!st.sel)return;
+  if(st.sel.from==='table'&&st.sel.gi===gi){st.sel=null;renderAll();return;}
+  // 첫 등록 전에는 기존(잠긴) 묶음에 못 붙임 — 이번 턴 타일로만 된 묶음만 가능
+  if(!st.opened[0]){
+    var g=st.table[gi],locked=false;
+    for(var i=0;i<g.length;i++)if(!st.turnRackIds[g[i].id])locked=true;
+    if(locked){toast('첫 등록 전에는 새 묶음만 만들 수 있어요');playSound('invalid');return;}
+  }
+  var tg=st.table[gi]; // takeSelected가 빈 묶음을 지우면 인덱스가 밀리므로 참조를 먼저 잡음
+  var t=takeSelected();if(!t)return;
+  tg.push(t);
+  st.sel=null;playSound('put');renderAll();
+}
+function tapNewGroup(){
+  if(!myTurn()||!st.sel)return;
+  var t=takeSelected();if(!t)return;
+  st.table.push([t]);
+  st.sel=null;playSound('put');renderAll();
+}
+function tapRackArea(ev){ // 랙 빈 곳 탭 → 판 위 내 타일 회수
+  if(!myTurn()||!st.sel||st.sel.from!=='table')return;
+  if(!st.turnRackIds[st.sel.id]){toast('원래 판에 있던 타일은 랙으로 가져올 수 없어요');playSound('invalid');return;}
+  moveSelToRack();
+}
+function moveSelToRack(){
+  var t=takeSelected();if(!t)return;
+  delete st.turnRackIds[t.id];
+  st.hands[0].push(t);
+  st.sel=null;playSound('put');renderAll();
+}
+function takeSelected(){ // 선택된 타일을 원위치에서 제거해 반환
+  var s=st.sel;if(!s)return null;
+  if(s.from==='rack'){
+    var i=findTile(st.hands[0],s.id);if(i<0)return null;
+    var t=st.hands[0].splice(i,1)[0];
+    st.turnRackIds[t.id]=1;
+    return t;
+  }
+  var g=st.table[s.gi];if(!g)return null;
+  var j=findTile(g,s.id);if(j<0)return null;
+  var t2=g.splice(j,1)[0];
+  if(!g.length)st.table.splice(s.gi,1);
+  return t2;
+}
+
+function humanTurnStart(){
+  st.snap={table:deep(st.table),hand:deep(st.hands[0])};
+  st.turnRackIds={};st.sel=null;
+  playSound('turn');
+  renderAll();
+}
+function resetTurn(){
+  if(!st.snap)return;
+  st.table=deep(st.snap.table);
+  st.hands[0]=deep(st.snap.hand);
+  st.turnRackIds={};st.sel=null;
+  renderAll();
+}
+function endTurnBtn(){
+  if(!myTurn())return;
+  var playedIds=Object.keys(st.turnRackIds);
+  if(!playedIds.length){toast('낸 타일이 없어요 — 「'+($('btn-draw').textContent)+'」를 누르세요');playSound('invalid');return;}
+  for(var gi=0;gi<st.table.length;gi++)
+    if(!validSet(st.table[gi])){toast('빨간 묶음이 규칙에 안 맞아요 (런/그룹 3개 이상)');playSound('invalid');renderAll();return;}
+  if(!st.opened[0]){
+    var sum=0;
+    st.table.forEach(function(g){
+      var allNew=g.every(function(t){return st.turnRackIds[t.id];});
+      if(allNew)sum+=setValue(g);
+    });
+    if(sum<st.cfg.meld){toast('첫 등록은 새 묶음 합계 '+st.cfg.meld+'점 이상! (현재 '+sum+'점)');playSound('invalid');return;}
+    st.opened[0]=true;
+    toast('첫 등록 성공! ('+sum+'점) 이제 판을 자유롭게 쓸 수 있어요');
+  }
+  st.sel=null;st.turnRackIds={};st.passStreak=0;
+  if(!st.hands[0].length)return endGame(true,0);
+  advanceTurn();
+}
+function drawBtn(){
+  if(!myTurn())return;
+  resetTurn();
+  if(st.pool.length){st.hands[0].push(st.pool.pop());st.passStreak=0;toast('타일 1개를 뽑았어요');playSound('draw');}
+  else{st.passStreak++;toast('패스!');}
+  advanceTurn();
+}
+function hintBtn(){
+  if(!myTurn()||st.hints<=0)return;
+  var hand=st.hands[0],found=false;
+  if(!st.opened[0]){
+    var op=findOpening(hand,true,st.cfg.meld);
+    if(op){highlightTiles(op.sets.reduce(function(a,s){return a.concat(s.tiles);},[]));
+      toast('빛나는 타일들로 새 묶음을 만들어 보세요! (합계 '+op.total+'점)');found=true;}
+  }else{
+    var sets=findSets(hand,true);
+    if(sets.length){highlightTiles(sets[0].tiles);toast('빛나는 타일로 새 묶음을 만들 수 있어요!');found=true;}
+    else{
+      outer:
+      for(var i=0;i<hand.length;i++)
+        for(var gi=0;gi<st.table.length;gi++)
+          if(canAppend(hand[i],st.table[gi])){
+            highlightTiles([hand[i]]);
+            var gd=$('table').children[gi];if(gd)gd.classList.add('hintg');
+            toast('빛나는 타일을 빛나는 묶음에 붙일 수 있어요!');found=true;break outer;
+          }
+    }
+  }
+  if(!found){toast('지금은 낼 수 있는 게 없어요 — 뽑기 하세요');return;}
+  st.hints--;renderButtons();
+}
+function highlightTiles(tiles){
+  var ids={};tiles.forEach(function(t){ids[t.id]=1;});
+  var all=$('rack').children,i;
+  for(i=0;i<all.length;i++)if(ids[all[i].dataset.id])all[i].classList.add('hintt');
+}
+function sortRack(mode){
+  if(!myTurn())return;
+  st.hands[0].sort(mode==='num'
+    ?function(a,b){return (a.joker?99:a.num)-(b.joker?99:b.num)||(a.joker?9:a.color)-(b.joker?9:b.color);}
+    :function(a,b){return (a.joker?9:a.color)-(b.joker?9:b.color)||(a.joker?99:a.num)-(b.joker?99:b.num);});
+  renderRack();
+}
+
+/* ══════════ 턴 진행 ══════════ */
+function advanceTurn(){
+  if(st.done)return;
+  if(!st.pool.length&&st.passStreak>=st.cfg.players)return showdown();
+  st.turn=(st.turn+1)%st.cfg.players;
+  if(st.turn===0){st.round++;humanTurnStart();}
+  else{renderAll();var gid=st.gid;
+    setTimeout(function(){if(st&&!st.done&&st.gid===gid)aiTurn(st.turn);},AI_DELAY);}
+}
+
+/* ══════════ AI ══════════ */
+function aiTurn(pi){
+  var o=st.opps[pi-1],skill=o.skill,hand=st.hands[pi];
+  var played=0,i;
+  if(!st.opened[pi]){
+    var op=findOpening(hand,st.cfg.aiJoker&&skill>0.45,st.cfg.meld);
+    if(op&&Math.random()<skill+0.3){
+      op.sets.forEach(function(s){
+        s.tiles.forEach(function(t){hand.splice(findTile(hand,t.id),1);});
+        st.table.push(s.tiles);played+=s.tiles.length;
+      });
+      st.opened[pi]=true;
+    }
+  }
+  if(st.opened[pi]){
+    var guard=0;
+    while(guard++<8){ // 손에서 완성 세트 내려놓기
+      var sets=findSets(hand,st.cfg.aiJoker&&skill>0.45);
+      if(!sets.length||Math.random()>skill+0.25)break;
+      var s2=sets[0];
+      s2.tiles.forEach(function(t){hand.splice(findTile(hand,t.id),1);});
+      st.table.push(s2.tiles);played+=s2.tiles.length;
+    }
+    for(i=hand.length-1;i>=0;i--){ // 기존 묶음에 한 장씩 붙이기
+      var t=hand[i];
+      if(Math.random()>skill)continue;
+      if(t.joker&&skill<0.85)continue; // 조커는 고수만 소비
+      for(var gi=0;gi<st.table.length;gi++){
+        if(canAppend(t,st.table[gi])){st.table[gi].push(t);hand.splice(i,1);played++;break;}
+      }
+    }
+  }
+  if(!hand.length){renderAll();return endGame(false,pi);}
+  if(played){st.passStreak=0;toast(o.e+' '+o.n+': 타일 '+played+'개 등록');}
+  else{
+    if(st.pool.length){hand.push(st.pool.pop());st.passStreak=0;}
+    else st.passStreak++;
+  }
+  renderAll();
+  advanceTurn();
+}
+
+/* ══════════ 종료 ══════════ */
+function handSum(h){var s=0;for(var i=0;i<h.length;i++)s+=tileVal(h[i]);return s;}
+function showdown(){ // 더미 소진 + 전원 패스 → 손 합계 최소가 승리
+  var sums=st.hands.map(handSum),min=Math.min.apply(null,sums);
+  var winner=sums.indexOf(min);
+  endGame(winner===0,winner,true);
+}
+function endGame(win,winner,byShowdown){
+  if(st.done)return;st.done=true;
+  var D=DIFFS[st.cfg.diff]||DIFFS.normal;
+  var oppSum=0;for(var i=1;i<st.hands.length;i++)oppSum+=handSum(st.hands[i]);
+  var score=win?Math.round((oppSum+Math.max(0,150-st.round*5))*D.score*(st.cfg.boss?1.5:1)):0;
+  playSound(win?'win':'lose');
+  $('game').classList.add('hidden');
+  var e=$('end');e.classList.remove('win','lose');e.classList.add(win?'win':'lose');
+  $('end-big').textContent=win?'승리! 🎉':'패배… 😿';
+  var who=win?'':(winner>0?(st.opps[winner-1].e+' '+st.opps[winner-1].n):'상대');
+  $('end-stat').innerHTML='스테이지 '+curStage+' ['+D.name+' · '+st.cfg.players+'인] · 라운드 '+st.round
+    +(byShowdown?'<br>더미 소진 — 남은 타일 합계가 가장 적은 쪽이 승리!':'')
+    +'<br>'+(win?'상대 남은 타일 합계 '+oppSum+'점 · 점수 <b style="color:#ffd83d">'+score+'</b>'
+      :who+'가 먼저 타일을 다 냈어요. 다시 도전!');
+  if(win){
+    var p=save.prog[st.cfg.diff]||prog();
+    p.cleared[curStage]=true;
+    if(curStage+1>p.unlocked&&curStage<STAGES)p.unlocked=curStage+1;
+    if(score>p.bestScore)p.bestScore=score;
+    writeSave(save);
+  }
+  var nb=$('btn-next');
+  if(win&&curStage<STAGES){nb.classList.remove('hidden');nb.textContent='다음 스테이지 →';}
+  else if(win){nb.classList.add('hidden');$('end-big').textContent='전 스테이지 클리어! 👑';}
+  else nb.classList.add('hidden');
+  show('end');
+}
+
+/* ══════════ 화면/메뉴 ══════════ */
+function show(id){['title','stages','end'].forEach(function(s){$(s).classList.toggle('hidden',s!==id);});}
+function buildDiffRow(){
+  var row=$('diffrow');row.innerHTML='';
+  DIFF_ORDER.forEach(function(d){
+    var b=document.createElement('button');
+    b.className='diffbtn'+(save.diff===d?' sel':'');b.dataset.diff=d;
+    b.textContent=DIFFS[d].name;
+    b.addEventListener('click',function(){
+      if(save.diff===d)return;
+      save.diff=d;writeSave(save);buildDiffRow();buildStageGrid();
+    });
+    row.appendChild(b);
+  });
+  var D=DIFFS[save.diff];
+  $('diff-desc').textContent=D.name+' — AI 실력 '+Math.round(D.skill*100)+'% · 첫 등록 '+D.meld+'점 · 힌트 '
+    +(D.hints>=99?'무제한':D.hints+'회')+' · 점수 x'+D.score;
+  var pr=$('plrow');pr.innerHTML='';
+  [2,3,4].forEach(function(n){
+    var b=document.createElement('button');
+    b.className='plbtn'+(save.players===n?' sel':'');
+    b.textContent=n+'인전';
+    b.addEventListener('click',function(){
+      if(save.players===n)return;
+      save.players=n;writeSave(save);buildDiffRow();
+    });
+    pr.appendChild(b);
+  });
+}
+function buildStageGrid(){
+  var g=$('stage-grid');g.innerHTML='';
+  var p=prog();
+  for(var n=1;n<=STAGES;n++){(function(n){
+    var boss=(n%5===0);
+    var cell=document.createElement('div');cell.className='scell';
+    var locked=n>p.unlocked;
+    if(locked)cell.classList.add('lock');
+    if(p.cleared[n])cell.classList.add('clear');
+    if(boss)cell.classList.add('bossst');
+    cell.innerHTML=(locked?'🔒':n)+(boss&&!locked?'<div class="boss">★보스</div>':'');
+    if(!locked)cell.addEventListener('click',function(){startStage(n);});
+    g.appendChild(cell);
+  })(n);}
+}
+function showStages(){buildDiffRow();buildStageGrid();show('stages');}
+function startStage(n){
+  curStage=n;
+  newGame(stageConfig(n));
+  ['title','stages','end'].forEach(function(s){$(s).classList.add('hidden');});
+  $('game').classList.remove('hidden');
+  humanTurnStart();
+  toast('스테이지 '+n+' ['+DIFFS[st.cfg.diff].name+' · '+st.cfg.players+'인] — 시작!');
+}
+
+/* ══════════ 세이브 파일 ══════════ */
+function exportSave(){
+  try{
+    var blob=new Blob([JSON.stringify(save,null,2)],{type:'application/json'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');a.href=url;a.download='mogurummy-save.json';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1500);
+    toast('세이브를 내보냈어요 (mogurummy-save.json)');
+  }catch(e){toast('내보내기에 실패했어요');}
+}
+function importSave(file){
+  var rd=new FileReader();
+  rd.onload=function(){
+    try{
+      var s=normalizeSave(JSON.parse(rd.result));
+      if(!s)throw 0;
+      save=s;writeSave(save);buildDiffRow();buildStageGrid();
+      toast('세이브를 불러왔어요! ('+DIFFS[save.diff].name+' 해금 '+prog().unlocked+'스테이지)');
+    }catch(e){toast('세이브 파일을 읽을 수 없어요');}
+  };
+  rd.onerror=function(){toast('세이브 파일을 읽을 수 없어요');};
+  rd.readAsText(file);
+}
+function resetSave(){
+  if(!window.confirm('모든 난이도의 진행(해금·클리어·최고점수)을 초기화할까요?'))return;
+  save=normalizeSave({prog:{}});writeSave(save);buildDiffRow();buildStageGrid();toast('진행을 초기화했어요');
+}
+
+/* ══════════ 버튼 연결/부트 ══════════ */
+function bindUI(){
+  $('btn-start').addEventListener('click',showStages);
+  $('btn-stage-back').addEventListener('click',function(){show('title');});
+  $('btn-export').addEventListener('click',exportSave);
+  $('btn-import').addEventListener('click',function(){$('file-input').click();});
+  $('file-input').addEventListener('change',function(e){var f=e.target.files&&e.target.files[0];if(f)importSave(f);e.target.value='';});
+  $('btn-reset').addEventListener('click',resetSave);
+  $('btn-series').addEventListener('click',function(){location.href=location.pathname.indexOf('/mogurummy/')>=0?'../index.html':'index.html';});
+  $('btn-menu').addEventListener('click',function(){if(st)st.done=true;$('game').classList.add('hidden');showStages();});
+  $('btn-sound').addEventListener('click',function(){soundOn=!soundOn;ensureAudio();$('btn-sound').textContent=soundOn?'🔊':'🔇';});
+  $('btn-sortn').addEventListener('click',function(){sortRack('num');});
+  $('btn-sortr').addEventListener('click',function(){sortRack('run');});
+  $('btn-undo').addEventListener('click',function(){if(myTurn())resetTurn();});
+  $('btn-hint').addEventListener('click',function(){ensureAudio();hintBtn();});
+  $('btn-draw').addEventListener('click',function(){ensureAudio();drawBtn();});
+  $('btn-end').addEventListener('click',function(){ensureAudio();endTurnBtn();});
+  $('rack').addEventListener('click',tapRackArea);
+  $('btn-next').addEventListener('click',function(){startStage(Math.min(STAGES,curStage+1));});
+  $('btn-retry').addEventListener('click',function(){startStage(curStage);});
+  $('btn-tostages').addEventListener('click',showStages);
+}
+function boot(){bindUI();show('title');}
+if(document.readyState==='complete'||document.readyState==='interactive')setTimeout(boot,20);
+else window.addEventListener('DOMContentLoaded',boot);
+
+// 헤드리스 검증용 훅 (window.__RUMMY_TEST__가 참일 때만 노출)
+if(window.__RUMMY_TEST__){
+  window.__RUMMY_HOOK__={
+    get st(){return st;}, get save(){return save;},
+    validSet:validSet, setValue:setValue, arrangeSet:arrangeSet,
+    findSets:findSets, findOpening:findOpening, stageConfig:stageConfig,
+    startStage:startStage, humanTurnStart:humanTurnStart, renderAll:renderAll
+  };
+}
+})();
+</script>
+</body>
+</html>
