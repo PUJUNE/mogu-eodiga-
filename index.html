@@ -19,6 +19,11 @@
     box-shadow:0 4px 12px rgba(255,0,51,.35); transition:transform .12s, background .12s; }
   .yt-link:hover, .yt-link:active { transform:translateY(-2px) scale(1.03); background:#e60000; }
   .yt-link .yt-ico { font-size:18px; }
+  #hero-photo { display:block; width:min(300px, 74vw); height:auto; margin:0 0 22px;
+    border-radius:18px; border:4px solid rgba(255,255,255,.88);
+    box-shadow:0 12px 28px rgba(0,0,0,.55); transform:rotate(-2deg); }
+  .hero-cap { margin:-8px 0 18px; font-size:13px; font-weight:800; color:#ffd83d;
+    text-shadow:0 2px 4px rgba(0,0,0,.5); }
   #mogu-face { width:110px; height:auto; margin:22px 0 8px; animation:bob 1.6s ease-in-out infinite;
     filter:drop-shadow(0 8px 10px rgba(0,0,0,.4)); }
   @keyframes bob { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-12px) rotate(4deg)} }
@@ -56,6 +61,8 @@
 </head>
 <body>
 <div id="wrap">
+  <img id="hero-photo" src="game/assets/mogu-ukulele.jpg" alt="우쿨렐레를 연주하는 모구">
+  <div class="hero-cap">🎸 오늘의 모구</div>
   <div class="logo">모구 게임 시리즈</div>
   <div class="sub">MOGU GAME SERIES</div>
   <a class="yt-link" href="https://www.youtube.com/@mo9-mogoo" target="_blank" rel="noopener">
