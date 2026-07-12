@@ -67,6 +67,16 @@
   #stages{background:radial-gradient(120% 90% at 50% 10%,#1c3358 0%,#0d1526 72%);justify-content:flex-start;}
   #stages h1{font-size:26px;font-weight:900;color:#8fe0ff;margin:6px 0 2px;}
   #stages .hint{font-size:13px;color:#9fb6dc;margin-bottom:14px;}
+  #diffrow{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:4px 0 6px;}
+  .diffbtn{pointer-events:auto;cursor:pointer;padding:8px 18px;font-size:13.5px;font-weight:800;border-radius:20px;
+    background:rgba(40,56,92,.7);border:2px solid rgba(150,180,230,.32);color:#dbe7ff;font-family:inherit;}
+  .diffbtn:active{transform:scale(.95);}
+  .diffbtn.sel{color:#08202c;border-color:rgba(255,255,255,.7);}
+  .diffbtn.sel[data-diff="easy"]{background:#66d98a;}
+  .diffbtn.sel[data-diff="normal"]{background:#57c8e8;}
+  .diffbtn.sel[data-diff="hard"]{background:#ffb347;}
+  .diffbtn.sel[data-diff="crazy"]{background:#ff6a6a;}
+  #diff-desc{font-size:12.5px;color:#9fb6dc;margin-bottom:12px;min-height:1.2em;}
   #stage-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:9px;
     width:100%;max-width:560px;overflow-y:auto;padding:4px 4px 20px;}
   #save-row{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-top:6px;}
@@ -116,6 +126,7 @@
   <div class="stat">라이프 <b id="l-val">0</b></div>
   <div class="stat">웨이브 <b id="w-val">0/0</b></div>
   <div class="stat">점수 <b id="s-val">0</b></div>
+  <div class="stat">난이도 <b id="d-val">-</b></div>
   <div class="spacer"></div>
   <button class="hbtn wavego" id="btn-wave">웨이브 시작</button>
   <button class="hbtn ghost" id="btn-speed">배속 1x</button>
@@ -150,6 +161,7 @@
     <p>◆ 터치: <b>1탭=미리보기</b>, 같은 칸을 <b>한 번 더 탭=건설</b>. (마우스는 클릭으로 바로 건설)</p>
     <p>◆ 화면을 드래그하면 회전, 두 손가락/휠로 확대·축소.</p>
     <p>◆ 몬스터가 수정에 닿으면 <b>라이프</b>가 깎여요. 라이프 0 = 패배!</p>
+    <p>◆ 난이도는 <b>이지 · 노말 · 하드 · 크레이지</b> 4단계 — 어려울수록 점수가 커져요.</p>
   </div>
   <button class="bigbtn" id="btn-start">스테이지 고르기 →</button>
   <a class="linkbtn" id="btn-series">🏠 모구 게임 시리즈</a>
@@ -158,7 +170,9 @@
 <!-- 스테이지 선택 -->
 <div id="stages" class="screen hidden">
   <h1>스테이지 선택</h1>
-  <div class="hint">클리어하면 다음 스테이지가 열립니다 · ★는 보스전</div>
+  <div id="diffrow"></div>
+  <div id="diff-desc"></div>
+  <div class="hint">클리어하면 다음 스테이지가 열립니다 · ★는 보스전 · 난이도별로 진행이 따로 저장돼요</div>
   <div id="stage-grid"></div>
   <div id="save-row">
     <button class="linkbtn" id="btn-export">💾 세이브 내보내기</button>
@@ -229,23 +243,56 @@ var TOWERS={
 };
 var TORDER=['arrow','cannon','frost','arcane'];
 
+// 난이도 4단계 — hp/spd/count: 적 체력·속도·마릿수 배율, gold/bonus: 처치·웨이브 보상 배율,
+// startGold: 시작 골드 배율, lives: 시작 라이프, score: 점수 배율
+var DIFF_ORDER=['easy','normal','hard','crazy'];
+var DIFFS={
+  easy:  {name:'이지',    hp:0.70, spd:0.92, count:0.85, gold:1.25, startGold:1.2,  lives:30, bonus:1.25, score:0.8},
+  normal:{name:'노말',    hp:1.00, spd:1.00, count:1.00, gold:1.00, startGold:1.0,  lives:20, bonus:1.00, score:1.0},
+  hard:  {name:'하드',    hp:1.40, spd:1.08, count:1.15, gold:0.90, startGold:0.9,  lives:14, bonus:0.90, score:1.5},
+  crazy: {name:'크레이지',hp:1.90, spd:1.18, count:1.35, gold:0.80, startGold:0.85, lives:8,  bonus:0.80, score:2.2}
+};
+
 /* ══════════ 저장/진행 ══════════ */
+function freshProg(){return {unlocked:1, cleared:{}, bestScore:0};}
+// v1({unlocked,cleared,bestScore}) → v2({diff, prog:{난이도별 진행}}) 자동 이전
+function normalizeSave(s){
+  if(!s||typeof s!=='object')return null;
+  var out,d;
+  if(s.prog&&typeof s.prog==='object'){
+    out={diff:DIFFS[s.diff]?s.diff:'normal', prog:{}};
+    for(var i=0;i<DIFF_ORDER.length;i++){d=DIFF_ORDER[i];var p=s.prog[d];
+      out.prog[d]=(p&&typeof p.unlocked==='number')
+        ?{unlocked:clamp(p.unlocked|0,1,STAGES), cleared:(p.cleared&&typeof p.cleared==='object')?p.cleared:{}, bestScore:+p.bestScore||0}
+        :freshProg();}
+    return out;
+  }
+  if(typeof s.unlocked==='number'){
+    out={diff:'normal', prog:{}};
+    for(i=0;i<DIFF_ORDER.length;i++)out.prog[DIFF_ORDER[i]]=freshProg();
+    out.prog.normal={unlocked:clamp(s.unlocked|0,1,STAGES), cleared:(s.cleared&&typeof s.cleared==='object')?s.cleared:{}, bestScore:+s.bestScore||0};
+    return out;
+  }
+  return null;
+}
 function loadSave(){
-  try{var s=JSON.parse(localStorage.getItem(SAVE_KEY));if(s&&s.unlocked)return s;}catch(e){}
-  return {unlocked:1, cleared:{}, bestScore:0};
+  try{var s=normalizeSave(JSON.parse(localStorage.getItem(SAVE_KEY)));if(s)return s;}catch(e){}
+  return normalizeSave({prog:{}});
 }
 function writeSave(s){try{localStorage.setItem(SAVE_KEY,JSON.stringify(s));}catch(e){}}
 var save=loadSave();
+function prog(){return save.prog[save.diff];}
 
 /* ══════════ 스테이지/웨이브 구성 ══════════ */
 function stageConfig(n){
+  var D=DIFFS[save.diff];
   var path=PATHS[(n-1)%PATHS.length];
   var boss=(n%5===0);
   var waveCount=clamp(WAVES_MIN+Math.floor((n-1)/3),WAVES_MIN,WAVES_MAX);
-  var hpMul=1+(n-1)*0.34;
-  var spdMul=1+Math.min(1.1,(n-1)*0.018);
-  return {n:n, path:path, boss:boss, waveCount:waveCount, hpMul:hpMul, spdMul:spdMul,
-    lives:20, gold:210+ (n-1)*3};
+  var hpMul=(1+(n-1)*0.34)*D.hp;
+  var spdMul=(1+Math.min(1.1,(n-1)*0.018))*D.spd;
+  return {n:n, diff:save.diff, path:path, boss:boss, waveCount:waveCount, hpMul:hpMul, spdMul:spdMul,
+    lives:D.lives, gold:Math.round((210+(n-1)*3)*D.startGold)};
 }
 // 웨이브 → 스폰 큐 [{type,hpMul,time}]
 function buildWave(cfg,w){
@@ -265,10 +312,12 @@ function buildWave(cfg,w){
     if(w>=4)groups.push({type:'tank',count:Math.floor(w/4),gap:1.3,hp:base});
     if(w>=3)groups.push({type:'bat',count:2+Math.floor(w/3),gap:0.45,hp:base});
   }
+  var D=DIFFS[cfg.diff]||DIFFS.normal;
   var queue=[], t=0;
   for(var gi=0;gi<groups.length;gi++){
     var g=groups[gi];
-    for(var k=0;k<g.count;k++){queue.push({type:g.type,hpMul:g.hp,time:t});t+=g.gap;}
+    var cnt=g.count>0?Math.max(1,Math.round(g.count*D.count)):0;
+    for(var k=0;k<cnt;k++){queue.push({type:g.type,hpMul:g.hp,time:t});t+=g.gap;}
     t+=0.8;
   }
   return queue;
@@ -492,7 +541,9 @@ function spawnEnemy(type,hpMul){
 function damageEnemy(e,dmg){
   e.hp-=dmg;
   if(e.hp<=0&&e.alive){
-    e.alive=false;st.gold+=e.def.gold;st.score+=Math.round(e.def.gold*2+ e.maxHp*0.05);
+    var D=DIFFS[st.cfg.diff]||DIFFS.normal;
+    e.alive=false;st.gold+=Math.max(1,Math.round(e.def.gold*D.gold));
+    st.score+=Math.round((e.def.gold*2+ e.maxHp*0.05)*D.score);
     spawnPuff(e.mesh.position.x,e.mesh.position.z,e.def.color);
     playSound('kill');
     field.remove(e.mesh);disposeGroup(e.mesh);
@@ -632,7 +683,8 @@ function updateGame(dt){
   if(st.waveActive && st.spawned>=st.queue.length && st.enemies.length===0){
     st.waveActive=false;
     if(st.wave>=st.waveCount){return endStage(true);}
-    st.gold+=40+st.wave*6;toast('웨이브 클리어! +'+(40+st.wave*6)+' 골드');
+    var wb=Math.round((40+st.wave*6)*((DIFFS[st.cfg.diff]||DIFFS.normal).bonus));
+    st.gold+=wb;toast('웨이브 클리어! +'+wb+' 골드');
     refreshHUD();refreshShop();updateWaveBtn();
   }
 }
@@ -786,11 +838,14 @@ function sellTower(){
 }
 
 /* ══════════ HUD/상점/화면 ══════════ */
+var DIFF_COLORS={easy:'#66d98a',normal:'#57c8e8',hard:'#ffb347',crazy:'#ff6a6a'};
 function refreshHUD(){
   $('g-val').textContent=st.gold;
   $('l-val').textContent=st.lives;
   $('w-val').textContent=st.wave+'/'+st.waveCount;
   $('s-val').textContent=st.score;
+  $('d-val').textContent=(DIFFS[st.cfg.diff]||DIFFS.normal).name;
+  $('d-val').style.color=DIFF_COLORS[st.cfg.diff]||DIFF_COLORS.normal;
 }
 function updateWaveBtn(){
   var b=$('btn-wave');
@@ -835,19 +890,19 @@ function importSave(file){
   var rd=new FileReader();
   rd.onload=function(){
     try{
-      var s=JSON.parse(rd.result);
-      if(!s||typeof s.unlocked!=='number'||typeof s.cleared!=='object'||!s.cleared)throw 0;
-      save={unlocked:clamp(s.unlocked|0,1,STAGES), cleared:s.cleared, bestScore:(+s.bestScore||0)};
-      writeSave(save);buildStageGrid();
-      toast('세이브를 불러왔어요! (해금 '+save.unlocked+'스테이지)');
+      var s=normalizeSave(JSON.parse(rd.result));
+      if(!s)throw 0;
+      save=s;
+      writeSave(save);buildDiffRow();buildStageGrid();
+      toast('세이브를 불러왔어요! ('+DIFFS[save.diff].name+' 해금 '+prog().unlocked+'스테이지)');
     }catch(e){toast('세이브 파일을 읽을 수 없어요');}
   };
   rd.onerror=function(){toast('세이브 파일을 읽을 수 없어요');};
   rd.readAsText(file);
 }
 function resetSave(){
-  if(!window.confirm('모든 진행(해금·클리어·최고점수)을 초기화할까요?'))return;
-  save={unlocked:1, cleared:{}, bestScore:0};writeSave(save);buildStageGrid();toast('진행을 초기화했어요');
+  if(!window.confirm('모든 난이도의 진행(해금·클리어·최고점수)을 초기화할까요?'))return;
+  save=normalizeSave({prog:{}});writeSave(save);buildDiffRow();buildStageGrid();toast('진행을 초기화했어요');
 }
 
 /* ══════════ 사운드(간단 WebAudio) ══════════ */
@@ -869,14 +924,31 @@ function showPlay(){$('title').classList.add('hidden');$('stages').classList.add
   $('hud').classList.remove('hidden');$('shop').classList.remove('hidden');}
 function hidePlayUI(){$('hud').classList.add('hidden');$('shop').classList.add('hidden');$('tinfo').classList.add('hidden');}
 
+function buildDiffRow(){
+  var row=$('diffrow');row.innerHTML='';
+  DIFF_ORDER.forEach(function(d){
+    var b=document.createElement('button');
+    b.className='diffbtn'+(save.diff===d?' sel':'');b.dataset.diff=d;
+    b.textContent=DIFFS[d].name;
+    b.addEventListener('click',function(){
+      if(save.diff===d)return;
+      save.diff=d;writeSave(save);
+      buildDiffRow();buildStageGrid();
+    });
+    row.appendChild(b);
+  });
+  var D=DIFFS[save.diff];
+  $('diff-desc').textContent=D.name+' — 적 체력 '+Math.round(D.hp*100)+'% · 마릿수 '+Math.round(D.count*100)+'% · 라이프 '+D.lives+' · 골드 '+Math.round(D.gold*100)+'% · 점수 x'+D.score;
+}
 function buildStageGrid(){
   var g=$('stage-grid');g.innerHTML='';
+  var p=prog();
   for(var n=1;n<=STAGES;n++){(function(n){
     var cfg=stageConfig(n);
     var cell=document.createElement('div');cell.className='scell';
-    var locked=n>save.unlocked;
+    var locked=n>p.unlocked;
     if(locked)cell.classList.add('lock');
-    if(save.cleared[n])cell.classList.add('clear');
+    if(p.cleared[n])cell.classList.add('clear');
     if(cfg.boss)cell.classList.add('bossst');
     cell.innerHTML=(locked?'🔒':n)+(cfg.boss&&!locked?'<div class="boss">★보스</div>':'');
     if(!locked)cell.addEventListener('click',function(){startStage(n);});
@@ -893,18 +965,21 @@ function startStage(n){
   deselect();clearPreview();
   refreshHUD();buildShop();refreshShop();updateWaveBtn();
   showPlay();
-  toast('스테이지 '+n+' — 타워를 배치하고 웨이브를 시작하세요!');
+  toast('스테이지 '+n+' ['+DIFFS[cfg.diff].name+'] — 타워를 배치하고 웨이브를 시작하세요!');
 }
+function showStages(){buildDiffRow();buildStageGrid();show('stages');}
 function endStage(win){
   if(st.done)return;st.done=true;st.waveActive=false;
   hidePlayUI();
   var e=$('end');e.classList.remove('win','lose');e.classList.add(win?'win':'lose');
   $('end-big').textContent=win?'스테이지 클리어! 🎉':'왕국 함락… 💥';
-  $('end-stat').innerHTML='스테이지 '+curStage+' · 점수 '+st.score+'<br>'+(win?'수정을 지켜냈어요! (라이프 '+st.lives+')':'수정이 부서졌어요. 다시 도전해 보세요.');
+  var dName=(DIFFS[st.cfg.diff]||DIFFS.normal).name;
+  $('end-stat').innerHTML='스테이지 '+curStage+' ['+dName+'] · 점수 '+st.score+'<br>'+(win?'수정을 지켜냈어요! (라이프 '+st.lives+')':'수정이 부서졌어요. 다시 도전해 보세요.');
   if(win){
-    save.cleared[curStage]=true;
-    if(curStage+1>save.unlocked&&curStage<STAGES)save.unlocked=curStage+1;
-    if(st.score>save.bestScore)save.bestScore=st.score;
+    var p=save.prog[st.cfg.diff]||prog();
+    p.cleared[curStage]=true;
+    if(curStage+1>p.unlocked&&curStage<STAGES)p.unlocked=curStage+1;
+    if(st.score>p.bestScore)p.bestScore=st.score;
     writeSave(save);
   }
   var nb=$('btn-next');
@@ -916,7 +991,7 @@ function endStage(win){
 
 /* ══════════ 버튼 연결 ══════════ */
 function bindUI(){
-  $('btn-start').addEventListener('click',function(){buildStageGrid();show('stages');});
+  $('btn-start').addEventListener('click',showStages);
   $('btn-stage-back').addEventListener('click',function(){show('title');});
   $('btn-export').addEventListener('click',exportSave);
   $('btn-import').addEventListener('click',function(){$('file-input').click();});
@@ -926,13 +1001,13 @@ function bindUI(){
   $('btn-wave').addEventListener('click',function(){ensureAudio();startWave();});
   $('btn-speed').addEventListener('click',function(){st.speed=st.speed===1?2:st.speed===2?3:1;$('btn-speed').textContent='배속 '+st.speed+'x';});
   $('btn-sound').addEventListener('click',function(){st.sound=!st.sound;ensureAudio();$('btn-sound').textContent='소리 '+(st.sound?'켬':'끔');});
-  $('btn-menu').addEventListener('click',function(){hidePlayUI();buildStageGrid();show('stages');st.done=true;});
+  $('btn-menu').addEventListener('click',function(){hidePlayUI();showStages();st.done=true;});
   $('btn-up').addEventListener('click',upgradeTower);
   $('btn-sell').addEventListener('click',sellTower);
   $('btn-close').addEventListener('click',deselect);
   $('btn-next').addEventListener('click',function(){startStage(Math.min(STAGES,curStage+1));});
   $('btn-retry').addEventListener('click',function(){startStage(curStage);});
-  $('btn-tostages').addEventListener('click',function(){buildStageGrid();show('stages');});
+  $('btn-tostages').addEventListener('click',showStages);
 }
 
 /* ══════════ 부트 ══════════ */
