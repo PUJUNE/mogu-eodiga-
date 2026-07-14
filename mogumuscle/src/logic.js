@@ -52,7 +52,7 @@ M.Logic = {
       mv: Object.fromEntries(Object.entries(h.mv).map(([k, v]) => [k, Math.max(1, Math.round(v * dmgMul))])),
       sp: { name: h.sp.name, kind: h.sp.kind, dmg: Math.round(h.sp.dmg * dmgMul) },
       state: 'idle',               // idle|walk|atk|air|fba|rope|run|down|ko
-      anim: null, animT: 0,        // 기술 모션 (dropkick|kick|lariat|backdrop — 렌더 전용)
+      anim: null, animT: 0,        // 기술 모션 (dropkick|lariat|backdrop — 렌더 전용)
       atkT: 0, cd: 0, stunT: 0, downT: 0, invT: 0,
       airT: 0, airDur: JUMP_T,
       ropePhase: null, ropeVx: 0, ropeT: 0,
@@ -274,17 +274,14 @@ M.Logic = {
           ev.push({ type: 'fbago' });
         }
       }
-      // 공격 (코너 근처 + 적이 멀면 태그 — 원작 A버튼 방식)
+      // 공격 (태그는 C 전용 — 코너에서도 공격 버튼은 항상 공격, 오태그 방지)
       if (input.atk && P.cd <= 0 && P.state !== 'fba') {
-        const canTag = this.dist(P, st.pC) < TAG_RANGE && this.alive(st.players[1 - st.pi]) &&
-          st.tagCd <= 0 && this.dist(P, E) > GRAB_RANGE + 8;
-        if (canTag) this._tag(st, 'p', ev);
-        else this._attack(st, P, E, 'p', ev);
+        this._attack(st, P, E, 'p', ev);
         if (st.phase !== 'fight') return ev;
       }
-      // 전용 태그 입력 (보조)
+      // 태그: 전용 입력(C·🔄)으로만, 지상에서 코너 근처일 때
       if (input.tag && st.tagCd <= 0 && this.alive(st.players[1 - st.pi]) &&
-          this.dist(P, st.pC) < TAG_RANGE) {
+          P.state !== 'air' && this.dist(P, st.pC) < TAG_RANGE) {
         this._tag(st, 'p', ev);
       }
     }
@@ -454,20 +451,18 @@ M.Logic = {
     const d = this.dist(att, def);
     const powered = att.poweredT > 0;
 
-    if (att.state === 'air') {                               // 공중 공격
+    if (att.state === 'air') {                               // 공중 공격 = 항상 드롭킥 모션
       att.airT = Math.min(att.airT, 0.18); att.cd = 0.5;
-      if (def.state === 'rope' && d < KICK_RANGE) {          // 반동 복귀 중 → 드롭킥
-        att.anim = 'dropkick'; att.animT = 0.5;              // 수평 비행 → 매트 슬라이드 모션
+      att.face = def.x >= att.x ? 1 : -1;                    // 양 다리가 상대 쪽을 향하도록 회전
+      att.anim = 'dropkick';
+      if (def.state === 'rope' && d < KICK_RANGE) {          // 반동 복귀 중 → 드롭킥 카운터
+        att.animT = 0.5;                                     // 수평 비행 → 매트 슬라이드
         this._damage(st, att, def, att.mv.dropkick, true, 'dropkick', ev);
       } else if (this.hittable(def) && def.state !== 'rope' && d < KICK_RANGE) {
-        if (powered && att.sp.kind === 'jump') {
-          att.anim = 'dropkick'; att.animT = 0.5;
-          this._special(st, att, def, ev);
-        } else {
-          att.anim = 'kick'; att.animT = 0.35;
-          this._damage(st, att, def, att.mv.kick, false, 'kick', ev, 0.45);
-        }
-      } else { att.anim = 'kick'; att.animT = 0.35; ev.push({ type: 'swing' }); }
+        att.animT = 0.5;
+        if (powered && att.sp.kind === 'jump') this._special(st, att, def, ev);
+        else this._damage(st, att, def, att.mv.kick, false, 'kick', ev, 0.45);
+      } else { att.animT = 0.22; ev.push({ type: 'swing' }); }  // 헛스윙: 슬라이드 없이 짧게
       return;
     }
 
