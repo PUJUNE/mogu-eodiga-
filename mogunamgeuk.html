@@ -229,7 +229,7 @@ M.makeStage = function (no) {
   // 장애물: 진행 간격 결정적 배치 (점프 체공 거리보다 넉넉한 최소 간격)
   const objs = [];
   const hazMin = (170 - t * 40) / (D.densityMul || 1); // 170 → 130 m (크레이지는 촘촘)
-  const popP = Math.min(0.8, (0.22 + t * 0.28) * (D.popMul || 1));   // 크레바스 바다사자 출현률
+  const popP = Math.min(0.9, (0.4 + t * 0.35) * (D.popMul || 1));    // 크레바스 바다사자(숨었다 솟아오름) 출현률
   d = 300;
   while (d < length - 300) {
     const r = rng.next();
@@ -265,12 +265,27 @@ M.makeStage = function (no) {
   };
 };
 
-// 현재 거리의 곡률
+// 현재 거리의 곡률 — 세그먼트 경계 ±60m는 스무스스텝 보간으로 부드럽게 전환
+// (전환 폭 120m < 최소 세그먼트 길이 280m 이므로 전환 구간끼리 겹치지 않음)
+const CURVE_RAMP = 120;
 M.curveAt = function (stage, d) {
-  for (const cv of stage.curves) {
-    if (d >= cv.d0 && d < cv.d1) return cv.c;
+  const cs = stage.curves;
+  if (!cs.length) return 0;
+  const raw = (x) => {
+    for (const cv of cs) if (x >= cv.d0 && x < cv.d1) return cv.c;
+    return 0;
+  };
+  let b = cs[0].d0;                                  // 가장 가까운 경계
+  for (const cv of cs) {
+    if (Math.abs(cv.d0 - d) < Math.abs(b - d)) b = cv.d0;
+    if (Math.abs(cv.d1 - d) < Math.abs(b - d)) b = cv.d1;
   }
-  return 0;
+  const h = CURVE_RAMP / 2;
+  if (Math.abs(d - b) >= h) return raw(d);
+  const p = (d - (b - h)) / CURVE_RAMP;
+  const s = p * p * (3 - 2 * p);
+  const c0 = raw(b - h), c1 = raw(b + h);
+  return c0 + (c1 - c0) * s;
 };
 
 }
