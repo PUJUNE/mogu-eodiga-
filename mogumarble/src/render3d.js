@@ -3,10 +3,11 @@
 var M = window.MBL;
 var THREE = window.THREE;
 
-var TILE_S = 17;                   // 칸 간격
-var TILE_W = 15.6;                 // 칸 크기
+var TILE_S = 15;                   // 칸 간격
+var TILE_W = 13.8;                 // 칸 크기
 var TILE_H = 2.6;                  // 칸 두께
-var HALF = 3 * TILE_S;             // 보드 반폭
+var SIDE = 12;                     // 한 변 칸 수 (코너 0/12/24/36)
+var HALF = (SIDE / 2) * TILE_S;    // 보드 반폭
 
 function mat(color, rough, metal) {
   return new THREE.MeshStandardMaterial({ color: color, roughness: rough == null ? 0.85 : rough, metalness: metal || 0, flatShading: true });
@@ -15,17 +16,17 @@ function mat(color, rough, metal) {
 M.R3 = {
   renderer: null, scene: null, camera: null,
   boardG: null, tileMeshes: [], propG: null, tokens: [], diceG: null, dice: [],
-  cam: { yaw: 0.0, pitch: 0.86, dist: 175, min: 90, max: 300, target: null },
+  cam: { yaw: 0.0, pitch: 0.86, dist: 300, min: 140, max: 480, target: null },
   anims: [], t: 0,
   markerRing: null,
 
   // 보드 둘레 좌표 (0=우하 코너, 반시계: 아래변 → 왼변 → 윗변 → 오른변)
   tilePos: function (i) {
     var s = ((i % M.SIZE) + M.SIZE) % M.SIZE;
-    if (s <= 6)  return { x: HALF - s * TILE_S, z: HALF, side: 0 };
-    if (s <= 12) return { x: -HALF, z: HALF - (s - 6) * TILE_S, side: 1 };
-    if (s <= 18) return { x: -HALF + (s - 12) * TILE_S, z: -HALF, side: 2 };
-    return { x: HALF, z: -HALF + (s - 18) * TILE_S, side: 3 };
+    if (s <= SIDE)     return { x: HALF - s * TILE_S, z: HALF, side: 0 };
+    if (s <= SIDE * 2) return { x: -HALF, z: HALF - (s - SIDE) * TILE_S, side: 1 };
+    if (s <= SIDE * 3) return { x: -HALF + (s - SIDE * 2) * TILE_S, z: -HALF, side: 2 };
+    return { x: HALF, z: -HALF + (s - SIDE * 3) * TILE_S, side: 3 };
   },
 
   init: function (container) {
@@ -51,7 +52,7 @@ M.R3 = {
     sun.position.set(-120, 210, 110);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    var d = 150;
+    var d = 220;
     sun.shadow.camera.left = -d; sun.shadow.camera.right = d;
     sun.shadow.camera.top = d; sun.shadow.camera.bottom = -d;
     sun.shadow.camera.near = 10; sun.shadow.camera.far = 700;
@@ -195,18 +196,18 @@ M.R3 = {
     lc.fillText('성남 · 수원 · 원주', 256, 190);
     var logoTex = new THREE.CanvasTexture(logoCv);
     logoTex.encoding = THREE.sRGBEncoding;
-    var logo = new THREE.Mesh(new THREE.PlaneGeometry(58, 29),
+    var logo = new THREE.Mesh(new THREE.PlaneGeometry(92, 46),
       new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, depthWrite: false }));
     logo.rotation.x = -Math.PI / 2;
-    logo.position.set(0, 0.55, 10);
+    logo.position.set(0, 0.55, 20);
     g.add(logo);
     try {
       var moguTex = new THREE.TextureLoader().load(M.ASSET_BASE + 'game/assets/mogu-icon.png');
       moguTex.encoding = THREE.sRGBEncoding;
-      var face = new THREE.Mesh(new THREE.PlaneGeometry(26, 26),
+      var face = new THREE.Mesh(new THREE.PlaneGeometry(42, 42),
         new THREE.MeshBasicMaterial({ map: moguTex, transparent: true, depthWrite: false }));
       face.rotation.x = -Math.PI / 2;
-      face.position.set(0, 0.55, -16);
+      face.position.set(0, 0.55, -26);
       g.add(face);
     } catch (e) { }
 
@@ -214,7 +215,7 @@ M.R3 = {
     this.tileMeshes = [];
     for (var i = 0; i < M.SIZE; i++) {
       var p = this.tilePos(i);
-      var isCorner = i % 6 === 0;
+      var isCorner = i % SIDE === 0;
       var w = isCorner ? TILE_W + 1.6 : TILE_W;
       var box = new THREE.Mesh(new THREE.BoxGeometry(w, TILE_H, w),
         [mat(0xe8dcc0), mat(0xe8dcc0),
@@ -230,7 +231,7 @@ M.R3 = {
 
     // 장식: 보드 밖 낮은 언덕나무 (애니메이션 톤 원색)
     var rng = M.makeRng(20260714);
-    for (i = 0; i < 14; i++) {
+    for (i = 0; i < 22; i++) {
       var ang = rng.next() * Math.PI * 2;
       var rad = HALF * 1.55 + rng.next() * HALF * 0.8;
       var tx = Math.cos(ang) * rad, tz = Math.sin(ang) * rad;

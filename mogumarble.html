@@ -131,7 +131,7 @@
 <div id="hud" class="hidden">
   <div id="players"></div>
   <div id="hud-right">
-    <div id="round-ind">라운드 1/25</div>
+    <div id="round-ind">라운드 1/30</div>
     <div>
       <button class="hbtn" id="btn-home">🏠 처음으로</button>
     </div>
@@ -160,10 +160,10 @@
   <div class="sub">MOGU MARBLE · 성남 × 수원 × 원주</div>
   <div id="title-icon">🐱🎲</div>
   <div class="info">
-    부루마블 · 모두의 마블 모티브 3D 보드게임!<br>
+    부루마블 · 모두의 마블 모티브 3D 보드게임! (48칸 · 도시별 명소 12곳)<br>
     주사위를 굴려 <b>성남·수원·원주의 명소</b>를 사들이고 별장→빌딩→호텔을 지어요.<br>
-    <b>한 도시 6곳 독점 = 즉시 승리!</b> 통행료로 상대를 파산시켜도 승리!<br>
-    🎪 축제 = 통행료 ×2 · 🔑 황금열쇠 · 🏝️ 무인도 · 🤝 남의 땅 인수 · 더블은 한 번 더
+    <b>한 도시 8곳 제패 = 즉시 승리!</b> 통행료로 상대를 파산시켜도 승리!<br>
+    🎪 축제 = 통행료 ×2 · 🔑 황금열쇠 8칸 · 🏝️ 무인도 · 🤝 남의 땅 인수 · 더블은 한 번 더
   </div>
   <div class="menu-col">
     <button class="bigbtn" id="btn-vs-com">🤖 컴퓨터와 대전 (나 + 컴퓨터 3)</button>
@@ -216,12 +216,12 @@
 // 금액 단위: 만 (부루마블 감각). window.MBL 네임스페이스.
 var M = window.MBL;
 
-M.SIZE = 24;                       // 보드 한 바퀴 칸 수 (한 변 6칸 × 4)
-M.START_MONEY = 1500;              // 시작 자금
+M.START_MONEY = 2000;              // 시작 자금
 M.SALARY = 200;                    // 출발지 통과 월급
 M.ESCAPE_FEE = 150;                // 무인도 탈출비
 M.ISLAND_TURNS = 3;                // 무인도 최대 대기 턴
-M.MAX_ROUNDS = 25;                 // 라운드 제한 → 초과 시 총자산 1위 승리
+M.MAX_ROUNDS = 30;                 // 라운드 제한 → 초과 시 총자산 1위 승리
+M.CITY_WIN = 8;                    // 한 도시에서 이만큼 소유 = 도시 제패 즉시 승리
 M.UP_COST = 0.6;                   // 업그레이드 비용 = 땅값 × 0.6 (레벨당)
 M.TAKEOVER_MUL = 2;                // 인수 비용 = (땅값+투자금) × 2
 M.SELL_RATE = 0.6;                 // 파산 청산 환급률
@@ -236,34 +236,61 @@ M.CITIES = {
 };
 
 // kind: start | island | festival | express | key | city
+// 한 변 12칸 × 4 = 48칸. 코너 0/12/24/36, 황금열쇠 8칸, 도시 3곳 × 12지역
 M.TILES = [
   { kind: 'start',    name: '출발',            emoji: '🏁' },                       // 0
-  { kind: 'city', city: 'wonju',    name: '원주역',          price: 80 },           // 1
-  { kind: 'city', city: 'wonju',    name: '강원감영',        price: 100 },          // 2
-  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 3
-  { kind: 'city', city: 'wonju',    name: '한지테마파크',    price: 120 },          // 4
-  { kind: 'city', city: 'wonju',    name: '치악산',          price: 150 },          // 5
-  { kind: 'island',   name: '무인도',          emoji: '🏝️' },                      // 6
-  { kind: 'city', city: 'wonju',    name: '소금산 출렁다리', price: 170 },          // 7
-  { kind: 'city', city: 'wonju',    name: '뮤지엄 산',       price: 190 },          // 8
-  { kind: 'city', city: 'seongnam', name: '모란시장',        price: 220 },          // 9
-  { kind: 'city', city: 'seongnam', name: '야탑역',          price: 240 },          // 10
-  { kind: 'city', city: 'seongnam', name: '남한산성',        price: 260 },          // 11
-  { kind: 'festival', name: '모구 축제',       emoji: '🎪' },                       // 12
-  { kind: 'city', city: 'seongnam', name: '서현역',          price: 290 },          // 13
-  { kind: 'city', city: 'seongnam', name: '정자동 카페거리', price: 320 },          // 14
-  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 15
-  { kind: 'city', city: 'seongnam', name: '판교 테크노밸리', price: 360 },          // 16
-  { kind: 'city', city: 'suwon',    name: '수원역',          price: 390 },          // 17
-  { kind: 'express',  name: '모구 특급열차',   emoji: '🚂' },                       // 18
-  { kind: 'city', city: 'suwon',    name: '장안문',          price: 410 },          // 19
-  { kind: 'city', city: 'suwon',    name: '행리단길',        price: 430 },          // 20
-  { kind: 'city', city: 'suwon',    name: '나혜석거리',      price: 450 },          // 21
-  { kind: 'city', city: 'suwon',    name: '광교호수공원',    price: 480 },          // 22
-  { kind: 'city', city: 'suwon',    name: '수원화성',        price: 520 },          // 23
+  { kind: 'city', city: 'wonju',    name: '원주역',          price: 60 },           // 1
+  { kind: 'city', city: 'wonju',    name: '원주 중앙시장',   price: 80 },           // 2
+  { kind: 'city', city: 'wonju',    name: '원주천 둔치',     price: 90 },           // 3
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 4
+  { kind: 'city', city: 'wonju',    name: '박경리 문학공원', price: 110 },          // 5
+  { kind: 'city', city: 'wonju',    name: '강원감영',        price: 120 },          // 6
+  { kind: 'city', city: 'wonju',    name: '한지 테마파크',   price: 140 },          // 7
+  { kind: 'city', city: 'wonju',    name: '구룡사',          price: 150 },          // 8
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 9
+  { kind: 'city', city: 'wonju',    name: '치악산',          price: 170 },          // 10
+  { kind: 'city', city: 'wonju',    name: '간현관광지',      price: 190 },          // 11
+  { kind: 'island',   name: '무인도',          emoji: '🏝️' },                      // 12
+  { kind: 'city', city: 'wonju',    name: '소금산 출렁다리', price: 210 },          // 13
+  { kind: 'city', city: 'wonju',    name: '뮤지엄 산',       price: 230 },          // 14
+  { kind: 'city', city: 'wonju',    name: '원주 혁신도시',   price: 240 },          // 15
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 16
+  { kind: 'city', city: 'seongnam', name: '모란시장',        price: 260 },          // 17
+  { kind: 'city', city: 'seongnam', name: '탄천',            price: 280 },          // 18
+  { kind: 'city', city: 'seongnam', name: '야탑역',          price: 300 },          // 19
+  { kind: 'city', city: 'seongnam', name: '율동공원',        price: 310 },          // 20
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 21
+  { kind: 'city', city: 'seongnam', name: '남한산성',        price: 330 },          // 22
+  { kind: 'city', city: 'seongnam', name: '성남 아트센터',   price: 350 },          // 23
+  { kind: 'festival', name: '모구 축제',       emoji: '🎪' },                       // 24
+  { kind: 'city', city: 'seongnam', name: '서현역',          price: 370 },          // 25
+  { kind: 'city', city: 'seongnam', name: '분당 중앙공원',   price: 380 },          // 26
+  { kind: 'city', city: 'seongnam', name: '위례신도시',      price: 400 },          // 27
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 28
+  { kind: 'city', city: 'seongnam', name: '정자동 카페거리', price: 410 },          // 29
+  { kind: 'city', city: 'seongnam', name: '백현동 카페거리', price: 420 },          // 30
+  { kind: 'city', city: 'seongnam', name: '판교 테크노밸리', price: 440 },          // 31
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 32
+  { kind: 'city', city: 'suwon',    name: '수원역',          price: 460 },          // 33
+  { kind: 'city', city: 'suwon',    name: '지동시장',        price: 480 },          // 34
+  { kind: 'city', city: 'suwon',    name: '팔달문',          price: 500 },          // 35
+  { kind: 'express',  name: '모구 특급열차',   emoji: '🚂' },                       // 36
+  { kind: 'city', city: 'suwon',    name: '인계동',          price: 520 },          // 37
+  { kind: 'city', city: 'suwon',    name: '수원 월드컵경기장', price: 540 },        // 38
+  { kind: 'city', city: 'suwon',    name: '화성행궁',        price: 560 },          // 39
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 40
+  { kind: 'city', city: 'suwon',    name: '장안문',          price: 580 },          // 41
+  { kind: 'city', city: 'suwon',    name: '행리단길',        price: 600 },          // 42
+  { kind: 'city', city: 'suwon',    name: '나혜석거리',      price: 620 },          // 43
+  { kind: 'city', city: 'suwon',    name: '광교산',          price: 640 },          // 44
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 45
+  { kind: 'city', city: 'suwon',    name: '광교 호수공원',   price: 660 },          // 46
+  { kind: 'city', city: 'suwon',    name: '수원화성',        price: 700 },          // 47
 ];
+M.SIZE = M.TILES.length;           // 48
+M.ISLAND_IDX = 12;                 // 무인도 칸 (더블 3연속·카드 이동 목적지)
 
-// 황금열쇠 카드 (효과는 logic.js _applyCard)
+// 황금열쇠 카드 (효과는 logic.js _drawCard)
 M.CARDS = [
   { id: 'lotto',   name: '츄르 복권 당첨!',        desc: '은행에서 300만을 받는다',            money: 300 },
   { id: 'refund',  name: '세금 환급',              desc: '은행에서 150만을 받는다',            money: 150 },
@@ -272,9 +299,13 @@ M.CARDS = [
   { id: 'gift',    name: '집사들의 선물',          desc: '다른 플레이어 모두에게 50만씩 받는다', gift: 50 },
   { id: 'tostart', name: '집으로!',                desc: '출발지로 이동하고 월급을 받는다',    goto: 'start' },
   { id: 'island',  name: '태풍을 만났다…',         desc: '무인도로 이동한다',                  goto: 'island' },
-  { id: 'chiak',   name: '치악산 등반',            desc: '치악산으로 이동한다',                goto: 5 },
+  { id: 'chiak',   name: '치악산 등반',            desc: '치악산으로 이동한다',                goto: 10 },
   { id: 'back3',   name: '깜빡 낮잠',              desc: '뒤로 3칸 이동한다',                  back: 3 },
   { id: 'salary',  name: '보너스 월급날',          desc: '은행에서 200만을 받는다',            money: 200 },
+  { id: 'pangyo',  name: '판교 출장',              desc: '판교 테크노밸리로 이동한다',         goto: 31 },
+  { id: 'hwaseong',name: '수원 나들이',            desc: '수원화성으로 이동한다',              goto: 47 },
+  { id: 'treat',   name: '츄르 쏘기',              desc: '다른 플레이어 모두에게 30만씩 준다',  gift: -30 },
+  { id: 'fwd5',    name: '신나는 산책',            desc: '앞으로 5칸 이동한다',                fwd: 5 },
 ];
 
 // 플레이어 캐릭터 4종 (토큰 색 = 애니메이션 톤)
@@ -390,7 +421,7 @@ M.Logic = {
       st.doubles++;
       if (st.doubles >= 3) {                   // 더블 3연속 → 무인도 직행
         ev.push({ type: 'tripledouble' });
-        this._teleport(st, 6, ev, false);
+        this._teleport(st, M.ISLAND_IDX, ev, false);
         P.islandT = M.ISLAND_TURNS;
         ev.push({ type: 'island' });
         st.lastDouble = false;
@@ -499,19 +530,24 @@ M.Logic = {
       if (card.money >= 0) P.money += card.money;
       else { this._pay(st, P.i, -1, -card.money, ev); if (st.phase === 'over') return; }
       st.phase = 'end';
-    } else if (card.gift != null) {            // 다른 플레이어 모두에게서 받기
+    } else if (card.gift != null) {            // 양수: 모두에게서 받기 / 음수: 모두에게 주기
       for (var i = 0; i < st.players.length; i++) {
         var o = st.players[i];
         if (i === P.i || !o.alive) continue;
-        var got = Math.min(card.gift, Math.max(0, o.money));
-        o.money -= got; P.money += got;
+        if (card.gift >= 0) {
+          var got = Math.min(card.gift, Math.max(0, o.money));
+          o.money -= got; P.money += got;
+        } else {
+          var give = Math.min(-card.gift, Math.max(0, P.money));
+          P.money -= give; o.money += give;
+        }
       }
       st.phase = 'end';
     } else if (card.goto === 'start') {
       this._teleport(st, 0, ev, true);
       st.phase = 'end';
     } else if (card.goto === 'island') {
-      this._teleport(st, 6, ev, false);
+      this._teleport(st, M.ISLAND_IDX, ev, false);
       P.islandT = M.ISLAND_TURNS;
       st.lastDouble = false;
       ev.push({ type: 'island' });
@@ -523,6 +559,8 @@ M.Logic = {
       var to = (P.pos - card.back + M.SIZE) % M.SIZE;
       this._teleport(st, to, ev, false);
       this._land(st, ev);
+    } else if (card.fwd != null) {
+      this._move(st, card.fwd, ev);            // 전진 — 출발 통과 월급·도착 칸 규칙 적용
     } else st.phase = 'end';
   },
 
@@ -589,7 +627,8 @@ M.Logic = {
   },
 
   _checkMonopoly: function (st, pi, city, ev) {
-    if (this.cityCount(st, pi, city) >= this.cityTotal(city)) {
+    // 도시 제패: 한 도시에서 CITY_WIN곳 이상 소유 (도시 규모보다 크면 전체 소유)
+    if (this.cityCount(st, pi, city) >= Math.min(M.CITY_WIN, this.cityTotal(city))) {
       ev.push({ type: 'monopoly', city: city, pi: pi });
       this._gameOver(st, 'monopoly', ev, pi);
     }
@@ -673,10 +712,10 @@ M.AI = {
       if (P.money - tc < 250) return false;
       var owner = st.tiles[idx].owner;
       var myAfter = L.cityCount(st, P.i, def.city) + 1;
-      var total = L.cityTotal(def.city);
-      if (myAfter >= total) return true;                    // 인수로 도시 독점 완성 → 즉시 승리
-      if (L.cityCount(st, owner, def.city) >= total - 1) return true;  // 상대 독점 저지
-      return myAfter >= total - 1 && P.money - tc >= 500;   // 독점 직전이면 부자일 때만
+      var win = Math.min(M.CITY_WIN, L.cityTotal(def.city));
+      if (myAfter >= win) return true;                      // 인수로 도시 제패 완성 → 즉시 승리
+      if (L.cityCount(st, owner, def.city) >= win - 1) return true;    // 상대 제패 저지
+      return myAfter >= win - 1 && P.money - tc >= 500;     // 제패 직전이면 부자일 때만
     }
     return false;
   },
@@ -831,7 +870,7 @@ M.ui = {
 
   // ── 결과 화면 ──
   showEnd: function (st) {
-    var reasonTxt = { monopoly: '🏆 도시 독점 승리!', lastman: '👑 최후의 생존자!', rounds: '⏱️ 라운드 종료 — 총자산 1위!' };
+    var reasonTxt = { monopoly: '🏆 도시 제패 승리!', lastman: '👑 최후의 생존자!', rounds: '⏱️ 라운드 종료 — 총자산 1위!' };
     $('end-reason').textContent = reasonTxt[st.overReason] || '게임 종료';
     var w = st.players[st.winner];
     $('end-winner').textContent = M.CHARS[w.char].emoji + ' ' + w.name + ' 승리!';
@@ -858,10 +897,11 @@ M.ui = {
 var M = window.MBL;
 var THREE = window.THREE;
 
-var TILE_S = 17;                   // 칸 간격
-var TILE_W = 15.6;                 // 칸 크기
+var TILE_S = 15;                   // 칸 간격
+var TILE_W = 13.8;                 // 칸 크기
 var TILE_H = 2.6;                  // 칸 두께
-var HALF = 3 * TILE_S;             // 보드 반폭
+var SIDE = 12;                     // 한 변 칸 수 (코너 0/12/24/36)
+var HALF = (SIDE / 2) * TILE_S;    // 보드 반폭
 
 function mat(color, rough, metal) {
   return new THREE.MeshStandardMaterial({ color: color, roughness: rough == null ? 0.85 : rough, metalness: metal || 0, flatShading: true });
@@ -870,17 +910,17 @@ function mat(color, rough, metal) {
 M.R3 = {
   renderer: null, scene: null, camera: null,
   boardG: null, tileMeshes: [], propG: null, tokens: [], diceG: null, dice: [],
-  cam: { yaw: 0.0, pitch: 0.86, dist: 175, min: 90, max: 300, target: null },
+  cam: { yaw: 0.0, pitch: 0.86, dist: 300, min: 140, max: 480, target: null },
   anims: [], t: 0,
   markerRing: null,
 
   // 보드 둘레 좌표 (0=우하 코너, 반시계: 아래변 → 왼변 → 윗변 → 오른변)
   tilePos: function (i) {
     var s = ((i % M.SIZE) + M.SIZE) % M.SIZE;
-    if (s <= 6)  return { x: HALF - s * TILE_S, z: HALF, side: 0 };
-    if (s <= 12) return { x: -HALF, z: HALF - (s - 6) * TILE_S, side: 1 };
-    if (s <= 18) return { x: -HALF + (s - 12) * TILE_S, z: -HALF, side: 2 };
-    return { x: HALF, z: -HALF + (s - 18) * TILE_S, side: 3 };
+    if (s <= SIDE)     return { x: HALF - s * TILE_S, z: HALF, side: 0 };
+    if (s <= SIDE * 2) return { x: -HALF, z: HALF - (s - SIDE) * TILE_S, side: 1 };
+    if (s <= SIDE * 3) return { x: -HALF + (s - SIDE * 2) * TILE_S, z: -HALF, side: 2 };
+    return { x: HALF, z: -HALF + (s - SIDE * 3) * TILE_S, side: 3 };
   },
 
   init: function (container) {
@@ -906,7 +946,7 @@ M.R3 = {
     sun.position.set(-120, 210, 110);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    var d = 150;
+    var d = 220;
     sun.shadow.camera.left = -d; sun.shadow.camera.right = d;
     sun.shadow.camera.top = d; sun.shadow.camera.bottom = -d;
     sun.shadow.camera.near = 10; sun.shadow.camera.far = 700;
@@ -1050,18 +1090,18 @@ M.R3 = {
     lc.fillText('성남 · 수원 · 원주', 256, 190);
     var logoTex = new THREE.CanvasTexture(logoCv);
     logoTex.encoding = THREE.sRGBEncoding;
-    var logo = new THREE.Mesh(new THREE.PlaneGeometry(58, 29),
+    var logo = new THREE.Mesh(new THREE.PlaneGeometry(92, 46),
       new THREE.MeshBasicMaterial({ map: logoTex, transparent: true, depthWrite: false }));
     logo.rotation.x = -Math.PI / 2;
-    logo.position.set(0, 0.55, 10);
+    logo.position.set(0, 0.55, 20);
     g.add(logo);
     try {
       var moguTex = new THREE.TextureLoader().load(M.ASSET_BASE + 'game/assets/mogu-icon.png');
       moguTex.encoding = THREE.sRGBEncoding;
-      var face = new THREE.Mesh(new THREE.PlaneGeometry(26, 26),
+      var face = new THREE.Mesh(new THREE.PlaneGeometry(42, 42),
         new THREE.MeshBasicMaterial({ map: moguTex, transparent: true, depthWrite: false }));
       face.rotation.x = -Math.PI / 2;
-      face.position.set(0, 0.55, -16);
+      face.position.set(0, 0.55, -26);
       g.add(face);
     } catch (e) { }
 
@@ -1069,7 +1109,7 @@ M.R3 = {
     this.tileMeshes = [];
     for (var i = 0; i < M.SIZE; i++) {
       var p = this.tilePos(i);
-      var isCorner = i % 6 === 0;
+      var isCorner = i % SIDE === 0;
       var w = isCorner ? TILE_W + 1.6 : TILE_W;
       var box = new THREE.Mesh(new THREE.BoxGeometry(w, TILE_H, w),
         [mat(0xe8dcc0), mat(0xe8dcc0),
@@ -1085,7 +1125,7 @@ M.R3 = {
 
     // 장식: 보드 밖 낮은 언덕나무 (애니메이션 톤 원색)
     var rng = M.makeRng(20260714);
-    for (i = 0; i < 14; i++) {
+    for (i = 0; i < 22; i++) {
       var ang = rng.next() * Math.PI * 2;
       var rad = HALF * 1.55 + rng.next() * HALF * 0.8;
       var tx = Math.cos(ang) * rad, tz = Math.sin(ang) * rad;
@@ -1531,7 +1571,7 @@ function playEvents(evs, done) {
         enq(function (next) { M.audio.bankrupt(); M.ui.toast('💀 ' + st.players[e.pi].name + ' 파산!', 2); refresh(); setTimeout(next, 900); });
         break;
       case 'monopoly':
-        enq(function (next) { M.audio.win(); M.ui.toast('🏆 ' + M.CITIES[e.city].name + ' 독점!!', 2); setTimeout(next, 900); });
+        enq(function (next) { M.audio.win(); M.ui.toast('🏆 ' + M.CITIES[e.city].name + ' 제패!!', 2); setTimeout(next, 900); });
         break;
       case 'pass': break;
       case 'turn': break;

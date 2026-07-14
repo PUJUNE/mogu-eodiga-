@@ -89,7 +89,7 @@ M.Logic = {
       st.doubles++;
       if (st.doubles >= 3) {                   // 더블 3연속 → 무인도 직행
         ev.push({ type: 'tripledouble' });
-        this._teleport(st, 6, ev, false);
+        this._teleport(st, M.ISLAND_IDX, ev, false);
         P.islandT = M.ISLAND_TURNS;
         ev.push({ type: 'island' });
         st.lastDouble = false;
@@ -198,19 +198,24 @@ M.Logic = {
       if (card.money >= 0) P.money += card.money;
       else { this._pay(st, P.i, -1, -card.money, ev); if (st.phase === 'over') return; }
       st.phase = 'end';
-    } else if (card.gift != null) {            // 다른 플레이어 모두에게서 받기
+    } else if (card.gift != null) {            // 양수: 모두에게서 받기 / 음수: 모두에게 주기
       for (var i = 0; i < st.players.length; i++) {
         var o = st.players[i];
         if (i === P.i || !o.alive) continue;
-        var got = Math.min(card.gift, Math.max(0, o.money));
-        o.money -= got; P.money += got;
+        if (card.gift >= 0) {
+          var got = Math.min(card.gift, Math.max(0, o.money));
+          o.money -= got; P.money += got;
+        } else {
+          var give = Math.min(-card.gift, Math.max(0, P.money));
+          P.money -= give; o.money += give;
+        }
       }
       st.phase = 'end';
     } else if (card.goto === 'start') {
       this._teleport(st, 0, ev, true);
       st.phase = 'end';
     } else if (card.goto === 'island') {
-      this._teleport(st, 6, ev, false);
+      this._teleport(st, M.ISLAND_IDX, ev, false);
       P.islandT = M.ISLAND_TURNS;
       st.lastDouble = false;
       ev.push({ type: 'island' });
@@ -222,6 +227,8 @@ M.Logic = {
       var to = (P.pos - card.back + M.SIZE) % M.SIZE;
       this._teleport(st, to, ev, false);
       this._land(st, ev);
+    } else if (card.fwd != null) {
+      this._move(st, card.fwd, ev);            // 전진 — 출발 통과 월급·도착 칸 규칙 적용
     } else st.phase = 'end';
   },
 
@@ -288,7 +295,8 @@ M.Logic = {
   },
 
   _checkMonopoly: function (st, pi, city, ev) {
-    if (this.cityCount(st, pi, city) >= this.cityTotal(city)) {
+    // 도시 제패: 한 도시에서 CITY_WIN곳 이상 소유 (도시 규모보다 크면 전체 소유)
+    if (this.cityCount(st, pi, city) >= Math.min(M.CITY_WIN, this.cityTotal(city))) {
       ev.push({ type: 'monopoly', city: city, pi: pi });
       this._gameOver(st, 'monopoly', ev, pi);
     }

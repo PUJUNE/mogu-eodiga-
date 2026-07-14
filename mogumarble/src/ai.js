@@ -26,10 +26,10 @@ M.AI = {
       if (P.money - tc < 250) return false;
       var owner = st.tiles[idx].owner;
       var myAfter = L.cityCount(st, P.i, def.city) + 1;
-      var total = L.cityTotal(def.city);
-      if (myAfter >= total) return true;                    // 인수로 도시 독점 완성 → 즉시 승리
-      if (L.cityCount(st, owner, def.city) >= total - 1) return true;  // 상대 독점 저지
-      return myAfter >= total - 1 && P.money - tc >= 500;   // 독점 직전이면 부자일 때만
+      var win = Math.min(M.CITY_WIN, L.cityTotal(def.city));
+      if (myAfter >= win) return true;                      // 인수로 도시 제패 완성 → 즉시 승리
+      if (L.cityCount(st, owner, def.city) >= win - 1) return true;    // 상대 제패 저지
+      return myAfter >= win - 1 && P.money - tc >= 500;     // 제패 직전이면 부자일 때만
     }
     return false;
   },

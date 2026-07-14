@@ -101,7 +101,7 @@ M.ui = {
 
   // ── 결과 화면 ──
   showEnd: function (st) {
-    var reasonTxt = { monopoly: '🏆 도시 독점 승리!', lastman: '👑 최후의 생존자!', rounds: '⏱️ 라운드 종료 — 총자산 1위!' };
+    var reasonTxt = { monopoly: '🏆 도시 제패 승리!', lastman: '👑 최후의 생존자!', rounds: '⏱️ 라운드 종료 — 총자산 1위!' };
     $('end-reason').textContent = reasonTxt[st.overReason] || '게임 종료';
     var w = st.players[st.winner];
     $('end-winner').textContent = M.CHARS[w.char].emoji + ' ' + w.name + ' 승리!';

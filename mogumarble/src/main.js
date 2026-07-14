@@ -105,7 +105,7 @@ function playEvents(evs, done) {
         enq(function (next) { M.audio.bankrupt(); M.ui.toast('💀 ' + st.players[e.pi].name + ' 파산!', 2); refresh(); setTimeout(next, 900); });
         break;
       case 'monopoly':
-        enq(function (next) { M.audio.win(); M.ui.toast('🏆 ' + M.CITIES[e.city].name + ' 독점!!', 2); setTimeout(next, 900); });
+        enq(function (next) { M.audio.win(); M.ui.toast('🏆 ' + M.CITIES[e.city].name + ' 제패!!', 2); setTimeout(next, 900); });
         break;
       case 'pass': break;
       case 'turn': break;
