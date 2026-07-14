@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구의 마블</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#1565c0;
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif;color:#fff;user-select:none;touch-action:none;
+    overscroll-behavior:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;}
+  #app{position:fixed;inset:0;}
+  canvas{display:block;}
+  .hidden{display:none!important;}
+
+  /* ── 상단 HUD: 플레이어 카드 ── */
+  #hud{position:fixed;top:0;left:0;right:0;z-index:6;display:flex;align-items:flex-start;gap:8px;
+    padding:8px 10px;box-sizing:border-box;pointer-events:none;flex-wrap:wrap;}
+  #players{display:flex;gap:8px;flex-wrap:wrap;flex:1;}
+  .pcard{background:rgba(12,36,74,.82);border:3px solid #fff;border-radius:13px;padding:6px 10px;
+    min-width:118px;box-shadow:0 4px 10px rgba(0,0,0,.35);transition:transform .15s,box-shadow .15s;}
+  .pcard.turn{transform:translateY(2px) scale(1.05);box-shadow:0 0 16px rgba(255,225,74,.95);
+    background:rgba(30,58,100,.95);}
+  .pcard.dead{opacity:.45;filter:grayscale(.8);}
+  .pc-top{display:flex;align-items:center;gap:5px;}
+  .pc-emoji{font-size:19px;}
+  .pc-name{font-size:14.5px;font-weight:900;}
+  .pc-kind{font-size:10.5px;color:#9fc3ee;font-weight:700;margin-left:auto;}
+  .pc-money{font-size:16px;font-weight:900;color:#ffe14a;margin-top:2px;}
+  .pc-sub{font-size:11px;color:#bcd6f4;font-weight:700;min-height:14px;}
+  #hud-right{display:flex;flex-direction:column;gap:6px;align-items:flex-end;pointer-events:auto;}
+  #round-ind{background:rgba(12,36,74,.82);border:2px solid rgba(255,255,255,.6);border-radius:18px;
+    padding:5px 13px;font-size:13px;font-weight:900;color:#aee0ff;}
+  .hbtn{pointer-events:auto;padding:7px 13px;font-size:13px;font-weight:800;color:#fff;cursor:pointer;
+    background:rgba(12,36,74,.85);border:2px solid rgba(255,255,255,.55);border-radius:11px;font-family:inherit;}
+  .hbtn:active{transform:translateY(1px);}
+
+  /* ── 하단 행동 바 ── */
+  #actionbar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:7;
+    display:flex;flex-direction:column;align-items:center;gap:9px;width:min(560px,94vw);
+    background:rgba(10,30,64,.9);border:3px solid rgba(255,255,255,.5);border-radius:18px;
+    padding:12px 16px;box-sizing:border-box;box-shadow:0 8px 20px rgba(0,0,0,.4);}
+  #action-msg{font-size:16px;font-weight:900;text-align:center;min-height:1.2em;text-shadow:0 2px 4px rgba(0,0,0,.4);}
+  #action-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+  .abtn{padding:12px 26px;font-size:16px;font-weight:900;color:#0a2a10;cursor:pointer;font-family:inherit;
+    background:#ffd43b;border:3px solid #fff;border-radius:13px;box-shadow:0 4px 0 #b8860b;}
+  .abtn:active{transform:translateY(3px);box-shadow:0 1px 0 #b8860b;}
+  .abtn.ghost{background:#8fa8c8;box-shadow:0 4px 0 #4a6280;color:#0d2036;}
+  .abtn.alt{background:#63d9ff;box-shadow:0 4px 0 #1a7ba0;color:#083042;}
+  .abtn:disabled{opacity:.5;}
+
+  /* ── 토스트 · 턴 배너 ── */
+  #toast{position:fixed;top:88px;left:50%;transform:translateX(-50%);z-index:25;pointer-events:none;
+    background:rgba(8,22,48,.92);color:#ffe14a;font-size:15px;font-weight:900;padding:9px 20px;
+    border-radius:22px;border:2px solid rgba(255,225,74,.5);opacity:0;transition:opacity .25s;
+    white-space:nowrap;max-width:92vw;text-overflow:ellipsis;overflow:hidden;}
+  #turn-banner{position:fixed;top:38%;left:50%;transform:translate(-50%,-50%) scale(.8);z-index:24;
+    pointer-events:none;font-size:min(40px,8vw);font-weight:900;color:#fff;
+    text-shadow:0 4px 0 #b8531e,0 8px 18px rgba(0,0,0,.5);opacity:0;transition:all .25s;}
+  #turn-banner.on{opacity:1;transform:translate(-50%,-50%) scale(1);}
+
+  /* ── 황금열쇠 카드 ── */
+  #gkey{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;
+    background:rgba(4,12,30,.55);}
+  #gkey-card{width:min(340px,86vw);background:linear-gradient(160deg,#ffd43b,#ffab2e);border-radius:20px;
+    border:5px solid #fff;box-shadow:0 14px 40px rgba(0,0,0,.5);padding:26px 22px;text-align:center;
+    color:#4a2e05;animation:cardin .35s ease-out;}
+  @keyframes cardin{0%{transform:scale(.5) rotate(-8deg);opacity:0;}100%{transform:scale(1) rotate(0);opacity:1;}}
+  #gkey-card .gk-tag{font-size:15px;font-weight:900;letter-spacing:3px;color:#8a5a10;}
+  #gkey-name{font-size:24px;font-weight:900;margin:12px 0 8px;}
+  #gkey-desc{font-size:15.5px;font-weight:700;line-height:1.5;}
+  #gkey-ok{margin-top:18px;padding:11px 34px;font-size:16px;font-weight:900;color:#fff;cursor:pointer;
+    background:#e8453c;border:3px solid #fff;border-radius:12px;font-family:inherit;box-shadow:0 4px 0 #8a1f18;}
+  #gkey-ok:active{transform:translateY(3px);box-shadow:0 1px 0 #8a1f18;}
+
+  /* ── 화면 (타이틀/설정/결과) ── */
+  .screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center;padding:24px 16px;box-sizing:border-box;}
+  #title-screen{background:linear-gradient(#1e88e5cc 0%,#0d47a1cc 100%);}
+  .logo{font-size:min(62px,12vw);font-weight:900;color:#ffe14a;white-space:nowrap;
+    text-shadow:0 5px 0 #b8531e,0 10px 22px rgba(0,0,0,.55);letter-spacing:min(5px,1.2vw);}
+  .sub{margin-top:8px;font-size:16px;letter-spacing:4px;color:#cfe8ff;font-weight:800;}
+  #title-icon{font-size:64px;margin:14px 0 2px;animation:bob 1.7s ease-in-out infinite;
+    filter:drop-shadow(0 8px 10px rgba(0,0,0,.5));}
+  @keyframes bob{0%,100%{transform:translateY(0) rotate(-5deg);}50%{transform:translateY(-13px) rotate(5deg);}}
+  .info{max-width:520px;margin:8px auto 0;font-size:13.5px;line-height:1.75;color:#e2f0ff;font-weight:700;
+    text-shadow:0 1px 3px rgba(0,0,0,.4);}
+  .info b{color:#ffe14a;}
+  .menu-col{display:flex;flex-direction:column;gap:12px;margin-top:20px;width:min(340px,86vw);}
+  .bigbtn{padding:15px 20px;font-size:18px;font-weight:900;color:#0a2a10;cursor:pointer;font-family:inherit;
+    background:#ffd43b;border:4px solid #fff;border-radius:15px;box-shadow:0 5px 0 #b8860b;}
+  .bigbtn:active{transform:translateY(3px);box-shadow:0 2px 0 #b8860b;}
+  .bigbtn.blue{background:#63d9ff;box-shadow:0 5px 0 #1a7ba0;color:#083042;}
+  .bigbtn:disabled{opacity:.5;}
+  .linkbtn{margin-top:16px;padding:9px 22px;font-size:14px;font-weight:800;color:#e2f0ff;cursor:pointer;
+    background:rgba(10,30,64,.7);border:2px solid rgba(255,255,255,.5);border-radius:22px;
+    text-decoration:none;display:inline-block;font-family:inherit;}
+
+  #setup-screen{background:linear-gradient(#1e88e5ee 0%,#0d47a1ee 100%);}
+  #setup-screen h1{font-size:27px;font-weight:900;color:#ffe14a;margin:0 0 14px;text-shadow:0 3px 0 #b8531e;}
+  .cnt-row{display:flex;gap:10px;margin-bottom:16px;}
+  .cnt-btn{padding:11px 22px;font-size:16px;font-weight:900;color:#e2f0ff;cursor:pointer;font-family:inherit;
+    background:rgba(10,30,64,.7);border:3px solid rgba(255,255,255,.45);border-radius:13px;}
+  .cnt-btn.sel{background:#ffd43b;color:#4a2e05;border-color:#fff;box-shadow:0 0 14px rgba(255,212,59,.7);}
+  #slot-rows{display:flex;flex-direction:column;gap:9px;width:min(330px,86vw);}
+  .slot-row{display:flex;align-items:center;justify-content:space-between;background:rgba(10,30,64,.75);
+    border:2px solid rgba(255,255,255,.4);border-radius:13px;padding:9px 14px;}
+  .slot-name{font-size:16px;font-weight:900;}
+  .slot-toggle{padding:8px 16px;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit;
+    background:#8fa8c8;color:#0d2036;border:2px solid #fff;border-radius:10px;}
+  .slot-toggle.human{background:#7be381;color:#0a3a10;}
+  #setup-hint{margin:12px 0 4px;font-size:13px;font-weight:800;color:#cfe8ff;min-height:1.2em;}
+
+  #end-screen{background:rgba(6,18,44,.82);}
+  #end-reason{font-size:19px;font-weight:900;color:#aee0ff;}
+  #end-winner{font-size:min(44px,10vw);font-weight:900;color:#ffe14a;margin:10px 0 16px;
+    text-shadow:0 4px 0 #b8531e,0 9px 18px rgba(0,0,0,.5);}
+  #end-rank{display:flex;flex-direction:column;gap:8px;width:min(360px,88vw);}
+  .rank-row{display:flex;align-items:center;gap:10px;background:rgba(20,44,84,.85);border:2px solid rgba(255,255,255,.4);
+    border-radius:12px;padding:10px 15px;font-size:15.5px;font-weight:800;}
+  .rank-row .rk{color:#ffe14a;font-weight:900;width:34px;text-align:left;}
+  .rank-row .rk-money{margin-left:auto;color:#aee0ff;}
+  .end-btns{display:flex;gap:12px;margin-top:22px;flex-wrap:wrap;justify-content:center;}
+
+  #loading{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;
+    background:#0d47a1;color:#cfe8ff;font-size:16px;font-weight:800;}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hud" class="hidden">
+  <div id="players"></div>
+  <div id="hud-right">
+    <div id="round-ind">라운드 1/25</div>
+    <div>
+      <button class="hbtn" id="btn-home">🏠 처음으로</button>
+    </div>
+  </div>
+</div>
+
+<div id="actionbar" class="hidden">
+  <div id="action-msg"></div>
+  <div id="action-btns"></div>
+</div>
+
+<div id="toast"></div>
+<div id="turn-banner"></div>
+
+<div id="gkey" class="hidden">
+  <div id="gkey-card">
+    <div class="gk-tag">🔑 황금열쇠</div>
+    <div id="gkey-name"></div>
+    <div id="gkey-desc"></div>
+    <button id="gkey-ok">확인</button>
+  </div>
+</div>
+
+<div id="title-screen" class="screen">
+  <div class="logo">모구의 마블</div>
+  <div class="sub">MOGU MARBLE · 성남 × 수원 × 원주</div>
+  <div id="title-icon">🐱🎲</div>
+  <div class="info">
+    부루마블 · 모두의 마블 모티브 3D 보드게임!<br>
+    주사위를 굴려 <b>성남·수원·원주의 명소</b>를 사들이고 별장→빌딩→호텔을 지어요.<br>
+    <b>한 도시 6곳 독점 = 즉시 승리!</b> 통행료로 상대를 파산시켜도 승리!<br>
+    🎪 축제 = 통행료 ×2 · 🔑 황금열쇠 · 🏝️ 무인도 · 🤝 남의 땅 인수 · 더블은 한 번 더
+  </div>
+  <div class="menu-col">
+    <button class="bigbtn" id="btn-vs-com">🤖 컴퓨터와 대전 (나 + 컴퓨터 3)</button>
+    <button class="bigbtn blue" id="btn-multi">👥 함께 하기 (2~4인)</button>
+  </div>
+  <a class="linkbtn" id="btn-series">🐱 모구 게임 시리즈로</a>
+</div>
+
+<div id="setup-screen" class="screen hidden">
+  <h1>누가 참가하나요?</h1>
+  <div class="cnt-row">
+    <button class="cnt-btn" data-n="2">2인</button>
+    <button class="cnt-btn" data-n="3">3인</button>
+    <button class="cnt-btn" data-n="4">4인</button>
+  </div>
+  <div id="slot-rows"></div>
+  <div id="setup-hint"></div>
+  <div class="menu-col">
+    <button class="bigbtn" id="btn-setup-start">🎲 게임 시작!</button>
+    <button class="bigbtn blue" id="btn-setup-back">← 뒤로</button>
+  </div>
+</div>
+
+<div id="end-screen" class="screen hidden">
+  <div id="end-reason"></div>
+  <div id="end-winner"></div>
+  <div id="end-rank"></div>
+  <div class="end-btns">
+    <button class="bigbtn" id="btn-again">🔄 다시 하기</button>
+    <button class="bigbtn blue" id="btn-end-title">🏠 처음으로</button>
+  </div>
+</div>
+
+<div id="loading">모구의 마블 불러오는 중…</div>
+
+<script src="vendor/three.min.js"></script>
+<script>window.MBL = {};</script>
+<script src="src/board.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/ai.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/render3d.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
