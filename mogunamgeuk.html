@@ -212,7 +212,9 @@ M.makeStage = function (no) {
 
   const length = Math.round(8000 + t * 6000);          // 8 → 14 km (약 1분 주행)
   const maxSpd = Math.round((190 + t * 90) * D.mult);  // 190 → 280 m/s × 난이도 배율
-  const time = Math.round(length / (maxSpd * 0.7));    // 풀가속 70% 효율 기준 빠듯하게
+  // 제한시간: 순항 속도(최고의 55%) 기준 — 풀가속 없이도 도달 가능하고 충돌 몇 번의
+  // 여유가 있다. 핵심 과제는 장애물 회피, 속도는 남은 시간 보너스(점수)용.
+  const time = Math.round(length / (maxSpd * 0.55));
 
   // 커브 구간: 직선-좌-직선-우 … 시드 결정적
   const curves = [];
