@@ -52,6 +52,7 @@ M.Logic = {
       mv: Object.fromEntries(Object.entries(h.mv).map(([k, v]) => [k, Math.max(1, Math.round(v * dmgMul))])),
       sp: { name: h.sp.name, kind: h.sp.kind, dmg: Math.round(h.sp.dmg * dmgMul) },
       state: 'idle',               // idle|walk|atk|air|fba|rope|run|down|ko
+      anim: null, animT: 0,        // 기술 모션 (dropkick|kick|lariat|backdrop — 렌더 전용)
       atkT: 0, cd: 0, stunT: 0, downT: 0, invT: 0,
       airT: 0, airDur: JUMP_T,
       ropePhase: null, ropeVx: 0, ropeT: 0,
@@ -125,6 +126,7 @@ M.Logic = {
       w.poweredT = Math.max(0, w.poweredT - dt);
       w.gasCd = Math.max(0, w.gasCd - dt);
       if (w.atkT > 0) { w.atkT -= dt; if (w.atkT <= 0 && w.state === 'atk') w.state = 'idle'; }
+      if (w.animT > 0) { w.animT -= dt; if (w.animT <= 0) w.anim = null; }
       if (w.state === 'air') { w.airT -= dt; if (w.airT <= 0) w.state = 'idle'; }
       if (w.state === 'down') {
         w.downT -= dt;
@@ -455,11 +457,17 @@ M.Logic = {
     if (att.state === 'air') {                               // 공중 공격
       att.airT = Math.min(att.airT, 0.18); att.cd = 0.5;
       if (def.state === 'rope' && d < KICK_RANGE) {          // 반동 복귀 중 → 드롭킥
+        att.anim = 'dropkick'; att.animT = 0.5;              // 수평 비행 → 매트 슬라이드 모션
         this._damage(st, att, def, att.mv.dropkick, true, 'dropkick', ev);
       } else if (this.hittable(def) && def.state !== 'rope' && d < KICK_RANGE) {
-        if (powered && att.sp.kind === 'jump') this._special(st, att, def, ev);
-        else this._damage(st, att, def, att.mv.kick, false, 'kick', ev, 0.45);
-      } else ev.push({ type: 'swing' });
+        if (powered && att.sp.kind === 'jump') {
+          att.anim = 'dropkick'; att.animT = 0.5;
+          this._special(st, att, def, ev);
+        } else {
+          att.anim = 'kick'; att.animT = 0.35;
+          this._damage(st, att, def, att.mv.kick, false, 'kick', ev, 0.45);
+        }
+      } else { att.anim = 'kick'; att.animT = 0.35; ev.push({ type: 'swing' }); }
       return;
     }
 
@@ -470,6 +478,7 @@ M.Logic = {
 
     if (def.state === 'rope' && d < LARIAT_RANGE) {          // 반동 복귀 중 → 라리아트
       att.state = 'atk'; att.atkT = 0.3; att.cd = 0.6;
+      att.anim = 'lariat'; att.animT = 0.35;
       this._damage(st, att, def, att.mv.lariat, true, 'lariat', ev);
       return;
     }
@@ -479,6 +488,7 @@ M.Logic = {
       if (powered && att.sp.kind === 'rear') {               // 잡기 필살기
         this._special(st, att, def, ev);
       } else if (this._behind(att, def)) {                   // 배후 → 백드롭
+        att.anim = 'backdrop'; att.animT = 0.35;
         this._damage(st, att, def, att.mv.backdrop, true, 'backdrop', ev);
       } else {                                               // 정면 → 밀치기 (좌우 로프로)
         att.atkT = 0.22; att.cd = 0.3;                       // 가벼운 동작 — 복귀 라리아트 콤보 가능해야 함
@@ -510,6 +520,7 @@ M.Logic = {
     if (def.state === 'rope') def.ropePhase = null;
     if (kd || def.hp <= 0) {
       def.state = 'down'; def.downT = DOWN_T; def.stunT = 0; def.atkT = 0; def.airT = 0;
+      def.anim = null; def.animT = 0;
       if (st.players.includes(def)) st.pDowns++;
       ev.push({ type: 'kd' });
     } else {
@@ -554,6 +565,7 @@ M.Logic = {
       w.x = x; w.z = z;
       w.state = 'idle';
       w.stunT = 0; w.downT = 0; w.atkT = 0; w.airT = 0; w.ropePhase = null;
+      w.anim = null; w.animT = 0;
       w.poweredT = 0; w.cd = 0; w.invT = 1;
     }
     st.meat = null; st.ball = null; st.ballCd = 2; st.shots = [];

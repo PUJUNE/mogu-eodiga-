@@ -105,7 +105,7 @@
       <button class="btn diff-btn crazy" data-diff="crazy">크레이지</button>
     </div>
     <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
-    <div id="title-hint">←→↑↓ 이동 · Space/Z 공격 — 밀착=밀치기(복귀 때 공격=라리아트!) · 배후=백드롭 · X 점프(공중 공격=킥, 로프로 점프=플라잉 바디)<br>발밑 ▲ = 보는 방향 (등 뒤를 노려라!) · C 또는 코너에서 공격 = 태그 · ✨생명의 구슬 = 회복 + 10초 필살기 (D 난이도)</div>
+    <div id="title-hint">←→↑↓ 이동 · Space/Z 공격 — 밀착=밀치기(복귀 때 공격=라리아트 · 점프 공격=드롭킥!) · 배후=백드롭 · X 점프(공중 공격=킥, 로프로 점프=플라잉 바디)<br>발밑 ▲ = 보는 방향 (등 뒤를 노려라!) · C 또는 코너에서 공격 = 태그 · ✨생명의 구슬 = 회복 + 10초 필살기 (D 난이도)</div>
   </div>
 
   <div id="win-screen" class="screen hidden">
@@ -325,6 +325,7 @@ M.Logic = {
       mv: Object.fromEntries(Object.entries(h.mv).map(([k, v]) => [k, Math.max(1, Math.round(v * dmgMul))])),
       sp: { name: h.sp.name, kind: h.sp.kind, dmg: Math.round(h.sp.dmg * dmgMul) },
       state: 'idle',               // idle|walk|atk|air|fba|rope|run|down|ko
+      anim: null, animT: 0,        // 기술 모션 (dropkick|kick|lariat|backdrop — 렌더 전용)
       atkT: 0, cd: 0, stunT: 0, downT: 0, invT: 0,
       airT: 0, airDur: JUMP_T,
       ropePhase: null, ropeVx: 0, ropeT: 0,
@@ -398,6 +399,7 @@ M.Logic = {
       w.poweredT = Math.max(0, w.poweredT - dt);
       w.gasCd = Math.max(0, w.gasCd - dt);
       if (w.atkT > 0) { w.atkT -= dt; if (w.atkT <= 0 && w.state === 'atk') w.state = 'idle'; }
+      if (w.animT > 0) { w.animT -= dt; if (w.animT <= 0) w.anim = null; }
       if (w.state === 'air') { w.airT -= dt; if (w.airT <= 0) w.state = 'idle'; }
       if (w.state === 'down') {
         w.downT -= dt;
@@ -728,11 +730,17 @@ M.Logic = {
     if (att.state === 'air') {                               // 공중 공격
       att.airT = Math.min(att.airT, 0.18); att.cd = 0.5;
       if (def.state === 'rope' && d < KICK_RANGE) {          // 반동 복귀 중 → 드롭킥
+        att.anim = 'dropkick'; att.animT = 0.5;              // 수평 비행 → 매트 슬라이드 모션
         this._damage(st, att, def, att.mv.dropkick, true, 'dropkick', ev);
       } else if (this.hittable(def) && def.state !== 'rope' && d < KICK_RANGE) {
-        if (powered && att.sp.kind === 'jump') this._special(st, att, def, ev);
-        else this._damage(st, att, def, att.mv.kick, false, 'kick', ev, 0.45);
-      } else ev.push({ type: 'swing' });
+        if (powered && att.sp.kind === 'jump') {
+          att.anim = 'dropkick'; att.animT = 0.5;
+          this._special(st, att, def, ev);
+        } else {
+          att.anim = 'kick'; att.animT = 0.35;
+          this._damage(st, att, def, att.mv.kick, false, 'kick', ev, 0.45);
+        }
+      } else { att.anim = 'kick'; att.animT = 0.35; ev.push({ type: 'swing' }); }
       return;
     }
 
@@ -743,6 +751,7 @@ M.Logic = {
 
     if (def.state === 'rope' && d < LARIAT_RANGE) {          // 반동 복귀 중 → 라리아트
       att.state = 'atk'; att.atkT = 0.3; att.cd = 0.6;
+      att.anim = 'lariat'; att.animT = 0.35;
       this._damage(st, att, def, att.mv.lariat, true, 'lariat', ev);
       return;
     }
@@ -752,6 +761,7 @@ M.Logic = {
       if (powered && att.sp.kind === 'rear') {               // 잡기 필살기
         this._special(st, att, def, ev);
       } else if (this._behind(att, def)) {                   // 배후 → 백드롭
+        att.anim = 'backdrop'; att.animT = 0.35;
         this._damage(st, att, def, att.mv.backdrop, true, 'backdrop', ev);
       } else {                                               // 정면 → 밀치기 (좌우 로프로)
         att.atkT = 0.22; att.cd = 0.3;                       // 가벼운 동작 — 복귀 라리아트 콤보 가능해야 함
@@ -783,6 +793,7 @@ M.Logic = {
     if (def.state === 'rope') def.ropePhase = null;
     if (kd || def.hp <= 0) {
       def.state = 'down'; def.downT = DOWN_T; def.stunT = 0; def.atkT = 0; def.airT = 0;
+      def.anim = null; def.animT = 0;
       if (st.players.includes(def)) st.pDowns++;
       ev.push({ type: 'kd' });
     } else {
@@ -827,6 +838,7 @@ M.Logic = {
       w.x = x; w.z = z;
       w.state = 'idle';
       w.stunT = 0; w.downT = 0; w.atkT = 0; w.airT = 0; w.ropePhase = null;
+      w.anim = null; w.animT = 0;
       w.poweredT = 0; w.cd = 0; w.invT = 1;
     }
     st.meat = null; st.ball = null; st.ballCd = 2; st.shots = [];
@@ -1051,8 +1063,11 @@ M.Render = {
     const u = 2;
     // 팔레트 (파워업 스왑 점멸)
     const swap = w.poweredT > 0 && Math.floor(t * 8) % 2 === 0;
-    const skin = swap ? PAL.pwr : PAL.skin;
-    const skinS = swap ? PAL.pwrS : PAL.skinS;
+    // 종족별 몸 털색 (고양이=태비 갈색 / 닭=흰 깃털 / 쥐=회색 털) — 머리 색과 통일
+    const BODY = w.kind === 'mogu' ? ['#b87838', '#855020']
+      : w.kind === 'kko' ? ['#f4f0e4', '#c8c0a8'] : ['#a8a0a0', '#787070'];
+    const skin = swap ? PAL.pwr : BODY[0];
+    const skinS = swap ? PAL.pwrS : BODY[1];
     const trunk = w.kind === 'mogu' ? '#d82800' : w.kind === 'kko' ? '#2848c8' : (T[w.kind === 'mouseA' ? 'a' : 'b'].mask);
     // 미러 도트 헬퍼: B(dx[u], yAbs, w[u], h[u])
     const B = (dx, y2, ww, hh, col) => {
@@ -1071,7 +1086,8 @@ M.Render = {
       B(-4, ly, 8, 4, trunk);
       B(8, ly - 2, 4, 4, skin);                              // 머리 쪽
       this.drawHead(w, T, cxp + f * 22, ly - 4, -f, trunk, true);
-      B(-13, ly + 1, 3, 2, '#282838'); B(-13, ly + 5, 0, 0, '#282838');
+      B(-14, ly + 0.5, 4, 3, trunk);                         // 부츠 (팀 컬러)
+      B(-15.5, ly + 1, 1.5, 2, '#282838');
       if (w.state === 'ko') {
         c.font = 'bold 10px monospace'; c.textAlign = 'center';
         c.fillStyle = '#ffd0d0'; c.fillText('K.O.', cxp, gy - 20);
@@ -1088,6 +1104,9 @@ M.Render = {
     const y = gy - airY - 44;                                // 스프라이트 상단 기준
     const fast = ['run', 'rope', 'fba'].includes(w.state);
     const step = (w.state === 'walk' || fast) ? (Math.floor(t * (fast ? 16 : 9)) % 2 ? 1.5 : -1.5) : 0;
+    const boot = trunk;                                      // 레슬링 부츠 = 팀 컬러
+    const pad = '#f0ece0';                                   // 니패드·엘보패드 (화이트)
+    const glove = '#e8556a';
 
     // 속도선 (로프 반동·돌진·FBA)
     if (fast) {
@@ -1096,26 +1115,95 @@ M.Render = {
       for (let i = 0; i < 3; i++) c.fillRect(cxp - dir * (18 + i * 7), y + 14 + i * 8, 5, 2);
     }
 
-    // 다리 + 부츠
-    B(-3 + step, y + 28, 2, 6, skin); B(1 - step, y + 28, 2, 6, skinS);
-    B(-3.5 + step, y + 38, 3, 2, '#282838'); B(0.5 - step, y + 38, 3, 2, '#282838');
-    // 트렁크
-    B(-4, y + 22, 8, 3.5, trunk);
-    // 상체 (역삼각)
-    B(-5, y + 10, 10, 6, skin);
-    B(-5, y + 10, 2, 6, skinS);                              // 등 음영
-    B(1.5, y + 14, 2, 1, skinS);                             // 가슴 라인
-    // 팔: 공격 중 = 앞으로 길게 / 평시 = 리드팔 + 뒷팔
-    if (w.state === 'atk') {
-      B(4, y + 11, 6, 2, skin); B(9.5, y + 10.5, 2.5, 3, '#e8556a');
-      B(-6.5, y + 12, 2, 4, skinS);
+    // ── 드롭킥: 수평 비행 → 착지 후 매트 슬라이드 (전용 모션) ──
+    if (w.anim === 'dropkick' && (w.state === 'air' || w.state === 'idle')) {
+      const ly = w.state === 'air' ? y + 8 : y + 24;
+      c.fillStyle = 'rgba(255,255,255,.55)';                 // 비행 궤적
+      for (let i = 0; i < 3; i++) c.fillRect(cxp - f * (16 + i * 6) - 2, ly + 4 + i * 5, 5, 2);
+      if (w.kind === 'mogu') B(-11.5, ly + 1.2, 3.2, 2, skinS);       // 꼬리 (뒤로 뻗침)
+      else if (w.kind !== 'kko') B(-12, ly + 2, 3.6, 1.2, '#e0a0b0'); // 쥐 분홍 꼬리
+      B(-7, ly + 3, 8, 4, skin); B(-7, ly + 3, 8, 1.2, skinS);   // 몸통 수평
+      B(-3.2, ly + 3, 3.6, 4, trunk);                        // 트렁크
+      B(-3.2, ly + 2.4, 3.6, 1, PAL.gold);                   // 벨트
+      B(0.4, ly + 2.2, 5.4, 2, skin); B(0.4, ly + 4.6, 5.4, 2, skinS);  // 두 다리 앞으로 쭉
+      B(3.6, ly + 4.5, 1.6, 1.2, pad);                       // 니패드
+      B(5.6, ly + 1.8, 3, 2.4, boot); B(5.6, ly + 4.4, 3, 2.4, boot);   // 부츠 2연격
+      B(8.2, ly + 1.8, 0.9, 5, PAL.white);                   // 임팩트 하이라이트
+      B(-9.6, ly + 0.6, 3, 1.8, skinS);                      // 팔 (뒤로)
+      this.drawHead(w, T, cxp - f * 20, ly - 9, f, trunk, false, swap);  // 머리 (몸 뒤쪽)
+      return;
+    }
+
+    // 꼬리·꽁지깃 (종족 실루엣 차별화 — 몸 뒤에 깔림)
+    const sway = Math.sin(t * 4 + wx * 0.04) * 0.8;
+    if (w.kind === 'mogu') {                                 // 고양이: 굵은 줄무늬 꼬리, 위로 말림
+      B(-7.5, y + 22, 2.4, 2.6, skin);
+      B(-8.8 + sway, y + 18.8, 2.2, 2.6, skinS);
+      B(-9.4 + sway * 1.6, y + 15.4, 2.2, 2.6, skin);
+      B(-9 + sway * 2.2, y + 12.6, 2, 2.2, skinS);           // 꼬리 끝
+    } else if (w.kind === 'kko') {                           // 닭: 수탉 꽁지깃
+      B(-8.2, y + 16, 2.8, 2.2, '#f4f0e4');
+      B(-9.4 + sway, y + 13, 2.6, 2.4, PAL.red);
+      B(-8.6 + sway * 1.5, y + 10.4, 2.2, 2, '#2848c8');
+    } else {                                                 // 쥐: 가늘고 긴 분홍 꼬리, 바닥 쪽
+      B(-7.2, y + 26.5, 2.8, 1.1, '#e0a0b0');
+      B(-9.4 + sway, y + 23.6, 1.3, 2.6, '#e0a0b0');
+      B(-10 + sway * 2, y + 20.4, 1.3, 2.6, '#d890a0');
+    }
+
+    // 다리 (근육 허벅지) + 니패드 + 레이스업 부츠
+    B(-3.6 + step, y + 28, 2.8, 3, skin); B(1 - step, y + 28, 2.8, 3, skinS);
+    B(-3.4 + step, y + 33, 2.4, 1.4, pad); B(1.2 - step, y + 33, 2.4, 1.4, pad);
+    B(-3.6 + step, y + 35.5, 2.8, 2.4, boot); B(1 - step, y + 35.5, 2.8, 2.4, boot);
+    B(-2.6 + step, y + 36, 0.9, 1.8, PAL.white); B(2 - step, y + 36, 0.9, 1.8, PAL.white);  // 레이스
+    B(-4.2 + step, y + 40, 3.6, 1, '#282838'); B(0.6 - step, y + 40, 3.6, 1, '#282838');    // 밑창
+    // 트렁크 + 챔피언 벨트
+    B(-4.5, y + 22, 9, 3.5, trunk);
+    B(-4.5, y + 21, 9, 1.3, PAL.gold);
+    B(-1, y + 20.8, 2, 1.6, '#f8e048');                      // 버클
+    // 상체 (역삼각 근육질: 어깨 → 허리 테이퍼)
+    B(-6, y + 9, 12, 3.5, skin);                             // 광배·어깨
+    B(-4.8, y + 16, 9.6, 3, skin);                           // 허리
+    B(-6, y + 9, 2, 3.5, skinS); B(-4.8, y + 16, 2, 3, skinS);  // 등 음영
+    if (w.kind === 'mogu') {
+      B(0.6, y + 12.6, 3.6, 6.4, swap ? PAL.pwr : '#f0e0c8');    // 크림색 가슴·배 털
+      B(-4.4, y + 10, 1.3, 5.4, skinS); B(-2, y + 10.6, 1.3, 4.8, skinS);  // 태비 등 줄무늬
+    } else if (w.kind === 'kko') {
+      B(0.6, y + 12.6, 3.6, 6.4, swap ? PAL.pwr : PAL.white);    // 흰 가슴깃
+    }
+    B(1.5, y + 13.5, 3, 1, skinS);                           // 가슴 라인 (펙)
+    B(-1.4, y + 17, 2.8, 0.7, skinS); B(-1.4, y + 19.4, 2.8, 0.7, skinS);  // 복근
+    // 팔: 기술별 포즈 (라리아트/백드롭/펀치/공중/평시)
+    if (w.state === 'atk' && w.anim === 'lariat') {          // 라리아트: 팔 수평 풀스윙
+      B(3.5, y + 10.5, 7.5, 3, skin);
+      B(9.2, y + 10.8, 1.4, 2.4, PAL.gold);                  // 리스트밴드
+      B(10.6, y + 10, 2.8, 3.6, glove);
+      B(-7.2, y + 12, 2.2, 4, skinS); B(-7.2, y + 13, 2.2, 1.5, pad);
+      c.fillStyle = 'rgba(255,255,255,.5)';
+      for (let i = 0; i < 3; i++) c.fillRect(cxp + f * (14 + i * 6), y + 18 + i * 4, 5, 2);
+    } else if (w.state === 'atk' && w.anim === 'backdrop') { // 백드롭: 양팔 번쩍 들어올림
+      B(1.6, y + 3, 2.2, 7, skin); B(1.7, y + 1, 2.5, 2.3, glove);
+      B(-3.9, y + 3, 2.2, 7, skinS); B(-3.8, y + 1, 2.5, 2.3, glove);
+    } else if (w.state === 'atk') {                          // 펀치
+      B(4, y + 11, 6, 2.5, skin);
+      B(8.6, y + 11.2, 1.3, 2.2, PAL.gold);                  // 리스트밴드
+      B(9.8, y + 10.6, 2.6, 3.2, glove);
+      B(-7, y + 12, 2.2, 4, skinS); B(-7, y + 13, 2.2, 1.5, pad);
     } else if (w.state === 'air' || w.state === 'fba') {
-      B(3, y + 8, 5, 2, skin); B(7.5, y + 7.5, 2, 2.5, '#e8556a');   // 위로 뻗은 팔
+      B(3, y + 8, 5, 2, skin); B(7.5, y + 7.5, 2, 2.5, glove);     // 위로 뻗은 팔
       B(-6, y + 12, 2, 3, skinS);
       B(-2 + step, y + 30, 3, 3, skinS);                     // 다리 접기 덧칠
-    } else {
-      B(4, y + 12, 3, 2, skin); B(6.5, y + 11, 2, 3, '#e8556a');     // 리드 글러브 (앞)
-      B(-7, y + 12, 2, 5, skinS);
+      if (w.anim === 'kick') {                               // 점프킥: 앞차기 발 뻗기
+        B(2.6, y + 24, 4.6, 2.2, skin);
+        B(6.8, y + 23.6, 3, 2.8, boot);
+        B(9.4, y + 23.6, 0.9, 2.8, PAL.white);
+      }
+    } else {                                                 // 평시: 파이팅 포즈
+      B(3.6, y + 10.5, 3, 2.8, skin);                        // 이두 벌크
+      B(6, y + 11.4, 1.8, 2, skin);
+      B(7.6, y + 11, 2.4, 3, glove);                         // 리드 글러브 (앞)
+      B(-7.2, y + 11, 2.4, 5, skinS);
+      B(-7.2, y + 12.6, 2.4, 1.6, pad);                      // 엘보패드
     }
     // 머리 (측면 프로필 — 방향 표현의 핵심)
     this.drawHead(w, T, cxp, y - 2, f, trunk, false, swap);
@@ -1137,13 +1225,15 @@ M.Render = {
     };
     if (w.kind === 'mogu') {                                 // 도트 태비 고양이
       const fur = swap ? PAL.pwr : '#a06828', furD = swap ? PAL.pwrS : '#7a4c18';
-      B(-4, -2, 3, 3, furD); B(1, -2, 3, 3, furD);           // 귀
-      B(-3.5, -1.5, 2, 2, '#e8a0a0'); B(1.5, -1.5, 2, 2, '#e8a0a0');
+      B(-4.6, -4, 1.8, 2.2, furD); B(2.8, -4, 1.8, 2.2, furD);     // 뾰족 삼각 귀 (2단)
+      B(-5, -2.2, 3, 2.4, furD); B(2, -2.2, 3, 2.4, furD);
+      B(-4.2, -1.8, 1.6, 1.8, '#e8a0a0'); B(2.6, -1.8, 1.6, 1.8, '#e8a0a0');
       B(-5, 0, 10, 7, fur);                                  // 머리
       B(-5, 0, 2, 7, furD);                                  // 뒤통수
       B(-2, 1, 1.5, 3, furD); B(0.5, 1, 1.5, 3, furD);       // 줄무늬
       B(2, 3, 4, 4, '#f0e8d8');                              // 흰 주둥이 (앞)
       B(4.8, 3.5, 1.5, 1.5, '#e87890');                      // 코
+      B(6.2, 3, 2.2, 0.6, PAL.white); B(6.2, 4.8, 2.2, 0.6, PAL.white);  // 수염
       B(1.5, 1.5, 2, 2, PAL.white); B(2.4, 2, 1, 1.4, PAL.black);  // 눈
     } else if (w.kind === 'kko') {                           // 닭
       const body2 = swap ? PAL.pwr : '#f4f0e4', bd = swap ? PAL.pwrS : '#c8c0a8';
@@ -1153,13 +1243,15 @@ M.Render = {
       B(1, 1.5, 2, 2, PAL.black);                            // 눈
     } else {                                                 // 쥐 레슬러
       const fur = swap ? PAL.pwr : '#a8a0a0', furD = swap ? PAL.pwrS : '#787070';
-      B(-4.5, -2.5, 3, 3, '#909090'); B(0.5, -2.5, 3, 3, '#909090');  // 둥근 귀
-      B(-4, -2, 2, 2, '#e0a0b0'); B(1, -2, 2, 2, '#e0a0b0');
+      B(-6, -3.6, 4.2, 4.2, '#909090'); B(1.4, -3.6, 4.2, 4.2, '#909090');  // 왕 접시귀
+      B(-5.2, -2.8, 2.6, 2.6, '#e0a0b0'); B(2.2, -2.8, 2.6, 2.6, '#e0a0b0');
       B(-4.5, 0, 9, 7, fur); B(-4.5, 0, 2, 7, furD);
       B(-4.5, 1, 9, 2.5, trunk);                             // 팀색 마스크 밴드
+      B(-6, 1.5, 1.5, 1.5, trunk); B(-6.5, 3, 1, 2, trunk);  // 루차 마스크 매듭·끈 (뒤통수)
       B(1, 1.5, 2, 1.5, PAL.white); B(2, 1.8, 1, 1, PAL.black);      // 눈
       B(3.5, 4, 3.5, 2, '#909090');                          // 뾰족 주둥이 (앞)
       B(6.2, 4.2, 1.2, 1.2, '#e87890');                      // 코
+      B(4.6, 5.9, 1.3, 1.3, PAL.white);                      // 앞니
     }
   },
 
@@ -1441,7 +1533,7 @@ function handleEvents(evs) {
       case 'shove': M.audio.swing(); M.ui.toast('🌀 로프로 날렸다 — 돌아올 때 공격!', 1.0); break;
       case 'ropehit': M.audio.bounce(); break;
       case 'lariat': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); break;
-      case 'dropkick': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); break;
+      case 'dropkick': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); M.ui.toast('🦵 드롭킥!!', 1.0); break;
       case 'backdrop': M.audio.throwSlam(); M.Render.addHit(e.x, e.z, e.amount); break;
       case 'fbago': M.audio.bounce(); break;
       case 'fba': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); break;
@@ -1549,7 +1641,7 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 const vpad = document.getElementById('vpad');
 if (isTouch) {
   document.body.classList.add('touch');
-  $('title-hint').textContent = '패드로 이동 · 👊 공격 (밀착=밀치기 → 복귀 때 라리아트! · 배후=백드롭) · 🦘 점프 · 🔄 코너 태그 · 발밑 ▲=보는 방향';
+  $('title-hint').textContent = '패드로 이동 · 👊 공격 (밀착=밀치기 → 복귀 때 라리아트, 점프 중이면 드롭킥! · 배후=백드롭) · 🦘 점프 · 🔄 코너 태그 · 발밑 ▲=보는 방향';
   const bindHold = (id, on, off) => {
     const el = document.getElementById(id);
     const setOn = (e) => { e.preventDefault(); M.audio.resume(); on(); el.classList.add('pressed'); };
