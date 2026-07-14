@@ -204,8 +204,11 @@ M.Render = {
     const u = 2;
     // 팔레트 (파워업 스왑 점멸)
     const swap = w.poweredT > 0 && Math.floor(t * 8) % 2 === 0;
-    const skin = swap ? PAL.pwr : PAL.skin;
-    const skinS = swap ? PAL.pwrS : PAL.skinS;
+    // 종족별 몸 털색 (고양이=태비 갈색 / 닭=흰 깃털 / 쥐=회색 털) — 머리 색과 통일
+    const BODY = w.kind === 'mogu' ? ['#b87838', '#855020']
+      : w.kind === 'kko' ? ['#f4f0e4', '#c8c0a8'] : ['#a8a0a0', '#787070'];
+    const skin = swap ? PAL.pwr : BODY[0];
+    const skinS = swap ? PAL.pwrS : BODY[1];
     const trunk = w.kind === 'mogu' ? '#d82800' : w.kind === 'kko' ? '#2848c8' : (T[w.kind === 'mouseA' ? 'a' : 'b'].mask);
     // 미러 도트 헬퍼: B(dx[u], yAbs, w[u], h[u])
     const B = (dx, y2, ww, hh, col) => {
@@ -258,6 +261,8 @@ M.Render = {
       const ly = w.state === 'air' ? y + 8 : y + 24;
       c.fillStyle = 'rgba(255,255,255,.55)';                 // 비행 궤적
       for (let i = 0; i < 3; i++) c.fillRect(cxp - f * (16 + i * 6) - 2, ly + 4 + i * 5, 5, 2);
+      if (w.kind === 'mogu') B(-11.5, ly + 1.2, 3.2, 2, skinS);       // 꼬리 (뒤로 뻗침)
+      else if (w.kind !== 'kko') B(-12, ly + 2, 3.6, 1.2, '#e0a0b0'); // 쥐 분홍 꼬리
       B(-7, ly + 3, 8, 4, skin); B(-7, ly + 3, 8, 1.2, skinS);   // 몸통 수평
       B(-3.2, ly + 3, 3.6, 4, trunk);                        // 트렁크
       B(-3.2, ly + 2.4, 3.6, 1, PAL.gold);                   // 벨트
@@ -268,6 +273,23 @@ M.Render = {
       B(-9.6, ly + 0.6, 3, 1.8, skinS);                      // 팔 (뒤로)
       this.drawHead(w, T, cxp - f * 20, ly - 9, f, trunk, false, swap);  // 머리 (몸 뒤쪽)
       return;
+    }
+
+    // 꼬리·꽁지깃 (종족 실루엣 차별화 — 몸 뒤에 깔림)
+    const sway = Math.sin(t * 4 + wx * 0.04) * 0.8;
+    if (w.kind === 'mogu') {                                 // 고양이: 굵은 줄무늬 꼬리, 위로 말림
+      B(-7.5, y + 22, 2.4, 2.6, skin);
+      B(-8.8 + sway, y + 18.8, 2.2, 2.6, skinS);
+      B(-9.4 + sway * 1.6, y + 15.4, 2.2, 2.6, skin);
+      B(-9 + sway * 2.2, y + 12.6, 2, 2.2, skinS);           // 꼬리 끝
+    } else if (w.kind === 'kko') {                           // 닭: 수탉 꽁지깃
+      B(-8.2, y + 16, 2.8, 2.2, '#f4f0e4');
+      B(-9.4 + sway, y + 13, 2.6, 2.4, PAL.red);
+      B(-8.6 + sway * 1.5, y + 10.4, 2.2, 2, '#2848c8');
+    } else {                                                 // 쥐: 가늘고 긴 분홍 꼬리, 바닥 쪽
+      B(-7.2, y + 26.5, 2.8, 1.1, '#e0a0b0');
+      B(-9.4 + sway, y + 23.6, 1.3, 2.6, '#e0a0b0');
+      B(-10 + sway * 2, y + 20.4, 1.3, 2.6, '#d890a0');
     }
 
     // 다리 (근육 허벅지) + 니패드 + 레이스업 부츠
@@ -284,6 +306,12 @@ M.Render = {
     B(-6, y + 9, 12, 3.5, skin);                             // 광배·어깨
     B(-4.8, y + 16, 9.6, 3, skin);                           // 허리
     B(-6, y + 9, 2, 3.5, skinS); B(-4.8, y + 16, 2, 3, skinS);  // 등 음영
+    if (w.kind === 'mogu') {
+      B(0.6, y + 12.6, 3.6, 6.4, swap ? PAL.pwr : '#f0e0c8');    // 크림색 가슴·배 털
+      B(-4.4, y + 10, 1.3, 5.4, skinS); B(-2, y + 10.6, 1.3, 4.8, skinS);  // 태비 등 줄무늬
+    } else if (w.kind === 'kko') {
+      B(0.6, y + 12.6, 3.6, 6.4, swap ? PAL.pwr : PAL.white);    // 흰 가슴깃
+    }
     B(1.5, y + 13.5, 3, 1, skinS);                           // 가슴 라인 (펙)
     B(-1.4, y + 17, 2.8, 0.7, skinS); B(-1.4, y + 19.4, 2.8, 0.7, skinS);  // 복근
     // 팔: 기술별 포즈 (라리아트/백드롭/펀치/공중/평시)
@@ -338,13 +366,15 @@ M.Render = {
     };
     if (w.kind === 'mogu') {                                 // 도트 태비 고양이
       const fur = swap ? PAL.pwr : '#a06828', furD = swap ? PAL.pwrS : '#7a4c18';
-      B(-4, -2, 3, 3, furD); B(1, -2, 3, 3, furD);           // 귀
-      B(-3.5, -1.5, 2, 2, '#e8a0a0'); B(1.5, -1.5, 2, 2, '#e8a0a0');
+      B(-4.6, -4, 1.8, 2.2, furD); B(2.8, -4, 1.8, 2.2, furD);     // 뾰족 삼각 귀 (2단)
+      B(-5, -2.2, 3, 2.4, furD); B(2, -2.2, 3, 2.4, furD);
+      B(-4.2, -1.8, 1.6, 1.8, '#e8a0a0'); B(2.6, -1.8, 1.6, 1.8, '#e8a0a0');
       B(-5, 0, 10, 7, fur);                                  // 머리
       B(-5, 0, 2, 7, furD);                                  // 뒤통수
       B(-2, 1, 1.5, 3, furD); B(0.5, 1, 1.5, 3, furD);       // 줄무늬
       B(2, 3, 4, 4, '#f0e8d8');                              // 흰 주둥이 (앞)
       B(4.8, 3.5, 1.5, 1.5, '#e87890');                      // 코
+      B(6.2, 3, 2.2, 0.6, PAL.white); B(6.2, 4.8, 2.2, 0.6, PAL.white);  // 수염
       B(1.5, 1.5, 2, 2, PAL.white); B(2.4, 2, 1, 1.4, PAL.black);  // 눈
     } else if (w.kind === 'kko') {                           // 닭
       const body2 = swap ? PAL.pwr : '#f4f0e4', bd = swap ? PAL.pwrS : '#c8c0a8';
@@ -354,14 +384,15 @@ M.Render = {
       B(1, 1.5, 2, 2, PAL.black);                            // 눈
     } else {                                                 // 쥐 레슬러
       const fur = swap ? PAL.pwr : '#a8a0a0', furD = swap ? PAL.pwrS : '#787070';
-      B(-4.5, -2.5, 3, 3, '#909090'); B(0.5, -2.5, 3, 3, '#909090');  // 둥근 귀
-      B(-4, -2, 2, 2, '#e0a0b0'); B(1, -2, 2, 2, '#e0a0b0');
+      B(-6, -3.6, 4.2, 4.2, '#909090'); B(1.4, -3.6, 4.2, 4.2, '#909090');  // 왕 접시귀
+      B(-5.2, -2.8, 2.6, 2.6, '#e0a0b0'); B(2.2, -2.8, 2.6, 2.6, '#e0a0b0');
       B(-4.5, 0, 9, 7, fur); B(-4.5, 0, 2, 7, furD);
       B(-4.5, 1, 9, 2.5, trunk);                             // 팀색 마스크 밴드
       B(-6, 1.5, 1.5, 1.5, trunk); B(-6.5, 3, 1, 2, trunk);  // 루차 마스크 매듭·끈 (뒤통수)
       B(1, 1.5, 2, 1.5, PAL.white); B(2, 1.8, 1, 1, PAL.black);      // 눈
       B(3.5, 4, 3.5, 2, '#909090');                          // 뾰족 주둥이 (앞)
       B(6.2, 4.2, 1.2, 1.2, '#e87890');                      // 코
+      B(4.6, 5.9, 1.3, 1.3, PAL.white);                      // 앞니
     }
   },
 
