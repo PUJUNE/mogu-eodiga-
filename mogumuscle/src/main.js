@@ -148,7 +148,7 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 const vpad = document.getElementById('vpad');
 if (isTouch) {
   document.body.classList.add('touch');
-  $('title-hint').textContent = '패드로 이동 · 👊 공격 (밀착=밀치기 → 복귀 때 라리아트! · 배후=백드롭) · 🦘 점프 · 🔄 코너 태그';
+  $('title-hint').textContent = '패드로 이동 · 👊 공격 (밀착=밀치기 → 복귀 때 라리아트! · 배후=백드롭) · 🦘 점프 · 🔄 코너 태그 · 발밑 ▲=보는 방향';
   const bindHold = (id, on, off) => {
     const el = document.getElementById(id);
     const setOn = (e) => { e.preventDefault(); M.audio.resume(); on(); el.classList.add('pressed'); };

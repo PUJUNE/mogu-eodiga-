@@ -230,6 +230,18 @@ M.Render = {
     c.fillStyle = 'rgba(10,10,20,.3)';
     c.beginPath(); c.ellipse(x, gy, (down ? 24 : airY > 0 ? 11 : 15) * s, 5 * s, 0, 0, Math.PI * 2); c.fill();
 
+    // 방향 마커 (활성 레슬러): 발밑 삼각형이 보는 방향 — 배후 판정 시인성
+    const isActive = !rest && !down && (st.players[st.pi] === w || st.enemies[st.ei] === w);
+    if (isActive) {
+      const f0 = w.face || 1;
+      c.fillStyle = team === 'p' ? 'rgba(255,216,61,.75)' : 'rgba(255,120,120,.75)';
+      c.beginPath();
+      c.moveTo(x + f0 * 18 * s, gy);
+      c.lineTo(x + f0 * 11 * s, gy - 2.8 * s);
+      c.lineTo(x + f0 * 11 * s, gy + 2.8 * s);
+      c.closePath(); c.fill();
+    }
+
     // 생명의 구슬 점멸 (원작: 캐릭터 점멸 + 오라)
     if (w.poweredT > 0) {
       c.fillStyle = `rgba(255,216,61,${0.18 + Math.sin(t * 10) * 0.08})`;
@@ -307,9 +319,11 @@ M.Render = {
       c.beginPath(); c.moveTo(11 * s, -39 * s + bob); c.lineTo(17 * s, -30 * s + bob); c.stroke();
       c.beginPath(); c.moveTo(-11 * s, -39 * s + bob); c.lineTo(-17 * s, -30 * s + bob); c.stroke();
     } else {
-      // 플렉스 포즈 (근육맨 오마주)
-      c.beginPath(); c.moveTo(11 * s, -39 * s + bob); c.lineTo(17 * s, -34 * s + bob); c.lineTo(15 * s, -44 * s + bob); c.stroke();
-      c.beginPath(); c.moveTo(-11 * s, -39 * s + bob); c.lineTo(-17 * s, -34 * s + bob); c.lineTo(-15 * s, -44 * s + bob); c.stroke();
+      // 가드 자세: 리드 팔이 보는 방향으로 — 앞뒤 실루엣 구분
+      c.beginPath(); c.moveTo(11 * f * s, -39 * s + bob); c.lineTo(21 * f * s, -35 * s + bob); c.stroke();
+      c.fillStyle = '#e8556a';
+      c.beginPath(); c.arc(23 * f * s, -34.5 * s + bob, 3 * s, 0, Math.PI * 2); c.fill();       // 리드 글러브
+      c.beginPath(); c.moveTo(-11 * f * s, -39 * s + bob); c.lineTo(-17 * f * s, -34 * s + bob); c.lineTo(-15 * f * s, -44 * s + bob); c.stroke();
     }
     // 머리
     this.drawHead(w, T, 0, -50 * s + bob, s, t, false);
