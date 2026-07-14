@@ -40,7 +40,7 @@ function handleEvents(evs) {
       case 'shove': M.audio.swing(); M.ui.toast('🌀 로프로 날렸다 — 돌아올 때 공격!', 1.0); break;
       case 'ropehit': M.audio.bounce(); break;
       case 'lariat': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); break;
-      case 'dropkick': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); break;
+      case 'dropkick': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); M.ui.toast('🦵 드롭킥!!', 1.0); break;
       case 'backdrop': M.audio.throwSlam(); M.Render.addHit(e.x, e.z, e.amount); break;
       case 'fbago': M.audio.bounce(); break;
       case 'fba': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); break;
@@ -148,7 +148,7 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 const vpad = document.getElementById('vpad');
 if (isTouch) {
   document.body.classList.add('touch');
-  $('title-hint').textContent = '패드로 이동 · 👊 공격 (밀착=밀치기 → 복귀 때 라리아트! · 배후=백드롭) · 🦘 점프 · 🔄 코너 태그 · 발밑 ▲=보는 방향';
+  $('title-hint').textContent = '패드로 이동 · 👊 공격 (밀착=밀치기 → 복귀 때 라리아트, 점프 중이면 드롭킥! · 배후=백드롭) · 🦘 점프 · 🔄 코너 태그 · 발밑 ▲=보는 방향';
   const bindHold = (id, on, off) => {
     const el = document.getElementById(id);
     const setOn = (e) => { e.preventDefault(); M.audio.resume(); on(); el.classList.add('pressed'); };
