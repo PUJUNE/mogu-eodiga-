@@ -2,12 +2,12 @@
 // 금액 단위: 만 (부루마블 감각). window.MBL 네임스페이스.
 var M = window.MBL;
 
-M.SIZE = 24;                       // 보드 한 바퀴 칸 수 (한 변 6칸 × 4)
-M.START_MONEY = 1500;              // 시작 자금
+M.START_MONEY = 2000;              // 시작 자금
 M.SALARY = 200;                    // 출발지 통과 월급
 M.ESCAPE_FEE = 150;                // 무인도 탈출비
 M.ISLAND_TURNS = 3;                // 무인도 최대 대기 턴
-M.MAX_ROUNDS = 25;                 // 라운드 제한 → 초과 시 총자산 1위 승리
+M.MAX_ROUNDS = 30;                 // 라운드 제한 → 초과 시 총자산 1위 승리
+M.CITY_WIN = 8;                    // 한 도시에서 이만큼 소유 = 도시 제패 즉시 승리
 M.UP_COST = 0.6;                   // 업그레이드 비용 = 땅값 × 0.6 (레벨당)
 M.TAKEOVER_MUL = 2;                // 인수 비용 = (땅값+투자금) × 2
 M.SELL_RATE = 0.6;                 // 파산 청산 환급률
@@ -22,34 +22,61 @@ M.CITIES = {
 };
 
 // kind: start | island | festival | express | key | city
+// 한 변 12칸 × 4 = 48칸. 코너 0/12/24/36, 황금열쇠 8칸, 도시 3곳 × 12지역
 M.TILES = [
   { kind: 'start',    name: '출발',            emoji: '🏁' },                       // 0
-  { kind: 'city', city: 'wonju',    name: '원주역',          price: 80 },           // 1
-  { kind: 'city', city: 'wonju',    name: '강원감영',        price: 100 },          // 2
-  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 3
-  { kind: 'city', city: 'wonju',    name: '한지테마파크',    price: 120 },          // 4
-  { kind: 'city', city: 'wonju',    name: '치악산',          price: 150 },          // 5
-  { kind: 'island',   name: '무인도',          emoji: '🏝️' },                      // 6
-  { kind: 'city', city: 'wonju',    name: '소금산 출렁다리', price: 170 },          // 7
-  { kind: 'city', city: 'wonju',    name: '뮤지엄 산',       price: 190 },          // 8
-  { kind: 'city', city: 'seongnam', name: '모란시장',        price: 220 },          // 9
-  { kind: 'city', city: 'seongnam', name: '야탑역',          price: 240 },          // 10
-  { kind: 'city', city: 'seongnam', name: '남한산성',        price: 260 },          // 11
-  { kind: 'festival', name: '모구 축제',       emoji: '🎪' },                       // 12
-  { kind: 'city', city: 'seongnam', name: '서현역',          price: 290 },          // 13
-  { kind: 'city', city: 'seongnam', name: '정자동 카페거리', price: 320 },          // 14
-  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 15
-  { kind: 'city', city: 'seongnam', name: '판교 테크노밸리', price: 360 },          // 16
-  { kind: 'city', city: 'suwon',    name: '수원역',          price: 390 },          // 17
-  { kind: 'express',  name: '모구 특급열차',   emoji: '🚂' },                       // 18
-  { kind: 'city', city: 'suwon',    name: '장안문',          price: 410 },          // 19
-  { kind: 'city', city: 'suwon',    name: '행리단길',        price: 430 },          // 20
-  { kind: 'city', city: 'suwon',    name: '나혜석거리',      price: 450 },          // 21
-  { kind: 'city', city: 'suwon',    name: '광교호수공원',    price: 480 },          // 22
-  { kind: 'city', city: 'suwon',    name: '수원화성',        price: 520 },          // 23
+  { kind: 'city', city: 'wonju',    name: '원주역',          price: 60 },           // 1
+  { kind: 'city', city: 'wonju',    name: '원주 중앙시장',   price: 80 },           // 2
+  { kind: 'city', city: 'wonju',    name: '원주천 둔치',     price: 90 },           // 3
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 4
+  { kind: 'city', city: 'wonju',    name: '박경리 문학공원', price: 110 },          // 5
+  { kind: 'city', city: 'wonju',    name: '강원감영',        price: 120 },          // 6
+  { kind: 'city', city: 'wonju',    name: '한지 테마파크',   price: 140 },          // 7
+  { kind: 'city', city: 'wonju',    name: '구룡사',          price: 150 },          // 8
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 9
+  { kind: 'city', city: 'wonju',    name: '치악산',          price: 170 },          // 10
+  { kind: 'city', city: 'wonju',    name: '간현관광지',      price: 190 },          // 11
+  { kind: 'island',   name: '무인도',          emoji: '🏝️' },                      // 12
+  { kind: 'city', city: 'wonju',    name: '소금산 출렁다리', price: 210 },          // 13
+  { kind: 'city', city: 'wonju',    name: '뮤지엄 산',       price: 230 },          // 14
+  { kind: 'city', city: 'wonju',    name: '원주 혁신도시',   price: 240 },          // 15
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 16
+  { kind: 'city', city: 'seongnam', name: '모란시장',        price: 260 },          // 17
+  { kind: 'city', city: 'seongnam', name: '탄천',            price: 280 },          // 18
+  { kind: 'city', city: 'seongnam', name: '야탑역',          price: 300 },          // 19
+  { kind: 'city', city: 'seongnam', name: '율동공원',        price: 310 },          // 20
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 21
+  { kind: 'city', city: 'seongnam', name: '남한산성',        price: 330 },          // 22
+  { kind: 'city', city: 'seongnam', name: '성남 아트센터',   price: 350 },          // 23
+  { kind: 'festival', name: '모구 축제',       emoji: '🎪' },                       // 24
+  { kind: 'city', city: 'seongnam', name: '서현역',          price: 370 },          // 25
+  { kind: 'city', city: 'seongnam', name: '분당 중앙공원',   price: 380 },          // 26
+  { kind: 'city', city: 'seongnam', name: '위례신도시',      price: 400 },          // 27
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 28
+  { kind: 'city', city: 'seongnam', name: '정자동 카페거리', price: 410 },          // 29
+  { kind: 'city', city: 'seongnam', name: '백현동 카페거리', price: 420 },          // 30
+  { kind: 'city', city: 'seongnam', name: '판교 테크노밸리', price: 440 },          // 31
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 32
+  { kind: 'city', city: 'suwon',    name: '수원역',          price: 460 },          // 33
+  { kind: 'city', city: 'suwon',    name: '지동시장',        price: 480 },          // 34
+  { kind: 'city', city: 'suwon',    name: '팔달문',          price: 500 },          // 35
+  { kind: 'express',  name: '모구 특급열차',   emoji: '🚂' },                       // 36
+  { kind: 'city', city: 'suwon',    name: '인계동',          price: 520 },          // 37
+  { kind: 'city', city: 'suwon',    name: '수원 월드컵경기장', price: 540 },        // 38
+  { kind: 'city', city: 'suwon',    name: '화성행궁',        price: 560 },          // 39
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 40
+  { kind: 'city', city: 'suwon',    name: '장안문',          price: 580 },          // 41
+  { kind: 'city', city: 'suwon',    name: '행리단길',        price: 600 },          // 42
+  { kind: 'city', city: 'suwon',    name: '나혜석거리',      price: 620 },          // 43
+  { kind: 'city', city: 'suwon',    name: '광교산',          price: 640 },          // 44
+  { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 45
+  { kind: 'city', city: 'suwon',    name: '광교 호수공원',   price: 660 },          // 46
+  { kind: 'city', city: 'suwon',    name: '수원화성',        price: 700 },          // 47
 ];
+M.SIZE = M.TILES.length;           // 48
+M.ISLAND_IDX = 12;                 // 무인도 칸 (더블 3연속·카드 이동 목적지)
 
-// 황금열쇠 카드 (효과는 logic.js _applyCard)
+// 황금열쇠 카드 (효과는 logic.js _drawCard)
 M.CARDS = [
   { id: 'lotto',   name: '츄르 복권 당첨!',        desc: '은행에서 300만을 받는다',            money: 300 },
   { id: 'refund',  name: '세금 환급',              desc: '은행에서 150만을 받는다',            money: 150 },
@@ -58,9 +85,13 @@ M.CARDS = [
   { id: 'gift',    name: '집사들의 선물',          desc: '다른 플레이어 모두에게 50만씩 받는다', gift: 50 },
   { id: 'tostart', name: '집으로!',                desc: '출발지로 이동하고 월급을 받는다',    goto: 'start' },
   { id: 'island',  name: '태풍을 만났다…',         desc: '무인도로 이동한다',                  goto: 'island' },
-  { id: 'chiak',   name: '치악산 등반',            desc: '치악산으로 이동한다',                goto: 5 },
+  { id: 'chiak',   name: '치악산 등반',            desc: '치악산으로 이동한다',                goto: 10 },
   { id: 'back3',   name: '깜빡 낮잠',              desc: '뒤로 3칸 이동한다',                  back: 3 },
   { id: 'salary',  name: '보너스 월급날',          desc: '은행에서 200만을 받는다',            money: 200 },
+  { id: 'pangyo',  name: '판교 출장',              desc: '판교 테크노밸리로 이동한다',         goto: 31 },
+  { id: 'hwaseong',name: '수원 나들이',            desc: '수원화성으로 이동한다',              goto: 47 },
+  { id: 'treat',   name: '츄르 쏘기',              desc: '다른 플레이어 모두에게 30만씩 준다',  gift: -30 },
+  { id: 'fwd5',    name: '신나는 산책',            desc: '앞으로 5칸 이동한다',                fwd: 5 },
 ];
 
 // 플레이어 캐릭터 4종 (토큰 색 = 애니메이션 톤)
