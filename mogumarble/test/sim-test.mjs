@@ -39,7 +39,7 @@ const step = (st, d1, d2, answer) => {
 // 2) 이동 + 구매 + 통행료
 {
   const st = mk(2);
-  const evs = step(st, 1, 2, true);                     // P0 → 3 원주천 둔치 구매
+  const evs = step(st, 1, 2, true);                     // P0 → 3 반계리 은행나무 구매
   check('구매: 소유·잔액 차감', st.tiles[3].owner === 0 &&
     st.players[0].money === M.START_MONEY - M.TILES[3].price && evs.some((e) => e.type === 'buy'));
   const evs2 = step(st, 1, 2, false);                   // P1 → 3 통행료
@@ -52,7 +52,7 @@ const step = (st, d1, d2, answer) => {
 // 3) 업그레이드 + 출발 통과 월급 + 더블 추가 턴
 {
   const st = mk(2);
-  step(st, 1, 2, true);                                 // P0 buy 3 (원주천 둔치)
+  step(st, 1, 2, true);                                 // P0 buy 3 (반계리 은행나무)
   step(st, 2, 3, false);                                // P1 → 5 패스
   st.players[0].pos = 46;                               // 한 바퀴 돈 상태로
   const m0 = st.players[0].money;
