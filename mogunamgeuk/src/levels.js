@@ -37,7 +37,7 @@ M.makeStage = function (no) {
   const curves = [];
   let d = 400;
   while (d < length - 400) {
-    const len = rng.range(280, 660);
+    const len = rng.range(420, 780);   // 최소 420m > 곡률 전환 폭 360m (전환 구간 겹침 방지)
     const c = rng.chance(0.42) ? 0 : rng.range(0.35, 0.85 + t * 0.5) * (rng.chance(0.5) ? 1 : -1);
     curves.push({ d0: d, d1: d + len, c });
     d += len;
@@ -82,9 +82,10 @@ M.makeStage = function (no) {
   };
 };
 
-// 현재 거리의 곡률 — 세그먼트 경계 ±60m는 스무스스텝 보간으로 부드럽게 전환
-// (전환 폭 120m < 최소 세그먼트 길이 280m 이므로 전환 구간끼리 겹치지 않음)
-const CURVE_RAMP = 120;
+// 현재 거리의 곡률 — 세그먼트 경계 ±180m는 스무스스텝 보간으로 부드럽게 전환
+// (주행 속도 150~280m/s 기준 약 1.3~2.4초에 걸친 전환.
+//  전환 폭 360m < 최소 세그먼트 길이 420m 이므로 전환 구간끼리 겹치지 않음)
+const CURVE_RAMP = 360;
 M.curveAt = function (stage, d) {
   const cs = stage.curves;
   if (!cs.length) return 0;

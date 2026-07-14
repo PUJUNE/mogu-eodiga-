@@ -59,14 +59,25 @@ const clean = (no) => {
   check(`커브 드리프트 (x → ${st.x.toFixed(0)})`, st.x > 40);
 }
 
-// 3-b) 커브 전환 스무딩: 경계 ±60m에서 곡률이 계단 없이 서서히 변함
+// 3-b) 커브 전환 스무딩: 경계 ±180m에서 곡률이 계단 없이 서서히 변함
 {
   const stage = { curves: [{ d0: 0, d1: 500, c: 0 }, { d0: 500, d1: 1000, c: 0.8 }] };
-  const cs = [430, 470, 500, 530, 570].map((d) => M.curveAt(stage, d));
+  const cs = [320, 410, 500, 590, 680].map((d) => M.curveAt(stage, d));
   const mono = cs.every((c, i) => i === 0 || c >= cs[i - 1]);
   check(`커브 전환 스무딩 (${cs.map((c) => c.toFixed(2)).join(' → ')})`,
     cs[0] === 0 && cs[4] === 0.8 && Math.abs(cs[2] - 0.4) < 0.01 &&
     mono && cs[1] > 0 && cs[1] < cs[2] && cs[3] > cs[2] && cs[3] < 0.8);
+}
+
+// 3-c) 커브 역조향: 최대 곡률·최고속으로 벽에 밀려 붙어도 반대 조향으로 탈출 가능
+{
+  const st = clean(10);                                    // 최고속 스테이지
+  st.stage.curves = [{ d0: -99999, d1: 99999, c: 1.35 }];
+  run(st, 6, { up: true });                                // 드리프트로 바깥 벽에 붙음
+  const x0 = st.x;
+  run(st, 1.5, { up: true, left: true });                  // 커브 반대로 조향
+  check(`커브 역조향 탈출 (x ${x0.toFixed(0)} → ${st.x.toFixed(0)})`,
+    x0 === M.TRACK_W && st.x < x0 - 80);
 }
 
 // 4) 크레바스: 점프로 통과, 미점프 → 충돌 경직 + 최저속
