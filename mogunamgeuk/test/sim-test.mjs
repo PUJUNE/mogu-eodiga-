@@ -54,9 +54,19 @@ const clean = (no) => {
 // 3) 커브 드리프트: 조향 없으면 바깥으로 밀림
 {
   const st = clean(1);
-  st.stage.curves = [{ d0: 0, d1: 9999, c: 0.8 }];
+  st.stage.curves = [{ d0: -9999, d1: 9999, c: 0.8 }];   // 경계가 멀어 전 구간 풀 곡률
   run(st, 1.2);
   check(`커브 드리프트 (x → ${st.x.toFixed(0)})`, st.x > 40);
+}
+
+// 3-b) 커브 전환 스무딩: 경계 ±60m에서 곡률이 계단 없이 서서히 변함
+{
+  const stage = { curves: [{ d0: 0, d1: 500, c: 0 }, { d0: 500, d1: 1000, c: 0.8 }] };
+  const cs = [430, 470, 500, 530, 570].map((d) => M.curveAt(stage, d));
+  const mono = cs.every((c, i) => i === 0 || c >= cs[i - 1]);
+  check(`커브 전환 스무딩 (${cs.map((c) => c.toFixed(2)).join(' → ')})`,
+    cs[0] === 0 && cs[4] === 0.8 && Math.abs(cs[2] - 0.4) < 0.01 &&
+    mono && cs[1] > 0 && cs[1] < cs[2] && cs[3] > cs[2] && cs[3] < 0.8);
 }
 
 // 4) 크레바스: 점프로 통과, 미점프 → 충돌 경직 + 최저속
