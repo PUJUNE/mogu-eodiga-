@@ -151,6 +151,27 @@ const clean = (no) => {
     evs2.some((e) => e.type === 'kick'));
 }
 
+// 8-1) 드롭킥 방향 우선권: 이동 중 = 이동 방향 (x 교차 순간 역방향 발사 방지),
+//      정지 점프 = 상대 자동 조준 (등 뒤 포함)
+{
+  const st = clean(1);
+  const P = st.players[0], E = st.enemies[0];
+  P.x = -60; P.z = 0; E.x = -100; E.z = 0;                   // 적이 등 뒤 (좌측)
+  run(st, DT, { jump: true, right: true });
+  run(st, DT, { atk: true, right: true });                   // 우측 이동 중 공격
+  run(st, 0.4, { right: true });
+  check(`이동 방향 우선 — 뒤로 날지 않음 (x -60 → ${P.x.toFixed(0)}, face ${P.face})`,
+    P.x > -20 && P.face === 1 && E.state !== 'down');
+  const st2 = clean(1);
+  const P2 = st2.players[0], E2 = st2.enemies[0];
+  P2.x = 0; P2.z = 0; P2.face = 1; E2.x = -60; E2.z = 0;     // 적이 등 뒤, 정지 상태
+  run(st2, DT, { jump: true });
+  run(st2, DT, { atk: true });
+  const evs = until(st2, (s, ee) => ee.some((e) => e.type === 'kick'), 0.8);
+  check('정지 점프 → 등 뒤 상대 자동 조준 명중',
+    E2.state === 'down' && evs.some((e) => e.type === 'kick'));
+}
+
 // 9) 백드롭: 배후 잡기 = 원작 대미지 8 + 다운
 {
   const st = clean(1);

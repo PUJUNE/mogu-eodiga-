@@ -545,7 +545,7 @@ M.Logic = {
     if (this.canAct(P)) {
       const dx = (input.left ? -1 : 0) + (input.right ? 1 : 0);
       const dz = (input.up ? -1 : 0) + (input.down ? 1 : 0);
-      if (dx) P.face = dx;                                   // 이동 방향으로 몸이 향함 (원작 — 배후 잡기 성립 조건)
+      if (dx && !(P.state === 'air' && P.dkVx)) P.face = dx; // 이동 방향으로 몸이 향함 (드롭킥 비행 중엔 고정)
       const n = dx && dz ? Math.SQRT1_2 : 1;
       const spd = P.spd + (P.poweredT > 0 ? POWER_SPD : 0);
       P.x += dx * spd * n * dt;
@@ -574,7 +574,7 @@ M.Logic = {
       }
       // 공격 (태그는 C 전용 — 코너에서도 공격 버튼은 항상 공격, 오태그 방지)
       if (input.atk && P.cd <= 0 && P.state !== 'fba') {
-        this._attack(st, P, E, 'p', ev);
+        this._attack(st, P, E, 'p', ev, dx);                 // dx = 이동 의도 (드롭킥 방향 우선권)
         if (st.phase !== 'fight') return ev;
       }
       // 태그: 전용 입력(C·🔄)으로만, 지상에서 코너 근처일 때
@@ -750,14 +750,16 @@ M.Logic = {
     this._damage(st, att, def, att.sp.dmg, true, 'special', ev);
   },
 
-  // 공격 분기 (지상: 라리아트/잡기/펀치, 공중: 킥/드롭킥)
-  _attack(st, att, def, team, ev) {
+  // 공격 분기 (지상: 라리아트/잡기/펀치, 공중: 드롭킥 돌진)
+  // moveDir: 공격 순간 누르고 있던 좌우 이동 방향 (±1, 없으면 0/undefined)
+  _attack(st, att, def, team, ev, moveDir) {
     const d = this.dist(att, def);
     const powered = att.poweredT > 0;
 
     if (att.state === 'air') {                               // 공중 공격 = 플라잉 드롭킥 돌진
       att.cd = 0.55;
-      att.face = def.x >= att.x ? 1 : -1;                    // 양 다리가 상대 쪽을 향하도록 회전
+      // 이동 중이면 이동 방향(의도 우선 — 교차 순간 역방향 발사 방지), 정지 점프는 상대 자동 조준
+      att.face = moveDir || (def.x >= att.x ? 1 : -1);
       att.anim = 'dropkick';
       att.airT = Math.max(att.airT, DK_T);                   // 체공 연장
       att.animT = att.airT + 0.15;
