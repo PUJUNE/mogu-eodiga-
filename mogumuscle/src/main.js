@@ -35,6 +35,7 @@ function handleEvents(evs) {
     switch (e.type) {
       case 'swing': M.audio.swing(); break;
       case 'jump': M.audio.jump(); break;
+      case 'dkgo': M.audio.swing(); break;
       case 'punch': M.audio.punch(); M.Render.addHit(e.x, e.z, e.amount); break;
       case 'kick': M.audio.punch(); M.Render.addHit(e.x, e.z, e.amount); break;
       case 'shove': M.audio.swing(); M.ui.toast('🌀 로프로 날렸다 — 돌아올 때 공격!', 1.0); break;

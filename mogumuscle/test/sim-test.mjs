@@ -112,7 +112,7 @@ const clean = (no) => {
     near(E.hp, hp0 - P.mv.lariat, 0.6) && E.state === 'down' && evs.some((e) => e.type === 'lariat'));
 }
 
-// 7) 드롭킥: 반동 복귀 중 점프킥 = 원작 대미지 7 + 다운
+// 7) 드롭킥: 반동 복귀 중 공중 공격 = 원작 대미지 7 + 다운 (비행 중 접촉 판정)
 {
   const st = clean(1);
   const P = st.players[0], E = st.enemies[0];
@@ -122,21 +122,33 @@ const clean = (no) => {
   const hp0 = E.hp;
   until(st, () => E.ropePhase === 'back' && Math.abs(E.x - P.x) < C.KICK_RANGE - 6, 2);
   run(st, DT, { jump: true });
-  const evs = run(st, DT, { atk: true });
+  run(st, DT, { atk: true });
+  const evs = until(st, (s, ee) => ee.some((e) => e.type === 'dropkick'), 0.8);
   check(`드롭킥 카운터 (대미지 ${(hp0 - E.hp).toFixed(1)}, 다운)`,
     near(E.hp, hp0 - P.mv.dropkick, 0.6) && E.state === 'down' && evs.some((e) => e.type === 'dropkick'));
 }
 
-// 8) 점프킥 (일반): 공중 공격 = 킥 대미지, 다운 없음
+// 8) 플라잉 드롭킥 (일반): 공중 공격 = 킥 대미지 + 다운, 사거리 밖은 전진 돌진으로 명중
 {
   const st = clean(1);
   const P = st.players[0], E = st.enemies[0];
   P.x = 0; P.z = 0; E.x = 26; E.z = 0;
   const hp0 = E.hp;
   run(st, DT, { jump: true });
-  const evs = run(st, DT, { atk: true });
-  check(`점프킥 (대미지 ${(hp0 - E.hp).toFixed(1)})`,
-    near(E.hp, hp0 - P.mv.kick, 0.2) && E.state !== 'down' && evs.some((e) => e.type === 'kick'));
+  run(st, DT, { atk: true });
+  const evs = until(st, (s, ee) => ee.some((e) => e.type === 'kick'), 0.6);
+  check(`플라잉 드롭킥 명중 (대미지 ${(hp0 - E.hp).toFixed(1)}, 다운)`,
+    near(E.hp, hp0 - P.mv.kick, 0.4) && E.state === 'down' && evs.some((e) => e.type === 'kick'));
+  const st2 = clean(1);
+  const P2 = st2.players[0], E2 = st2.enemies[0];
+  P2.x = 0; P2.z = 0; P2.face = 1; E2.x = 85; E2.z = 0;      // 킥 사거리(34) 밖
+  const hp2 = E2.hp;
+  run(st2, DT, { jump: true });
+  run(st2, DT, { atk: true });
+  const evs2 = until(st2, (s, ee) => ee.some((e) => e.type === 'kick'), 0.8);
+  check(`사거리 밖 → 돌진 비행으로 명중 (x0 → ${P2.x.toFixed(0)}, 다운)`,
+    P2.x > 40 && near(E2.hp, hp2 - P2.mv.kick, 0.5) && E2.state === 'down' &&
+    evs2.some((e) => e.type === 'kick'));
 }
 
 // 9) 백드롭: 배후 잡기 = 원작 대미지 8 + 다운
@@ -258,9 +270,10 @@ const clean = (no) => {
   K.poweredT = 10;
   const hp0 = E.hp;
   run(st, DT, { jump: true });
-  const evs = run(st, DT, { atk: true });
+  run(st, DT, { atk: true });
+  const evs = until(st, (s, ee) => ee.some((e) => e.type === 'special'), 0.6);
   check(`꼬꼬 공중살법 (대미지 ${(hp0 - E.hp).toFixed(1)} = 원작 30)`,
-    near(E.hp, hp0 - K.sp.dmg, 0.2) && K.sp.dmg === 30 && evs.some((e) => e.type === 'special'));
+    near(E.hp, hp0 - K.sp.dmg, 0.4) && K.sp.dmg === 30 && evs.some((e) => e.type === 'special'));
 }
 
 // 16) 가스 (스테이지 2 적 필살기 — 원작 유일 투사체): 원거리 발사 → 명중 + 경직

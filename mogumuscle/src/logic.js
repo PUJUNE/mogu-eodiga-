@@ -15,6 +15,9 @@ const LARIAT_RANGE = 38;
 const ROPE_V = 320;              // 밀쳐진 레슬러 로프행 속도
 const ROPE_BACK_V = 250;         // 로프 반동 복귀 속도
 const FBA_V = 300;               // 플라잉 바디 어택 비행 속도
+const DK_V = 230;                // 드롭킥 돌진 속도 (공중 전진)
+const DK_T = 0.45;               // 드롭킥 체공 시간 (공격 시 연장)
+const DK_HIT = 28;               // 드롭킥 접촉 판정 거리
 const STUN_T = 0.4;
 const DOWN_T = 1.5;
 const INV_T = 0.8;
@@ -37,7 +40,7 @@ const FALL_BREAK = 2.2;          // 폴 사이 휴지
 const C = { MAX_HP, DRAIN, JUMP_T, JUMP_COST, JUMP_MIN, PUNCH_RANGE, KICK_RANGE, GRAB_RANGE,
   LARIAT_RANGE, ROPE_V, ROPE_BACK_V, FBA_V, STUN_T, DOWN_T, INV_T, TAG_RANGE, TAG_LOCK,
   TAG_IN_POWER, BALL_TRIG, BALL_HEAL, POWER_T, POWER_SPD, BALL_LIFE, BALL_PICK,
-  ZAP_DPS, ZAP_HIT, MEAT_WAIT, BALL_FLY, FALL_BREAK };
+  ZAP_DPS, ZAP_HIT, MEAT_WAIT, BALL_FLY, FALL_BREAK, DK_V, DK_T, DK_HIT };
 
 M.Logic = {
   C,
@@ -56,7 +59,7 @@ M.Logic = {
       atkT: 0, cd: 0, stunT: 0, downT: 0, invT: 0,
       airT: 0, airDur: JUMP_T,
       ropePhase: null, ropeVx: 0, ropeT: 0,
-      fbaVx: 0, fbaT: 0,
+      fbaVx: 0, fbaT: 0, dkVx: 0,
       runVx: 0, runVz: 0, runT: 0,
       poweredT: 0, gasCd: 0, aiT: 0,
     });
@@ -127,7 +130,7 @@ M.Logic = {
       w.gasCd = Math.max(0, w.gasCd - dt);
       if (w.atkT > 0) { w.atkT -= dt; if (w.atkT <= 0 && w.state === 'atk') w.state = 'idle'; }
       if (w.animT > 0) { w.animT -= dt; if (w.animT <= 0) w.anim = null; }
-      if (w.state === 'air') { w.airT -= dt; if (w.airT <= 0) w.state = 'idle'; }
+      if (w.state === 'air') { w.airT -= dt; if (w.airT <= 0) { w.state = 'idle'; w.dkVx = 0; } }
       if (w.state === 'down') {
         w.downT -= dt;
         if (w.downT <= 0) { w.state = 'idle'; w.invT = INV_T; }
@@ -241,6 +244,28 @@ M.Logic = {
         w.x = Math.max(-M.RING_X, Math.min(M.RING_X, w.x));
         w.state = 'idle'; w.cd = 0.4;
       }
+    }
+
+    // ── 드롭킥 돌진 (공중 전진 — 접촉 시 명중 + 다운) ──
+    for (const [w, team] of [[P, 'p'], [E, 'e']]) {
+      if (w.state !== 'air' || w.anim !== 'dropkick' || !w.dkVx) continue;
+      w.x += w.dkVx * dt;
+      if (Math.abs(w.x) >= M.RING_X - 6) {                   // 로프 앞에서 돌진 종료
+        w.x = Math.sign(w.x) * (M.RING_X - 6);
+        w.dkVx = 0;
+        continue;
+      }
+      const def = team === 'p' ? E : P;
+      if (this.dist(w, def) >= DK_HIT) continue;
+      if (def.state === 'rope') {                            // 반동 복귀 중 → 드롭킥 카운터 (강)
+        this._dkLand(w);
+        this._damage(st, w, def, w.mv.dropkick, true, 'dropkick', ev);
+      } else if (this.hittable(def)) {                       // 일반 명중도 다운
+        this._dkLand(w);
+        if (w.poweredT > 0 && w.sp.kind === 'jump') this._special(st, w, def, ev);
+        else this._damage(st, w, def, w.mv.kick, true, 'kick', ev);
+      } else continue;
+      if (st.phase !== 'fight') return ev;
     }
 
     // ── 플레이어 조작 ──
@@ -430,6 +455,12 @@ M.Logic = {
     }
   },
 
+  _dkLand(w) {                     // 드롭킥 명중 → 돌진 종료, 착지 슬라이드 연출
+    w.dkVx = 0;
+    w.airT = Math.min(w.airT, 0.18);
+    w.animT = 0.5;
+  },
+
   _fireGas(st, att, def, ev) {
     att.state = 'atk'; att.atkT = 0.3; att.cd = 0.5; att.gasCd = 1.1;
     st.shots.push({
@@ -451,18 +482,14 @@ M.Logic = {
     const d = this.dist(att, def);
     const powered = att.poweredT > 0;
 
-    if (att.state === 'air') {                               // 공중 공격 = 항상 드롭킥 모션
-      att.airT = Math.min(att.airT, 0.18); att.cd = 0.5;
+    if (att.state === 'air') {                               // 공중 공격 = 플라잉 드롭킥 돌진
+      att.cd = 0.55;
       att.face = def.x >= att.x ? 1 : -1;                    // 양 다리가 상대 쪽을 향하도록 회전
       att.anim = 'dropkick';
-      if (def.state === 'rope' && d < KICK_RANGE) {          // 반동 복귀 중 → 드롭킥 카운터
-        att.animT = 0.5;                                     // 수평 비행 → 매트 슬라이드
-        this._damage(st, att, def, att.mv.dropkick, true, 'dropkick', ev);
-      } else if (this.hittable(def) && def.state !== 'rope' && d < KICK_RANGE) {
-        att.animT = 0.5;
-        if (powered && att.sp.kind === 'jump') this._special(st, att, def, ev);
-        else this._damage(st, att, def, att.mv.kick, false, 'kick', ev, 0.45);
-      } else { att.animT = 0.22; ev.push({ type: 'swing' }); }  // 헛스윙: 슬라이드 없이 짧게
+      att.airT = Math.max(att.airT, DK_T);                   // 체공 연장
+      att.animT = att.airT + 0.15;
+      att.dkVx = att.face * DK_V;                            // 상대 쪽으로 전진 — 명중은 비행 중 접촉 판정
+      ev.push({ type: 'dkgo' });
       return;
     }
 
@@ -515,7 +542,7 @@ M.Logic = {
     if (def.state === 'rope') def.ropePhase = null;
     if (kd || def.hp <= 0) {
       def.state = 'down'; def.downT = DOWN_T; def.stunT = 0; def.atkT = 0; def.airT = 0;
-      def.anim = null; def.animT = 0;
+      def.anim = null; def.animT = 0; def.dkVx = 0;
       if (st.players.includes(def)) st.pDowns++;
       ev.push({ type: 'kd' });
     } else {
@@ -560,7 +587,7 @@ M.Logic = {
       w.x = x; w.z = z;
       w.state = 'idle';
       w.stunT = 0; w.downT = 0; w.atkT = 0; w.airT = 0; w.ropePhase = null;
-      w.anim = null; w.animT = 0;
+      w.anim = null; w.animT = 0; w.dkVx = 0;
       w.poweredT = 0; w.cd = 0; w.invT = 1;
     }
     st.meat = null; st.ball = null; st.ballCd = 2; st.shots = [];
