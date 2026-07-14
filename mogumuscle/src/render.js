@@ -200,7 +200,7 @@ M.Render = {
     const down = w.state === 'down' || w.state === 'ko';
     const airY = w.state === 'air' ? Math.round(Math.sin(Math.PI * Math.max(0, 1 - w.airT / (w.airDur || 1))) * 22)
       : (w.state === 'fba' || w.state === 'run') ? 14 : 0;
-    const f = w.face || 1;
+    const f = w.state === 'fba' ? (Math.sign(w.fbaVx) || 1) : (w.face || 1);  // FBA는 비행 방향
     const u = 2;
     // 팔레트 (파워업 스왑 점멸)
     const swap = w.poweredT > 0 && Math.floor(t * 8) % 2 === 0;
@@ -256,9 +256,9 @@ M.Render = {
       for (let i = 0; i < 3; i++) c.fillRect(cxp - dir * (18 + i * 7), y + 14 + i * 8, 5, 2);
     }
 
-    // ── 드롭킥: 수평 비행 → 착지 후 매트 슬라이드 (전용 모션) ──
-    if (w.anim === 'dropkick' && (w.state === 'air' || w.state === 'idle')) {
-      const ly = w.state === 'air' ? y + 8 : y + 24;
+    // ── 드롭킥·FBA: 수평 비행 (양 부츠 = 진행 방향) → 착지 후 매트 슬라이드 ──
+    if (w.state === 'fba' || (w.anim === 'dropkick' && (w.state === 'air' || w.state === 'idle'))) {
+      const ly = w.state === 'idle' ? y + 24 : y + 8;
       c.fillStyle = 'rgba(255,255,255,.55)';                 // 비행 궤적
       for (let i = 0; i < 3; i++) c.fillRect(cxp - f * (16 + i * 6) - 2, ly + 4 + i * 5, 5, 2);
       if (w.kind === 'mogu') B(-11.5, ly + 1.2, 3.2, 2, skinS);       // 꼬리 (뒤로 뻗침)
@@ -330,7 +330,7 @@ M.Render = {
       B(8.6, y + 11.2, 1.3, 2.2, PAL.gold);                  // 리스트밴드
       B(9.8, y + 10.6, 2.6, 3.2, glove);
       B(-7, y + 12, 2.2, 4, skinS); B(-7, y + 13, 2.2, 1.5, pad);
-    } else if (w.state === 'air' || w.state === 'fba') {
+    } else if (w.state === 'air') {
       B(3, y + 8, 5, 2, skin); B(7.5, y + 7.5, 2, 2.5, glove);     // 위로 뻗은 팔
       B(-6, y + 12, 2, 3, skinS);
       B(-2 + step, y + 30, 3, 3, skinS);                     // 다리 접기 덧칠
