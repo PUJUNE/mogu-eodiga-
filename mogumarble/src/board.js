@@ -27,7 +27,7 @@ M.TILES = [
   { kind: 'start',    name: '출발',            emoji: '🏁' },                       // 0
   { kind: 'city', city: 'wonju',    name: '원주역',          price: 60 },           // 1
   { kind: 'city', city: 'wonju',    name: '원주 중앙시장',   price: 80 },           // 2
-  { kind: 'city', city: 'wonju',    name: '원주천 둔치',     price: 90 },           // 3
+  { kind: 'city', city: 'wonju',    name: '반계리 은행나무', price: 90 },           // 3
   { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 4
   { kind: 'city', city: 'wonju',    name: '박경리 문학공원', price: 110 },          // 5
   { kind: 'city', city: 'wonju',    name: '강원감영',        price: 120 },          // 6
