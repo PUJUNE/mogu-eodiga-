@@ -5,6 +5,7 @@ const SPD_MIN = 60;
 const ACCEL = 130, BRAKE = 210;
 const STEER_ACC = 950;           // 조향 가속 (빙판 관성)
 const VX_MAX = 215;              // 최대 횡속도
+const DRIFT_MAX = VX_MAX * 0.55; // 커브가 미는 최대 횡속도 — 풀 역조향 시 항상 탈출 가능
 const ICE_DRAG = 1.1;            // 무입력 시 감쇠 (빙판이라 낮음)
 const JUMP_T = 0.58;             // 점프 체공 시간
 const FLAP_ADD = 0.16;           // 공중 연타 1회당 체공 연장
@@ -96,8 +97,11 @@ M.Logic = {
       st.vx -= st.vx * Math.min(1, ICE_DRAG * dt);   // 빙판: 천천히 감쇠
     }
     st.vx = Math.max(-VX_MAX, Math.min(VX_MAX, st.vx));
-    st.x += st.vx * dt + curve * st.spd * 0.55 * dt;
-    if (st.x <= -M.TRACK_W || st.x >= M.TRACK_W) st.vx = 0;   // 가장자리 눈더미
+    // 커브 드리프트: 미는 힘에 상한 — 강커브·최고속에서도 역조향(215)으로 느리게나마 이동 가능
+    const drift = Math.max(-DRIFT_MAX, Math.min(DRIFT_MAX, curve * st.spd * 0.55));
+    st.x += st.vx * dt + drift * dt;
+    // 가장자리 눈더미: 벽 쪽으로 향하는 횡속도만 리셋 (반대 조향은 쌓여서 탈출 가능)
+    if ((st.x <= -M.TRACK_W && st.vx < 0) || (st.x >= M.TRACK_W && st.vx > 0)) st.vx = 0;
     st.x = Math.max(-M.TRACK_W, Math.min(M.TRACK_W, st.x));
 
     // 전진
