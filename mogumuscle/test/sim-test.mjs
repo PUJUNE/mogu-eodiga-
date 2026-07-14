@@ -183,14 +183,22 @@ const clean = (no) => {
   check('무적 해제 후 명중', E.hp < hpUp - 3);
 }
 
-// 12) 태그: 코너+공격 = 교대 (원작 A버튼) + 등장 파워 80 + 재태그 10s 잠금 + 대기 회복 없음
+// 12) 태그: C 전용 입력으로만 교대 (공격 버튼은 코너에서도 공격 — 오태그 방지)
+//     + 등장 파워 80 + 재태그 10s 잠금 + 대기 회복 없음
 {
   const st = clean(1);
   const P = st.players[0];
   st.players[1].hp = 42;                                     // 대기 중 꼬꼬 (저파워)
   P.x = st.pC.x; P.z = st.pC.z;
-  const evs = run(st, DT, { atk: true });
-  check('코너 + 공격 → 태그', st.pi === 1 && evs.some((e) => e.type === 'tag'));
+  const evsAtk = run(st, DT, { atk: true });
+  check('코너 + 공격 → 태그 없음 (공격만)', st.pi === 0 && !evsAtk.some((e) => e.type === 'tag'));
+  run(st, 0.4);                                              // 공격 모션 종료 대기
+  P.hp = 99;                                                 // 점프 파워 확보
+  const evsAir = run(st, DT, { jump: true, tag: true });     // 점프와 동시 입력 → 공중 태그 금지
+  check('공중에서는 태그 불가', st.pi === 0 && !evsAir.some((e) => e.type === 'tag'));
+  until(st, () => P.state !== 'air', 1);
+  const evs = run(st, DT, { tag: true });
+  check('코너 + C(전용 태그) → 교대', st.pi === 1 && evs.some((e) => e.type === 'tag'));
   check(`태그 등장 파워 4칸=80 (42 → ${st.players[1].hp.toFixed(1)})`, near(st.players[1].hp, C.TAG_IN_POWER, 0.1));
   check(`재태그 잠금 ${C.TAG_LOCK}s`, st.tagCd > C.TAG_LOCK - 0.5);
   const restHp = st.players[0].hp;

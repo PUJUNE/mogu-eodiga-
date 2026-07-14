@@ -274,17 +274,14 @@ M.Logic = {
           ev.push({ type: 'fbago' });
         }
       }
-      // 공격 (코너 근처 + 적이 멀면 태그 — 원작 A버튼 방식)
+      // 공격 (태그는 C 전용 — 코너에서도 공격 버튼은 항상 공격, 오태그 방지)
       if (input.atk && P.cd <= 0 && P.state !== 'fba') {
-        const canTag = this.dist(P, st.pC) < TAG_RANGE && this.alive(st.players[1 - st.pi]) &&
-          st.tagCd <= 0 && this.dist(P, E) > GRAB_RANGE + 8;
-        if (canTag) this._tag(st, 'p', ev);
-        else this._attack(st, P, E, 'p', ev);
+        this._attack(st, P, E, 'p', ev);
         if (st.phase !== 'fight') return ev;
       }
-      // 전용 태그 입력 (보조)
+      // 태그: 전용 입력(C·🔄)으로만, 지상에서 코너 근처일 때
       if (input.tag && st.tagCd <= 0 && this.alive(st.players[1 - st.pi]) &&
-          this.dist(P, st.pC) < TAG_RANGE) {
+          P.state !== 'air' && this.dist(P, st.pC) < TAG_RANGE) {
         this._tag(st, 'p', ev);
       }
     }
