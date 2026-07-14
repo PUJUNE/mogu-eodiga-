@@ -73,9 +73,8 @@ M.ui = {
 
   showWin(st) {
     $('win-stars').textContent = '★'.repeat(st.stars) + '☆'.repeat(3 - st.stars);
-    const pct = Math.round(M.Logic.teamHpPct(st.players) * 100);
-    $('win-stats').innerHTML = `${st.stage.team.name} 격파! · 팀 체력 ${pct}% · 점수 ${st.score}` +
-      (st.stars === 3 ? '<br><b style="color:#7de08a">무다운 완벽 승리!!</b>' : '');
+    $('win-stats').innerHTML = `${st.stage.team.name} 격파! · 폴 ${st.falls.p} - ${st.falls.e} · 점수 ${st.score}` +
+      (st.stars === 3 ? '<br><b style="color:#7de08a">무다운 스트레이트 승리!!</b>' : '');
     $('btn-next').style.display = st.no < 10 ? '' : 'none';
     this.show('win-screen');
   },

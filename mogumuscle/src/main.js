@@ -5,7 +5,7 @@ const $ = (id) => document.getElementById(id);
 let mode = 'title';            // title | play | pause | win | over | ending
 let st = null;
 const held = { left: false, right: false, up: false, down: false };
-let atkQueued = false, tagQueued = false;
+let atkQueued = false, tagQueued = false, jumpQueued = false;
 let overCount = 10, overAcc = 0, tickAcc = 0;
 
 M.save.load();
@@ -33,28 +33,39 @@ function toTitle() {
 function handleEvents(evs) {
   for (const e of evs) {
     switch (e.type) {
-      case 'bounce': M.audio.bounce(); break;
       case 'swing': M.audio.swing(); break;
+      case 'jump': M.audio.jump(); break;
       case 'punch': M.audio.punch(); M.Render.addHit(e.x, e.z, e.amount); break;
-      case 'throw': M.audio.throwSlam(); M.Render.addHit(e.x, e.z, e.amount); break;
+      case 'kick': M.audio.punch(); M.Render.addHit(e.x, e.z, e.amount); break;
+      case 'shove': M.audio.swing(); M.ui.toast('🌀 로프로 날렸다 — 돌아올 때 공격!', 1.0); break;
+      case 'ropehit': M.audio.bounce(); break;
       case 'lariat': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); break;
-      case 'special':
-        M.audio.special();
-        M.Render.addHit(e.x, e.z, e.amount, true);
-        M.ui.toast('💥 머슬 드라이버!!', 1.2);
-        break;
+      case 'dropkick': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); break;
+      case 'backdrop': M.audio.throwSlam(); M.Render.addHit(e.x, e.z, e.amount); break;
+      case 'fbago': M.audio.bounce(); break;
+      case 'fba': M.audio.lariat(); M.Render.addHit(e.x, e.z, e.amount); break;
+      case 'specialGo': M.ui.toast(`💥 ${e.name}!!`, 1.2); break;
+      case 'special': M.audio.special(); M.Render.addHit(e.x, e.z, e.amount, true); break;
+      case 'gas': M.audio.hiss(); break;
+      case 'gashit': M.audio.punch(); M.Render.addHit(e.x, e.z, e.amount); break;
+      case 'zap': M.audio.zap(); M.Render.addHit(e.x, e.z, e.amount, true); break;
+      case 'zaptouch': M.audio.zap(); break;
       case 'kd': M.audio.kd(); break;
-      case 'ball': M.audio.ball(); M.ui.toast('✨ 파워볼 등장!', 1.2); break;
+      case 'meat': M.audio.cluck(); M.ui.toast('👦 꼬마 매니저 등장!', 1.2); break;
+      case 'ball': M.audio.ball(); M.ui.toast('✨ 생명의 구슬!', 1.2); break;
       case 'powered':
         M.audio.powered();
-        M.ui.toast(e.team === 'p' ? '⚡ 파워 충전! 다음 공격 = 필살기!' : '⚡ 상대가 파워볼을 가져갔다!', 1.5);
+        M.ui.toast(e.team === 'p' ? '⚡ 생명의 구슬! 10초간 필살기 + 스피드 UP!' : '⚡ 상대가 구슬을 가져갔다!', 1.5);
         break;
       case 'tag': M.audio.tag(); M.ui.toast(`🔄 태그! ${e.name} 입장!`, 1.2); break;
       case 'etag': M.audio.tag(); M.ui.toast(`상대 태그 — ${e.name} 입장…`, 1.2); break;
       case 'edash': M.audio.bounce(); break;
       case 'ko': M.audio.ko(); M.ui.toast(`💫 ${e.name} K.O.!!`, 1.4); break;
-      case 'enter': M.ui.toast(`${e.name} 등판!`, 1.2); break;
-      case 'penter': M.audio.cluck(); M.ui.toast(`${e.name} 교대 투입!`, 1.4); break;
+      case 'fall':
+        M.audio.bell();
+        M.ui.toast(e.team === 'p' ? `📣 폴 획득! ${e.falls.p} - ${e.falls.e}` : `📣 폴 상실… ${e.falls.p} - ${e.falls.e}`, 1.8);
+        break;
+      case 'fallstart': M.ui.toast(`FALL ${e.no} — 파이트!`, 1.4); break;
       case 'clear':
         M.audio.bell();
         M.audio.clear(e.stars);
@@ -85,7 +96,8 @@ window.addEventListener('keydown', (e) => {
   if (k === 'ArrowUp') held.up = true;
   if (k === 'ArrowDown') held.down = true;
   if ((k === ' ' || k === 'z' || k === 'Z') && !e.repeat && mode === 'play') atkQueued = true;
-  if ((k === 'x' || k === 'X') && !e.repeat && mode === 'play') tagQueued = true;
+  if ((k === 'x' || k === 'X') && !e.repeat && mode === 'play') jumpQueued = true;
+  if ((k === 'c' || k === 'C') && !e.repeat && mode === 'play') tagQueued = true;
 
   if (mode === 'title') {
     if (k === 'Enter') startStage(M.save.data.best);
@@ -136,7 +148,7 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 const vpad = document.getElementById('vpad');
 if (isTouch) {
   document.body.classList.add('touch');
-  $('title-hint').textContent = '패드로 이동 · 로프에 밀면 대시 · 👊 공격 (근접 = 던지기!) · 🔄 코너 태그';
+  $('title-hint').textContent = '패드로 이동 · 👊 공격 (밀착=밀치기 → 복귀 때 라리아트! · 배후=백드롭) · 🦘 점프 · 🔄 코너 태그';
   const bindHold = (id, on, off) => {
     const el = document.getElementById(id);
     const setOn = (e) => { e.preventDefault(); M.audio.resume(); on(); el.classList.add('pressed'); };
@@ -151,6 +163,7 @@ if (isTouch) {
   bindHold('vbtn-up', () => { held.up = true; }, () => { held.up = false; });
   bindHold('vbtn-down', () => { held.down = true; }, () => { held.down = false; });
   bindHold('vbtn-atk', () => { if (mode === 'play') atkQueued = true; });
+  bindHold('vbtn-jump', () => { if (mode === 'play') jumpQueued = true; });
   bindHold('vbtn-tag', () => { if (mode === 'play') tagQueued = true; });
   document.getElementById('vbtn-pause').addEventListener('pointerdown', (e) => {
     e.preventDefault(); e.stopPropagation();
@@ -171,10 +184,11 @@ M._dbg = () => {
   const P = st ? st.players[st.pi] : null;
   return {
     mode, no: st ? st.no : 0, phase: st ? st.phase : null,
-    p: P ? { x: +P.x.toFixed(1), z: +P.z.toFixed(1), hp: +P.hp.toFixed(1), state: P.state, powered: P.powered } : null,
+    p: P ? { x: +P.x.toFixed(1), z: +P.z.toFixed(1), hp: +P.hp.toFixed(1), state: P.state, poweredT: +P.poweredT.toFixed(1) } : null,
     pi: st ? st.pi : 0, ei: st ? st.ei : 0,
     ehp: st ? +st.enemies[st.ei].hp.toFixed(1) : 0,
     time: st ? +st.time.toFixed(1) : 0,
+    falls: st ? { ...st.falls } : null, fallNo: st ? st.fallNo : 0,
     score: st ? st.score : 0, stars: st ? st.stars : 0, pDowns: st ? st.pDowns : 0,
   };
 };
@@ -191,15 +205,15 @@ function frame(now) {
   if (mode === 'play' && st) {
     handleEvents(M.Logic.step(st, dt, {
       left: held.left, right: held.right, up: held.up, down: held.down,
-      atk: atkQueued, tag: tagQueued,
+      atk: atkQueued, tag: tagQueued, jump: jumpQueued,
     }));
-    atkQueued = false; tagQueued = false;
-    if (st.time < 15 && st.phase === 'fight') {
+    atkQueued = false; tagQueued = false; jumpQueued = false;
+    if (st.time < 10 && st.phase === 'fight') {
       tickAcc += dt;
       if (tickAcc > 1.0) { tickAcc = 0; M.audio.tick(); }
     }
   } else {
-    atkQueued = false; tagQueued = false;
+    atkQueued = false; tagQueued = false; jumpQueued = false;
   }
   if (st) M.Render.draw(st, now / 1000, dt);
 }

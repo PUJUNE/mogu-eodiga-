@@ -63,6 +63,9 @@ const A = {
   over()     { [392, 330, 262, 196].forEach((f, i) => this.tone(f, 0.26, 'triangle', 0.2, null, i * 0.2)); },
   meow()     { this.tone(700, 0.28, 'sawtooth', 0.1, 420); },
   cluck()    { [740, 620].forEach((f, i) => this.tone(f, 0.08, 'square', 0.12, null, i * 0.09)); },
+  jump()     { this.tone(300, 0.12, 'square', 0.1, 620); },
+  hiss()     { this.noise(0.3, 0.14, 1600, 0.6); },
+  zap()      { this.noise(0.15, 0.2, 2600, 2); this.tone(1200, 0.16, 'sawtooth', 0.12, 180); },
 };
 
 M.audio = A;

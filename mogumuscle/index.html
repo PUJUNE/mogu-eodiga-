@@ -76,7 +76,8 @@
   #vbtn-up    { left:calc(81px + env(safe-area-inset-left)); bottom:calc(112px + env(safe-area-inset-bottom)); }
   #vbtn-down  { left:calc(81px + env(safe-area-inset-left)); bottom:calc(12px + env(safe-area-inset-bottom)); }
   #vbtn-atk   { right:calc(14px + env(safe-area-inset-right)); bottom:calc(48px + env(safe-area-inset-bottom)); width:84px; height:84px; font-size:30px; }
-  #vbtn-tag   { right:calc(104px + env(safe-area-inset-right)); bottom:calc(22px + env(safe-area-inset-bottom)); }
+  #vbtn-jump  { right:calc(104px + env(safe-area-inset-right)); bottom:calc(92px + env(safe-area-inset-bottom)); }
+  #vbtn-tag   { right:calc(104px + env(safe-area-inset-right)); bottom:calc(16px + env(safe-area-inset-bottom)); }
   #vbtn-pause { right:calc(12px + env(safe-area-inset-right)); top:calc(10px + env(safe-area-inset-top));
     width:44px; height:44px; font-size:17px; border-radius:12px; }
 </style>
@@ -104,7 +105,7 @@
       <button class="btn diff-btn crazy" data-diff="crazy">크레이지</button>
     </div>
     <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
-    <div id="title-hint">←→↑↓ 이동 · 로프에 밀면 반동 대시 · Space/Z 공격 (근접 = 던지기, 대시 중 = 라리아트!)<br>X = 코너 태그 (꼬꼬와 교대, 쉬면 회복) · ✨파워볼 = 필살 머슬 드라이버! (D 난이도)</div>
+    <div id="title-hint">←→↑↓ 이동 · Space/Z 공격 — 밀착=밀치기(복귀 때 공격=라리아트!) · 배후=백드롭 · X 점프(공중 공격=킥, 로프로 점프=플라잉 바디)<br>C 또는 코너에서 공격 = 태그 · ✨생명의 구슬 = 회복 + 10초 필살기 · 파워 자연 감소 주의! (D 난이도)</div>
   </div>
 
   <div id="win-screen" class="screen hidden">
@@ -146,6 +147,7 @@
     <div class="vbtn" id="vbtn-up">▲</div>
     <div class="vbtn" id="vbtn-down">▼</div>
     <div class="vbtn" id="vbtn-atk">👊</div>
+    <div class="vbtn" id="vbtn-jump">🦘</div>
     <div class="vbtn" id="vbtn-tag">🔄</div>
     <div class="vbtn" id="vbtn-pause">⏸</div>
   </div>

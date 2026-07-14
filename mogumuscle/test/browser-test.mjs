@@ -68,36 +68,44 @@ await page.keyboard.press(' ');
 await page.waitForTimeout(200);
 const ehp1 = await page.evaluate(() => window.MMS._dbg().ehp);
 check(`Space → 공격 명중 (적 HP ${ehp0} → ${ehp1})`, ehp1 < ehp0);
+// X = 점프 (원작 B버튼) — 적을 멀리 치우고 무풍 상태에서
+await page.waitForTimeout(500);
+await page.evaluate(() => {
+  const s = window.MMS._st();
+  const P = s.players[s.pi], E = s.enemies[s.ei];
+  E.x = 140; E.z = -50;
+  P.state = 'idle'; P.stunT = 0; P.atkT = 0;
+});
+await page.keyboard.press('x');
+await page.waitForTimeout(120);
+check('X → 점프 (공중)', await page.evaluate(() => window.MMS._dbg().p.state === 'air'));
 // 코너로 이동 후 태그 (공격 모션이 끝나길 기다렸다가)
-await page.waitForTimeout(400);
+await page.waitForTimeout(700);
 await page.evaluate(() => {
   const s = window.MMS._st();
   const P = s.players[s.pi];
   P.x = s.pC.x; P.z = s.pC.z;
 });
-await page.keyboard.press('x');
+await page.keyboard.press('c');
 await page.waitForTimeout(200);
-check('X → 코너 태그 (꼬꼬 입장)', await page.evaluate(() => window.MMS._dbg().pi === 1));
+check('C → 코너 태그 (꼬꼬 입장)', await page.evaluate(() => window.MMS._dbg().pi === 1));
 await page.screenshot({ path: join(shots, 'shot-play.png') });
 
-// ══ 3. 클리어 흐름 (적 체력 주입) ══
+// ══ 3. 클리어 흐름 (폴 2선취 — 1폴 선점 상태에서 KO 주입) ══
 await page.evaluate(() => {
   const s = window.MMS._st();
-  for (const e of s.enemies) { e.hp = 1; e.spd = 0; e.invT = 0; e.stunT = 0; if (e.state === 'down') { e.state = 'idle'; e.downT = 0; } }
+  s.falls.p = 1;
   const P = s.players[s.pi];
-  s.enemies[s.ei].x = P.x + 20; s.enemies[s.ei].z = P.z;
-});
-await page.keyboard.press(' ');
-await page.waitForTimeout(1300);
-await page.evaluate(() => {
-  const s = window.MMS._st();
-  if (s.phase !== 'fight') return;
-  const P = s.players[s.pi];
-  s.enemies[s.ei].x = P.x + 20; s.enemies[s.ei].z = P.z; s.enemies[s.ei].invT = 0;
+  P.x = 0; P.z = 0; P.state = 'idle'; P.stunT = 0; P.atkT = 0; P.cd = 0;  // 코너에서 떨어진 곳 (태그 오발 방지)
+  const E = s.enemies[s.ei];
+  E.hp = 1; E.spd = 0; E.invT = 0; E.stunT = 0;
+  if (E.state === 'down') { E.state = 'idle'; E.downT = 0; }
+  E.x = 27; E.z = 0;                                       // 펀치 사거리 (잡기 밖)
+  s.stage.aggr = 0; E.aiT = -99;
 });
 await page.keyboard.press(' ');
 await page.waitForTimeout(600);
-check('적 전멸 → 승리 연출', await page.evaluate(() => window.MMS._dbg().phase === 'clear'));
+check('KO → 2폴 → 승리 연출', await page.evaluate(() => window.MMS._dbg().phase === 'clear'));
 await page.screenshot({ path: join(shots, 'shot-pin.png') });
 await page.waitForTimeout(2200);
 check('승리 화면 표시', await page.evaluate(() =>
