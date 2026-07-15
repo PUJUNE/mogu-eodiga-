@@ -95,6 +95,19 @@
     background:rgba(10,30,64,.7);border:2px solid rgba(255,255,255,.5);border-radius:22px;
     text-decoration:none;display:inline-block;font-family:inherit;}
 
+  /* 난이도 선택 */
+  #diff-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px;}
+  .diff-btn{padding:9px 18px;font-size:14px;font-weight:900;color:#e2f0ff;cursor:pointer;font-family:inherit;
+    background:rgba(10,30,64,.7);border:2px solid rgba(255,255,255,.45);border-radius:20px;}
+  .diff-btn.sel{color:#08202c;border-color:#fff;}
+  .diff-btn.sel[data-diff="easy"]{background:#7be381;}
+  .diff-btn.sel[data-diff="normal"]{background:#63d9ff;}
+  .diff-btn.sel[data-diff="hard"]{background:#ffb347;}
+  .diff-btn.sel[data-diff="crazy"]{background:#ff6a6a;}
+  #diff-desc{margin-top:7px;font-size:12.5px;font-weight:800;color:#cfe8ff;min-height:1.2em;}
+  #save-row{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-top:14px;}
+  #save-row .linkbtn{margin-top:0;}
+
   #setup-screen{background:linear-gradient(#1e88e5ee 0%,#0d47a1ee 100%);}
   #setup-screen h1{font-size:27px;font-weight:900;color:#ffe14a;margin:0 0 14px;text-shadow:0 3px 0 #b8531e;}
   .cnt-row{display:flex;gap:10px;margin-bottom:16px;}
@@ -164,12 +177,25 @@
     부루마블 · 모두의 마블 모티브 3D 보드게임! (48칸 · 도시별 명소 12곳)<br>
     주사위를 굴려 <b>성남·수원·원주의 명소</b>를 사들이고 별장→빌딩→호텔을 지어요.<br>
     <b>한 도시 8곳 제패 = 즉시 승리!</b> 통행료로 상대를 파산시켜도 승리!<br>
-    🎪 축제 = 통행료 ×2 · 🔑 황금열쇠 8칸 · 🏝️ 무인도 · 🤝 남의 땅 인수 · 더블은 한 번 더<br>
+    🎪 축제 = 통행료 ×2 · 🔑 황금열쇠 8칸 · 🏭 산업단지(3턴 발묶임) · 🤝 남의 땅 인수 · 더블은 한 번 더<br>
     🎥 드래그 = 회전 · 우클릭/Shift 드래그 · 두 손가락 = 시점 이동 · 휠/핀치 = 줌
   </div>
+  <div id="diff-row">
+    <button class="diff-btn" data-diff="easy">이지</button>
+    <button class="diff-btn" data-diff="normal">노말</button>
+    <button class="diff-btn" data-diff="hard">하드</button>
+    <button class="diff-btn" data-diff="crazy">크레이지</button>
+  </div>
+  <div id="diff-desc"></div>
   <div class="menu-col">
+    <button class="bigbtn hidden" id="btn-continue">▶ 이어서 하기</button>
     <button class="bigbtn" id="btn-vs-com">🤖 컴퓨터와 대전 (나 + 컴퓨터 3)</button>
     <button class="bigbtn blue" id="btn-multi">👥 함께 하기 (2~4인)</button>
+  </div>
+  <div id="save-row">
+    <button class="linkbtn" id="btn-export">💾 세이브 내보내기</button>
+    <button class="linkbtn" id="btn-import">📂 세이브 불러오기</button>
+    <input type="file" id="file-input" accept=".json,application/json" style="display:none">
   </div>
   <a class="linkbtn" id="btn-series">🐱 모구 게임 시리즈로</a>
 </div>
@@ -252,7 +278,7 @@ M.TILES = [
   { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 9
   { kind: 'city', city: 'wonju',    name: '치악산',          price: 170 },          // 10
   { kind: 'city', city: 'wonju',    name: '간현관광지',      price: 190 },          // 11
-  { kind: 'island',   name: '무인도',          emoji: '🏝️' },                      // 12
+  { kind: 'island',   name: '동화의료기기 산업단지', emoji: '🏭' },                  // 12 (원주 문막 — 3턴 발묶임)
   { kind: 'city', city: 'wonju',    name: '소금산 출렁다리', price: 210 },          // 13
   { kind: 'city', city: 'wonju',    name: '뮤지엄 산',       price: 230 },          // 14
   { kind: 'city', city: 'wonju',    name: '원주 혁신도시',   price: 240 },          // 15
@@ -300,7 +326,7 @@ M.CARDS = [
   { id: 'repair',  name: '캣타워 수리비',          desc: '100만을 은행에 낸다',                money: -100 },
   { id: 'gift',    name: '집사들의 선물',          desc: '다른 플레이어 모두에게 50만씩 받는다', gift: 50 },
   { id: 'tostart', name: '집으로!',                desc: '출발지로 이동하고 월급을 받는다',    goto: 'start' },
-  { id: 'island',  name: '태풍을 만났다…',         desc: '무인도로 이동한다',                  goto: 'island' },
+  { id: 'island',  name: '공장 견학 초대장',       desc: '동화의료기기산업단지로 이동한다',    goto: 'island' },
   { id: 'chiak',   name: '치악산 등반',            desc: '치악산으로 이동한다',                goto: 10 },
   { id: 'back3',   name: '깜빡 낮잠',              desc: '뒤로 3칸 이동한다',                  back: 3 },
   { id: 'salary',  name: '보너스 월급날',          desc: '은행에서 200만을 받는다',            money: 200 },
@@ -318,14 +344,28 @@ M.CHARS = [
   { key: 'mong', name: '몽이', emoji: '🐶', color: 0x43b649, css: '#43b649' },
 ];
 
-// 결정적 RNG (mulberry32) — 시뮬 테스트용
-M.makeRng = function (seed) {
-  var s = seed >>> 0;
+// ── 난이도 4단계 (모구 시리즈 공통 문법) — 컴퓨터 플레이어에게만 적용 ──
+// aiSmart: 최적 판단 확률 / aiReserve: 지출 후 남길 여유 자금 배율 (낮을수록 공격적) /
+// aiMoney: 컴퓨터 시작 자금 배율
+M.DIFF_ORDER = ['easy', 'normal', 'hard', 'crazy'];
+M.DIFFS = {
+  easy:   { name: '이지',     aiSmart: 0.55, aiReserve: 1.5,  aiMoney: 0.85 },
+  normal: { name: '노말',     aiSmart: 0.80, aiReserve: 1.0,  aiMoney: 1.0 },
+  hard:   { name: '하드',     aiSmart: 0.95, aiReserve: 0.75, aiMoney: 1.15 },
+  crazy:  { name: '크레이지', aiSmart: 1.0,  aiReserve: 0.55, aiMoney: 1.35 },
+};
+M.SAVE_KEY = 'mogumarble.v1';
+
+// 결정적 RNG (mulberry32) — 시뮬 테스트·세이브 복원용 (getState/setState)
+M.makeRng = function (seed, state) {
+  var s = (state != null ? state : seed) >>> 0;
   var next = function () { s |= 0; s = (s + 0x6D2B79F5) | 0; var t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   return {
     next: next,
     int: function (n) { return Math.floor(next() * n); },
     die: function () { return 1 + Math.floor(next() * 6); },
+    chance: function (p) { return next() < p; },
+    getState: function () { return s; },
   };
 };
 
@@ -339,18 +379,21 @@ var M = window.MBL;
 
 M.Logic = {
   create: function (opts) {
-    // opts: { players: [{name, char, human}], seed }
+    // opts: { players: [{name, char, human}], seed, diff }
     var rng = M.makeRng(opts.seed || 1);
+    var diff = M.DIFFS[opts.diff] ? opts.diff : 'normal';
+    var D = M.DIFFS[diff];
     var deck = [];
     for (var i = 0; i < M.CARDS.length; i++) deck.push(i);
     for (i = deck.length - 1; i > 0; i--) { var j = rng.int(i + 1); var t = deck[i]; deck[i] = deck[j]; deck[j] = t; }
     return {
       players: opts.players.map(function (p, idx) {
         return { i: idx, name: p.name, char: p.char, human: !!p.human,
-          money: M.START_MONEY, pos: 0, alive: true, islandT: 0 };
+          money: Math.round(M.START_MONEY * (p.human ? 1 : D.aiMoney)),   // 난이도: 컴퓨터 시작 자금
+          pos: 0, alive: true, islandT: 0 };
       }),
       tiles: M.TILES.map(function (t) { return { owner: null, level: 0, invested: 0 }; }),
-      turn: 0, round: 1,
+      turn: 0, round: 1, diff: diff,
       phase: 'roll',               // roll | decision | end | over
       dice: [0, 0], doubles: 0, lastDouble: false,
       pending: null,               // {type:'buy'|'upgrade'|'takeover', tile}
@@ -359,6 +402,47 @@ M.Logic = {
       winner: -1, ranking: null, overReason: null,
       rng: rng,
     };
+  },
+
+  // ── 세이브 직렬화/복원 (턴 시작(phase roll) 시점 기준) ──
+  serialize: function (st) {
+    return {
+      v: 1, diff: st.diff,
+      players: st.players.map(function (p) {
+        return { i: p.i, name: p.name, char: p.char, human: p.human,
+          money: p.money, pos: p.pos, alive: p.alive, islandT: p.islandT };
+      }),
+      tiles: st.tiles.map(function (t) { return { owner: t.owner, level: t.level, invested: t.invested }; }),
+      turn: st.turn, round: st.round, doubles: st.doubles,
+      deck: st.deck.slice(), deckPos: st.deckPos,
+      festivalTile: st.festivalTile,
+      rngState: st.rng.getState(),
+    };
+  },
+  load: function (obj) {
+    if (!obj || obj.v !== 1 || !Array.isArray(obj.players) || !Array.isArray(obj.tiles)) return null;
+    if (obj.tiles.length !== M.SIZE || obj.players.length < 2 || obj.players.length > 4) return null;
+    if (!Array.isArray(obj.deck) || obj.deck.length !== M.CARDS.length) return null;
+    try {
+      return {
+        players: obj.players.map(function (p, idx) {
+          return { i: idx, name: String(p.name), char: p.char | 0, human: !!p.human,
+            money: +p.money || 0, pos: (p.pos | 0) % M.SIZE, alive: !!p.alive, islandT: p.islandT | 0 };
+        }),
+        tiles: obj.tiles.map(function (t) {
+          return { owner: t.owner == null ? null : t.owner | 0, level: t.level | 0, invested: +t.invested || 0 };
+        }),
+        turn: obj.turn | 0, round: obj.round | 0,
+        diff: M.DIFFS[obj.diff] ? obj.diff : 'normal',
+        phase: 'roll',
+        dice: [0, 0], doubles: obj.doubles | 0, lastDouble: false,
+        pending: null,
+        deck: obj.deck.slice(), deckPos: obj.deckPos | 0,
+        festivalTile: obj.festivalTile == null ? -1 : obj.festivalTile | 0,
+        winner: -1, ranking: null, overReason: null,
+        rng: M.makeRng(1, obj.rngState),
+      };
+    } catch (e) { return null; }
   },
 
   cur: function (st) { return st.players[st.turn]; },
@@ -686,9 +770,12 @@ M.Logic = {
 })();
 /* ── ai.js ── */
 (function(){
-// ai.js — 모구의 마블 컴퓨터 플레이어 (휴리스틱)
+// ai.js — 모구의 마블 컴퓨터 플레이어 (난이도별 휴리스틱)
+// aiSmart 확률로 최적 판단, 실패 시 소극적/무작위 선택. aiReserve 는 여유 자금 배율.
 var M = window.MBL;
 var L = null;
+
+function knobs(st) { return M.DIFFS[st.diff] || M.DIFFS.normal; }
 
 M.AI = {
   // phase 'decision' 의 pending 에 대한 답 (true/false)
@@ -697,35 +784,40 @@ M.AI = {
     var P = L.cur(st);
     var pd = st.pending;
     if (!pd) return false;
+    var D = knobs(st);
     var idx = pd.tile, def = M.TILES[idx];
+    var smart = st.rng.chance(D.aiSmart);
 
     if (pd.type === 'buy') {
-      // 여유 자금을 남기고 산다. 도시 독점에 다가갈수록 과감하게.
+      if (!smart) return st.rng.chance(0.5);                  // 실수: 반반 무작위
       var mine = L.cityCount(st, P.i, def.city);
-      var reserve = mine >= 2 ? 60 : 180;
+      var reserve = (mine >= 2 ? 60 : 180) * D.aiReserve;
       return P.money - def.price >= reserve;
     }
     if (pd.type === 'upgrade') {
+      if (!smart) return false;                               // 실수: 소극적
       var cost = L.upCost(idx);
-      return P.money - cost >= 220;
+      return P.money - cost >= 220 * D.aiReserve;
     }
     if (pd.type === 'takeover') {
+      if (!smart) return false;
       var tc = L.takeoverCost(st, idx);
-      if (P.money - tc < 250) return false;
+      if (P.money - tc < 250 * D.aiReserve) return false;
       var owner = st.tiles[idx].owner;
       var myAfter = L.cityCount(st, P.i, def.city) + 1;
       var win = Math.min(M.CITY_WIN, L.cityTotal(def.city));
-      if (myAfter >= win) return true;                      // 인수로 도시 제패 완성 → 즉시 승리
+      if (myAfter >= win) return true;                        // 인수로 도시 제패 완성 → 즉시 승리
       if (L.cityCount(st, owner, def.city) >= win - 1) return true;    // 상대 제패 저지
-      return myAfter >= win - 1 && P.money - tc >= 500;     // 제패 직전이면 부자일 때만
+      return myAfter >= win - 1 && P.money - tc >= 500 * D.aiReserve;  // 제패 직전이면 부자일 때만
     }
     return false;
   },
 
-  // 무인도에서 탈출비를 낼지 (roll 전 판단)
+  // 산업단지(무인도 기믹)에서 탈출비를 낼지 (roll 전 판단)
   wantPayEscape: function (st) {
     var P = M.Logic.cur(st);
-    return P.islandT > 0 && P.money >= M.ESCAPE_FEE + 400;
+    var D = knobs(st);
+    return P.islandT > 0 && P.money >= M.ESCAPE_FEE + 400 * D.aiReserve;
   },
 };
 
@@ -823,13 +915,15 @@ M.ui = {
         var owned = 0;
         for (var t = 0; t < st.tiles.length; t++) if (st.tiles[t].owner === i) owned++;
         sub.push('🏠 ' + owned + '곳');
-        if (P.islandT > 0) sub.push('🏝️ ' + P.islandT + '턴');
+        if (P.islandT > 0) sub.push('🏭 ' + P.islandT + '턴');
       }
       $('pc-sub-' + i).textContent = sub.join(' · ');
       card.classList.toggle('turn', st.turn === i && st.phase !== 'over');
       card.classList.toggle('dead', !P.alive);
     }
-    $('round-ind').textContent = '라운드 ' + Math.min(st.round, M.MAX_ROUNDS) + '/' + M.MAX_ROUNDS;
+    var hasAI = st.players.some(function (p) { return !p.human; });
+    $('round-ind').textContent = '라운드 ' + Math.min(st.round, M.MAX_ROUNDS) + '/' + M.MAX_ROUNDS +
+      (hasAI ? ' · ' + (M.DIFFS[st.diff] || M.DIFFS.normal).name : '');
   },
 
   // ── 하단 행동 버튼 (상황별) ──
@@ -1076,13 +1170,23 @@ M.R3 = {
         : def.kind === 'festival' ? '#e8453c' : def.kind === 'express' ? '#8a56d8' : '#f2a93b';
       c.fillRect(5, 5, 246, 246);
       c.strokeRect(0, 0, 256, 256);
-      c.font = '96px sans-serif';
-      c.fillText(def.emoji || '★', 128, 130);
+      var long = def.name.length > 5;
+      c.font = (long ? 84 : 96) + 'px sans-serif';
+      c.fillText(def.emoji || '★', 128, long ? 108 : 130);
       c.fillStyle = '#fff';
-      c.font = 'bold 40px "Malgun Gothic",sans-serif';
       c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = 8;
-      c.strokeText(def.name, 128, 214);
-      c.fillText(def.name, 128, 214);
+      if (long) {                                              // 긴 코너 이름은 두 줄
+        var mid2 = def.name.indexOf(' ') > 0 ? def.name.indexOf(' ') : Math.ceil(def.name.length / 2);
+        c.font = 'bold 32px "Malgun Gothic",sans-serif';
+        c.strokeText(def.name.slice(0, mid2).trim(), 128, 186);
+        c.fillText(def.name.slice(0, mid2).trim(), 128, 186);
+        c.strokeText(def.name.slice(mid2).trim(), 128, 226);
+        c.fillText(def.name.slice(mid2).trim(), 128, 226);
+      } else {
+        c.font = 'bold 40px "Malgun Gothic",sans-serif';
+        c.strokeText(def.name, 128, 214);
+        c.fillText(def.name, 128, 214);
+      }
     }
     var tex = new THREE.CanvasTexture(cv);
     tex.encoding = THREE.sRGBEncoding;
@@ -1509,6 +1613,28 @@ var st = null;
 var boardBuilt = false;
 var lastSlots = null;
 
+/* ══════════ 세이브 (localStorage + 파일 내보내기/불러오기) ══════════ */
+var DIFF_DESC = {
+  easy: '컴퓨터가 실수를 자주 하고 소심하게 써요 (시작 자금 −15%)',
+  normal: '표준 컴퓨터 상대',
+  hard: '컴퓨터가 영리하고 공격적 (시작 자금 +15%)',
+  crazy: '컴퓨터가 항상 최적 판단 + 과감한 인수 (시작 자금 +35%)',
+};
+function loadSave() {
+  try {
+    var s = JSON.parse(localStorage.getItem(M.SAVE_KEY));
+    if (s && typeof s === 'object')
+      return { diff: M.DIFFS[s.diff] ? s.diff : 'normal', match: s.match || null };
+  } catch (e) { }
+  return { diff: 'normal', match: null };
+}
+var save = loadSave();
+function writeSave() { try { localStorage.setItem(M.SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
+function autoSave() {
+  if (st && st.phase === 'roll') { save.match = L.serialize(st); writeSave(); }
+}
+function clearMatch() { save.match = null; writeSave(); }
+
 /* ══════════ 이벤트 연출 큐 ══════════ */
 var queue = [], running = false;
 function enq(fn) { queue.push(fn); }
@@ -1542,7 +1668,7 @@ function playEvents(evs, done) {
         });
         break;
       case 'tripledouble':
-        enq(function (next) { M.ui.toast('😵 더블 3연속! 무인도로 끌려간다…', 1.8); setTimeout(next, 700); });
+        enq(function (next) { M.ui.toast('😵 더블 3연속! 동화의료기기산업단지로 견학을 끌려간다…', 1.8); setTimeout(next, 700); });
         break;
       case 'move':
         enq(function (next) {
@@ -1579,14 +1705,14 @@ function playEvents(evs, done) {
         });
         break;
       case 'island':
-        enq(function (next) { M.audio.island(); M.ui.toast('🏝️ 무인도! ' + M.ISLAND_TURNS + '턴 안에 더블이 필요해…', 1.8); M.ui.refreshHud(st); setTimeout(next, 700); });
+        enq(function (next) { M.audio.island(); M.ui.toast('🏭 동화의료기기산업단지 견학! ' + M.ISLAND_TURNS + '턴 안에 더블이 필요해…', 1.9); M.ui.refreshHud(st); setTimeout(next, 700); });
         break;
       case 'stuck':
-        enq(function (next) { M.ui.toast('🏝️ 탈출 실패… (남은 ' + e.left + '턴)', 1.4); M.ui.refreshHud(st); setTimeout(next, 500); });
+        enq(function (next) { M.ui.toast('🏭 탈출 실패… (남은 ' + e.left + '턴)', 1.4); M.ui.refreshHud(st); setTimeout(next, 500); });
         break;
       case 'escape':
         enq(function (next) {
-          M.ui.toast(e.how === 'dice' ? '⛵ 더블! 무인도 탈출!' : '⛵ 탈출비 ' + M.ui.fmt(e.fee) + ' 지불 — 자유!', 1.5);
+          M.ui.toast(e.how === 'dice' ? '⛵ 더블! 산업단지 견학 끝 — 탈출!' : '⛵ 탈출비 ' + M.ui.fmt(e.fee) + ' 지불 — 자유!', 1.5);
           M.ui.refreshHud(st); setTimeout(next, 500);
         });
         break;
@@ -1623,6 +1749,7 @@ function refresh() { M.ui.refreshHud(st); M.R3.refreshProps(st); }
 function beginTurn() {
   if (!st) return;
   if (st.phase === 'over') { finishGame(); return; }
+  autoSave();                                  // 턴 시작 시점 자동 저장
   var P = L.cur(st);
   M.ui.refreshHud(st);
   M.R3.setMarker(P.pos);
@@ -1638,7 +1765,7 @@ function beginTurn() {
         actions.push({ label: '⛵ 탈출비 ' + M.ui.fmt(M.ESCAPE_FEE), cls: 'alt', cb: function () {
           playEvents(L.payEscape(st), function () { M.ui.setActions(P.name + ' — 주사위를 굴리세요', [{ label: '🎲 주사위 굴리기', cb: doRoll }]); });
         } });
-      M.ui.setActions('🏝️ 무인도 ' + P.islandT + '턴째 — 어떻게 할까?', actions);
+      M.ui.setActions('🏭 산업단지 견학 ' + P.islandT + '턴째 — 어떻게 할까?', actions);
     } else {
       M.ui.setActions(ch.emoji + ' ' + P.name + ' — 주사위를 굴리세요', [{ label: '🎲 주사위 굴리기', cb: doRoll }]);
     }
@@ -1704,6 +1831,7 @@ function showDecision() {
 }
 
 function finishGame() {
+  clearMatch();                                // 끝난 판은 세이브 삭제
   M.ui.setActions('', []);
   M.R3.setMarker(-1);
   M.audio.win();
@@ -1716,7 +1844,20 @@ function startGame(slots) {
   st = L.create({
     players: slots.map(function (s, i) { return { name: M.CHARS[i].name, char: i, human: s.human }; }),
     seed: (Date.now() % 900000000) + 7,
+    diff: save.diff,
   });
+  enterMatch('모구의 마블 — 성남·수원·원주를 접수하라!');
+}
+
+function resumeGame() {
+  var loaded = L.load(save.match);
+  if (!loaded) { M.ui.toast('세이브를 불러올 수 없어요', 1.6); clearMatch(); refreshTitle(); return; }
+  st = loaded;
+  lastSlots = st.players.map(function (p) { return { human: p.human }; });
+  enterMatch('▶ 이어서 — 라운드 ' + st.round + '부터!');
+}
+
+function enterMatch(msg) {
   if (!boardBuilt) { M.R3.buildBoard(); boardBuilt = true; }
   M.R3.buildTokens(st);
   M.R3.refreshProps(st);
@@ -1724,8 +1865,52 @@ function startGame(slots) {
   M.ui.hideAll();
   $('hud').classList.remove('hidden');
   $('actionbar').classList.remove('hidden');
-  M.ui.toast('모구의 마블 — 성남·수원·원주를 접수하라!', 2);
+  M.ui.toast(msg, 2);
   beginTurn();
+}
+
+// 타이틀 갱신: 난이도 선택 + 이어서 하기 버튼
+function refreshTitle() {
+  document.querySelectorAll('.diff-btn').forEach(function (b) {
+    b.classList.toggle('sel', b.dataset.diff === save.diff);
+  });
+  $('diff-desc').textContent = DIFF_DESC[save.diff] || '';
+  var m = save.match;
+  var btn = $('btn-continue');
+  if (m && L.load(m)) {
+    var humans = m.players.filter(function (p) { return p.human; }).length;
+    btn.textContent = '▶ 이어서 하기 (라운드 ' + m.round + ' · ' + m.players.length + '인' +
+      (humans < m.players.length ? ' · ' + (M.DIFFS[m.diff] || M.DIFFS.normal).name : '') + ')';
+    btn.classList.remove('hidden');
+  } else btn.classList.add('hidden');
+}
+
+function exportSave() {
+  if (!save.match && st && st.phase !== 'over') autoSave();
+  if (!save.match) { M.ui.toast('저장된 게임이 없어요 — 게임을 시작하면 자동 저장됩니다', 2); return; }
+  var blob = new Blob([JSON.stringify(save, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mogumarble-save.json';
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 500);
+  M.ui.toast('💾 세이브 파일을 내려받았어요', 1.6);
+}
+function importSave(file) {
+  var reader = new FileReader();
+  reader.onload = function () {
+    try {
+      var s = JSON.parse(reader.result);
+      var match = s && s.match ? s.match : s;              // 전체 세이브 또는 매치 단독 모두 허용
+      if (!L.load(match)) throw new Error('bad');
+      save.match = match;
+      if (s && M.DIFFS[s.diff]) save.diff = s.diff;
+      writeSave();
+      refreshTitle();
+      M.ui.toast('📂 세이브를 불러왔어요 — 이어서 하기!', 1.8);
+    } catch (e) { M.ui.toast('세이브 파일을 읽을 수 없어요', 1.8); }
+  };
+  reader.readAsText(file);
 }
 
 // 설정 화면 (인원 수 + 슬롯별 사람/컴퓨터)
@@ -1759,6 +1944,17 @@ function renderSetup() {
 }
 
 function bindScreens() {
+  document.querySelectorAll('.diff-btn').forEach(function (b) {
+    b.onclick = function () { save.diff = b.dataset.diff; writeSave(); refreshTitle(); };
+  });
+  $('btn-continue').onclick = function () { M.audio.resume(); resumeGame(); };
+  $('btn-export').onclick = exportSave;
+  $('btn-import').onclick = function () { $('file-input').click(); };
+  $('file-input').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (f) importSave(f);
+    e.target.value = '';
+  });
   $('btn-vs-com').onclick = function () {
     M.audio.resume();
     startGame([{ human: true }, { human: false }, { human: false }, { human: false }]);
@@ -1798,6 +1994,7 @@ function backToTitle() {
   $('actionbar').classList.add('hidden');
   M.ui.setActions('', []);
   M.R3.setMarker(-1);
+  refreshTitle();                              // 자동 저장된 판이 있으면 '이어서 하기' 노출
   M.ui.show('title-screen');
 }
 
@@ -1811,6 +2008,7 @@ M.ASSET_BASE = location.pathname.indexOf('/mogumarble/') >= 0 ? '../' : '';
   M.R3.buildBoard();
   boardBuilt = true;
   bindScreens();
+  refreshTitle();
   $('loading').classList.add('hidden');
   M.ui.show('title-screen');
 

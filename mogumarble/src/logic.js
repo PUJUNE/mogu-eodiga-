@@ -5,18 +5,21 @@ var M = window.MBL;
 
 M.Logic = {
   create: function (opts) {
-    // opts: { players: [{name, char, human}], seed }
+    // opts: { players: [{name, char, human}], seed, diff }
     var rng = M.makeRng(opts.seed || 1);
+    var diff = M.DIFFS[opts.diff] ? opts.diff : 'normal';
+    var D = M.DIFFS[diff];
     var deck = [];
     for (var i = 0; i < M.CARDS.length; i++) deck.push(i);
     for (i = deck.length - 1; i > 0; i--) { var j = rng.int(i + 1); var t = deck[i]; deck[i] = deck[j]; deck[j] = t; }
     return {
       players: opts.players.map(function (p, idx) {
         return { i: idx, name: p.name, char: p.char, human: !!p.human,
-          money: M.START_MONEY, pos: 0, alive: true, islandT: 0 };
+          money: Math.round(M.START_MONEY * (p.human ? 1 : D.aiMoney)),   // 난이도: 컴퓨터 시작 자금
+          pos: 0, alive: true, islandT: 0 };
       }),
       tiles: M.TILES.map(function (t) { return { owner: null, level: 0, invested: 0 }; }),
-      turn: 0, round: 1,
+      turn: 0, round: 1, diff: diff,
       phase: 'roll',               // roll | decision | end | over
       dice: [0, 0], doubles: 0, lastDouble: false,
       pending: null,               // {type:'buy'|'upgrade'|'takeover', tile}
@@ -25,6 +28,47 @@ M.Logic = {
       winner: -1, ranking: null, overReason: null,
       rng: rng,
     };
+  },
+
+  // ── 세이브 직렬화/복원 (턴 시작(phase roll) 시점 기준) ──
+  serialize: function (st) {
+    return {
+      v: 1, diff: st.diff,
+      players: st.players.map(function (p) {
+        return { i: p.i, name: p.name, char: p.char, human: p.human,
+          money: p.money, pos: p.pos, alive: p.alive, islandT: p.islandT };
+      }),
+      tiles: st.tiles.map(function (t) { return { owner: t.owner, level: t.level, invested: t.invested }; }),
+      turn: st.turn, round: st.round, doubles: st.doubles,
+      deck: st.deck.slice(), deckPos: st.deckPos,
+      festivalTile: st.festivalTile,
+      rngState: st.rng.getState(),
+    };
+  },
+  load: function (obj) {
+    if (!obj || obj.v !== 1 || !Array.isArray(obj.players) || !Array.isArray(obj.tiles)) return null;
+    if (obj.tiles.length !== M.SIZE || obj.players.length < 2 || obj.players.length > 4) return null;
+    if (!Array.isArray(obj.deck) || obj.deck.length !== M.CARDS.length) return null;
+    try {
+      return {
+        players: obj.players.map(function (p, idx) {
+          return { i: idx, name: String(p.name), char: p.char | 0, human: !!p.human,
+            money: +p.money || 0, pos: (p.pos | 0) % M.SIZE, alive: !!p.alive, islandT: p.islandT | 0 };
+        }),
+        tiles: obj.tiles.map(function (t) {
+          return { owner: t.owner == null ? null : t.owner | 0, level: t.level | 0, invested: +t.invested || 0 };
+        }),
+        turn: obj.turn | 0, round: obj.round | 0,
+        diff: M.DIFFS[obj.diff] ? obj.diff : 'normal',
+        phase: 'roll',
+        dice: [0, 0], doubles: obj.doubles | 0, lastDouble: false,
+        pending: null,
+        deck: obj.deck.slice(), deckPos: obj.deckPos | 0,
+        festivalTile: obj.festivalTile == null ? -1 : obj.festivalTile | 0,
+        winner: -1, ranking: null, overReason: null,
+        rng: M.makeRng(1, obj.rngState),
+      };
+    } catch (e) { return null; }
   },
 
   cur: function (st) { return st.players[st.turn]; },

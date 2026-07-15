@@ -95,6 +95,19 @@
     background:rgba(10,30,64,.7);border:2px solid rgba(255,255,255,.5);border-radius:22px;
     text-decoration:none;display:inline-block;font-family:inherit;}
 
+  /* 난이도 선택 */
+  #diff-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px;}
+  .diff-btn{padding:9px 18px;font-size:14px;font-weight:900;color:#e2f0ff;cursor:pointer;font-family:inherit;
+    background:rgba(10,30,64,.7);border:2px solid rgba(255,255,255,.45);border-radius:20px;}
+  .diff-btn.sel{color:#08202c;border-color:#fff;}
+  .diff-btn.sel[data-diff="easy"]{background:#7be381;}
+  .diff-btn.sel[data-diff="normal"]{background:#63d9ff;}
+  .diff-btn.sel[data-diff="hard"]{background:#ffb347;}
+  .diff-btn.sel[data-diff="crazy"]{background:#ff6a6a;}
+  #diff-desc{margin-top:7px;font-size:12.5px;font-weight:800;color:#cfe8ff;min-height:1.2em;}
+  #save-row{display:flex;gap:9px;flex-wrap:wrap;justify-content:center;margin-top:14px;}
+  #save-row .linkbtn{margin-top:0;}
+
   #setup-screen{background:linear-gradient(#1e88e5ee 0%,#0d47a1ee 100%);}
   #setup-screen h1{font-size:27px;font-weight:900;color:#ffe14a;margin:0 0 14px;text-shadow:0 3px 0 #b8531e;}
   .cnt-row{display:flex;gap:10px;margin-bottom:16px;}
@@ -164,12 +177,25 @@
     부루마블 · 모두의 마블 모티브 3D 보드게임! (48칸 · 도시별 명소 12곳)<br>
     주사위를 굴려 <b>성남·수원·원주의 명소</b>를 사들이고 별장→빌딩→호텔을 지어요.<br>
     <b>한 도시 8곳 제패 = 즉시 승리!</b> 통행료로 상대를 파산시켜도 승리!<br>
-    🎪 축제 = 통행료 ×2 · 🔑 황금열쇠 8칸 · 🏝️ 무인도 · 🤝 남의 땅 인수 · 더블은 한 번 더<br>
+    🎪 축제 = 통행료 ×2 · 🔑 황금열쇠 8칸 · 🏭 산업단지(3턴 발묶임) · 🤝 남의 땅 인수 · 더블은 한 번 더<br>
     🎥 드래그 = 회전 · 우클릭/Shift 드래그 · 두 손가락 = 시점 이동 · 휠/핀치 = 줌
   </div>
+  <div id="diff-row">
+    <button class="diff-btn" data-diff="easy">이지</button>
+    <button class="diff-btn" data-diff="normal">노말</button>
+    <button class="diff-btn" data-diff="hard">하드</button>
+    <button class="diff-btn" data-diff="crazy">크레이지</button>
+  </div>
+  <div id="diff-desc"></div>
   <div class="menu-col">
+    <button class="bigbtn hidden" id="btn-continue">▶ 이어서 하기</button>
     <button class="bigbtn" id="btn-vs-com">🤖 컴퓨터와 대전 (나 + 컴퓨터 3)</button>
     <button class="bigbtn blue" id="btn-multi">👥 함께 하기 (2~4인)</button>
+  </div>
+  <div id="save-row">
+    <button class="linkbtn" id="btn-export">💾 세이브 내보내기</button>
+    <button class="linkbtn" id="btn-import">📂 세이브 불러오기</button>
+    <input type="file" id="file-input" accept=".json,application/json" style="display:none">
   </div>
   <a class="linkbtn" id="btn-series">🐱 모구 게임 시리즈로</a>
 </div>

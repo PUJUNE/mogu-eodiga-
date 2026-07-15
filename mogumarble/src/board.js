@@ -36,7 +36,7 @@ M.TILES = [
   { kind: 'key',      name: '황금열쇠',        emoji: '🔑' },                       // 9
   { kind: 'city', city: 'wonju',    name: '치악산',          price: 170 },          // 10
   { kind: 'city', city: 'wonju',    name: '간현관광지',      price: 190 },          // 11
-  { kind: 'island',   name: '무인도',          emoji: '🏝️' },                      // 12
+  { kind: 'island',   name: '동화의료기기 산업단지', emoji: '🏭' },                  // 12 (원주 문막 — 3턴 발묶임)
   { kind: 'city', city: 'wonju',    name: '소금산 출렁다리', price: 210 },          // 13
   { kind: 'city', city: 'wonju',    name: '뮤지엄 산',       price: 230 },          // 14
   { kind: 'city', city: 'wonju',    name: '원주 혁신도시',   price: 240 },          // 15
@@ -84,7 +84,7 @@ M.CARDS = [
   { id: 'repair',  name: '캣타워 수리비',          desc: '100만을 은행에 낸다',                money: -100 },
   { id: 'gift',    name: '집사들의 선물',          desc: '다른 플레이어 모두에게 50만씩 받는다', gift: 50 },
   { id: 'tostart', name: '집으로!',                desc: '출발지로 이동하고 월급을 받는다',    goto: 'start' },
-  { id: 'island',  name: '태풍을 만났다…',         desc: '무인도로 이동한다',                  goto: 'island' },
+  { id: 'island',  name: '공장 견학 초대장',       desc: '동화의료기기산업단지로 이동한다',    goto: 'island' },
   { id: 'chiak',   name: '치악산 등반',            desc: '치악산으로 이동한다',                goto: 10 },
   { id: 'back3',   name: '깜빡 낮잠',              desc: '뒤로 3칸 이동한다',                  back: 3 },
   { id: 'salary',  name: '보너스 월급날',          desc: '은행에서 200만을 받는다',            money: 200 },
@@ -102,13 +102,27 @@ M.CHARS = [
   { key: 'mong', name: '몽이', emoji: '🐶', color: 0x43b649, css: '#43b649' },
 ];
 
-// 결정적 RNG (mulberry32) — 시뮬 테스트용
-M.makeRng = function (seed) {
-  var s = seed >>> 0;
+// ── 난이도 4단계 (모구 시리즈 공통 문법) — 컴퓨터 플레이어에게만 적용 ──
+// aiSmart: 최적 판단 확률 / aiReserve: 지출 후 남길 여유 자금 배율 (낮을수록 공격적) /
+// aiMoney: 컴퓨터 시작 자금 배율
+M.DIFF_ORDER = ['easy', 'normal', 'hard', 'crazy'];
+M.DIFFS = {
+  easy:   { name: '이지',     aiSmart: 0.55, aiReserve: 1.5,  aiMoney: 0.85 },
+  normal: { name: '노말',     aiSmart: 0.80, aiReserve: 1.0,  aiMoney: 1.0 },
+  hard:   { name: '하드',     aiSmart: 0.95, aiReserve: 0.75, aiMoney: 1.15 },
+  crazy:  { name: '크레이지', aiSmart: 1.0,  aiReserve: 0.55, aiMoney: 1.35 },
+};
+M.SAVE_KEY = 'mogumarble.v1';
+
+// 결정적 RNG (mulberry32) — 시뮬 테스트·세이브 복원용 (getState/setState)
+M.makeRng = function (seed, state) {
+  var s = (state != null ? state : seed) >>> 0;
   var next = function () { s |= 0; s = (s + 0x6D2B79F5) | 0; var t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
   return {
     next: next,
     int: function (n) { return Math.floor(next() * n); },
     die: function () { return 1 + Math.floor(next() * 6); },
+    chance: function (p) { return next() < p; },
+    getState: function () { return s; },
   };
 };
