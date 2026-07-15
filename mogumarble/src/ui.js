@@ -52,13 +52,15 @@ M.ui = {
         var owned = 0;
         for (var t = 0; t < st.tiles.length; t++) if (st.tiles[t].owner === i) owned++;
         sub.push('🏠 ' + owned + '곳');
-        if (P.islandT > 0) sub.push('🏝️ ' + P.islandT + '턴');
+        if (P.islandT > 0) sub.push('🏭 ' + P.islandT + '턴');
       }
       $('pc-sub-' + i).textContent = sub.join(' · ');
       card.classList.toggle('turn', st.turn === i && st.phase !== 'over');
       card.classList.toggle('dead', !P.alive);
     }
-    $('round-ind').textContent = '라운드 ' + Math.min(st.round, M.MAX_ROUNDS) + '/' + M.MAX_ROUNDS;
+    var hasAI = st.players.some(function (p) { return !p.human; });
+    $('round-ind').textContent = '라운드 ' + Math.min(st.round, M.MAX_ROUNDS) + '/' + M.MAX_ROUNDS +
+      (hasAI ? ' · ' + (M.DIFFS[st.diff] || M.DIFFS.normal).name : '');
   },
 
   // ── 하단 행동 버튼 (상황별) ──

@@ -7,6 +7,28 @@ var st = null;
 var boardBuilt = false;
 var lastSlots = null;
 
+/* ══════════ 세이브 (localStorage + 파일 내보내기/불러오기) ══════════ */
+var DIFF_DESC = {
+  easy: '컴퓨터가 실수를 자주 하고 소심하게 써요 (시작 자금 −15%)',
+  normal: '표준 컴퓨터 상대',
+  hard: '컴퓨터가 영리하고 공격적 (시작 자금 +15%)',
+  crazy: '컴퓨터가 항상 최적 판단 + 과감한 인수 (시작 자금 +35%)',
+};
+function loadSave() {
+  try {
+    var s = JSON.parse(localStorage.getItem(M.SAVE_KEY));
+    if (s && typeof s === 'object')
+      return { diff: M.DIFFS[s.diff] ? s.diff : 'normal', match: s.match || null };
+  } catch (e) { }
+  return { diff: 'normal', match: null };
+}
+var save = loadSave();
+function writeSave() { try { localStorage.setItem(M.SAVE_KEY, JSON.stringify(save)); } catch (e) { } }
+function autoSave() {
+  if (st && st.phase === 'roll') { save.match = L.serialize(st); writeSave(); }
+}
+function clearMatch() { save.match = null; writeSave(); }
+
 /* ══════════ 이벤트 연출 큐 ══════════ */
 var queue = [], running = false;
 function enq(fn) { queue.push(fn); }
@@ -40,7 +62,7 @@ function playEvents(evs, done) {
         });
         break;
       case 'tripledouble':
-        enq(function (next) { M.ui.toast('😵 더블 3연속! 무인도로 끌려간다…', 1.8); setTimeout(next, 700); });
+        enq(function (next) { M.ui.toast('😵 더블 3연속! 동화의료기기산업단지로 견학을 끌려간다…', 1.8); setTimeout(next, 700); });
         break;
       case 'move':
         enq(function (next) {
@@ -77,14 +99,14 @@ function playEvents(evs, done) {
         });
         break;
       case 'island':
-        enq(function (next) { M.audio.island(); M.ui.toast('🏝️ 무인도! ' + M.ISLAND_TURNS + '턴 안에 더블이 필요해…', 1.8); M.ui.refreshHud(st); setTimeout(next, 700); });
+        enq(function (next) { M.audio.island(); M.ui.toast('🏭 동화의료기기산업단지 견학! ' + M.ISLAND_TURNS + '턴 안에 더블이 필요해…', 1.9); M.ui.refreshHud(st); setTimeout(next, 700); });
         break;
       case 'stuck':
-        enq(function (next) { M.ui.toast('🏝️ 탈출 실패… (남은 ' + e.left + '턴)', 1.4); M.ui.refreshHud(st); setTimeout(next, 500); });
+        enq(function (next) { M.ui.toast('🏭 탈출 실패… (남은 ' + e.left + '턴)', 1.4); M.ui.refreshHud(st); setTimeout(next, 500); });
         break;
       case 'escape':
         enq(function (next) {
-          M.ui.toast(e.how === 'dice' ? '⛵ 더블! 무인도 탈출!' : '⛵ 탈출비 ' + M.ui.fmt(e.fee) + ' 지불 — 자유!', 1.5);
+          M.ui.toast(e.how === 'dice' ? '⛵ 더블! 산업단지 견학 끝 — 탈출!' : '⛵ 탈출비 ' + M.ui.fmt(e.fee) + ' 지불 — 자유!', 1.5);
           M.ui.refreshHud(st); setTimeout(next, 500);
         });
         break;
@@ -121,6 +143,7 @@ function refresh() { M.ui.refreshHud(st); M.R3.refreshProps(st); }
 function beginTurn() {
   if (!st) return;
   if (st.phase === 'over') { finishGame(); return; }
+  autoSave();                                  // 턴 시작 시점 자동 저장
   var P = L.cur(st);
   M.ui.refreshHud(st);
   M.R3.setMarker(P.pos);
@@ -136,7 +159,7 @@ function beginTurn() {
         actions.push({ label: '⛵ 탈출비 ' + M.ui.fmt(M.ESCAPE_FEE), cls: 'alt', cb: function () {
           playEvents(L.payEscape(st), function () { M.ui.setActions(P.name + ' — 주사위를 굴리세요', [{ label: '🎲 주사위 굴리기', cb: doRoll }]); });
         } });
-      M.ui.setActions('🏝️ 무인도 ' + P.islandT + '턴째 — 어떻게 할까?', actions);
+      M.ui.setActions('🏭 산업단지 견학 ' + P.islandT + '턴째 — 어떻게 할까?', actions);
     } else {
       M.ui.setActions(ch.emoji + ' ' + P.name + ' — 주사위를 굴리세요', [{ label: '🎲 주사위 굴리기', cb: doRoll }]);
     }
@@ -202,6 +225,7 @@ function showDecision() {
 }
 
 function finishGame() {
+  clearMatch();                                // 끝난 판은 세이브 삭제
   M.ui.setActions('', []);
   M.R3.setMarker(-1);
   M.audio.win();
@@ -214,7 +238,20 @@ function startGame(slots) {
   st = L.create({
     players: slots.map(function (s, i) { return { name: M.CHARS[i].name, char: i, human: s.human }; }),
     seed: (Date.now() % 900000000) + 7,
+    diff: save.diff,
   });
+  enterMatch('모구의 마블 — 성남·수원·원주를 접수하라!');
+}
+
+function resumeGame() {
+  var loaded = L.load(save.match);
+  if (!loaded) { M.ui.toast('세이브를 불러올 수 없어요', 1.6); clearMatch(); refreshTitle(); return; }
+  st = loaded;
+  lastSlots = st.players.map(function (p) { return { human: p.human }; });
+  enterMatch('▶ 이어서 — 라운드 ' + st.round + '부터!');
+}
+
+function enterMatch(msg) {
   if (!boardBuilt) { M.R3.buildBoard(); boardBuilt = true; }
   M.R3.buildTokens(st);
   M.R3.refreshProps(st);
@@ -222,8 +259,52 @@ function startGame(slots) {
   M.ui.hideAll();
   $('hud').classList.remove('hidden');
   $('actionbar').classList.remove('hidden');
-  M.ui.toast('모구의 마블 — 성남·수원·원주를 접수하라!', 2);
+  M.ui.toast(msg, 2);
   beginTurn();
+}
+
+// 타이틀 갱신: 난이도 선택 + 이어서 하기 버튼
+function refreshTitle() {
+  document.querySelectorAll('.diff-btn').forEach(function (b) {
+    b.classList.toggle('sel', b.dataset.diff === save.diff);
+  });
+  $('diff-desc').textContent = DIFF_DESC[save.diff] || '';
+  var m = save.match;
+  var btn = $('btn-continue');
+  if (m && L.load(m)) {
+    var humans = m.players.filter(function (p) { return p.human; }).length;
+    btn.textContent = '▶ 이어서 하기 (라운드 ' + m.round + ' · ' + m.players.length + '인' +
+      (humans < m.players.length ? ' · ' + (M.DIFFS[m.diff] || M.DIFFS.normal).name : '') + ')';
+    btn.classList.remove('hidden');
+  } else btn.classList.add('hidden');
+}
+
+function exportSave() {
+  if (!save.match && st && st.phase !== 'over') autoSave();
+  if (!save.match) { M.ui.toast('저장된 게임이 없어요 — 게임을 시작하면 자동 저장됩니다', 2); return; }
+  var blob = new Blob([JSON.stringify(save, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'mogumarble-save.json';
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 500);
+  M.ui.toast('💾 세이브 파일을 내려받았어요', 1.6);
+}
+function importSave(file) {
+  var reader = new FileReader();
+  reader.onload = function () {
+    try {
+      var s = JSON.parse(reader.result);
+      var match = s && s.match ? s.match : s;              // 전체 세이브 또는 매치 단독 모두 허용
+      if (!L.load(match)) throw new Error('bad');
+      save.match = match;
+      if (s && M.DIFFS[s.diff]) save.diff = s.diff;
+      writeSave();
+      refreshTitle();
+      M.ui.toast('📂 세이브를 불러왔어요 — 이어서 하기!', 1.8);
+    } catch (e) { M.ui.toast('세이브 파일을 읽을 수 없어요', 1.8); }
+  };
+  reader.readAsText(file);
 }
 
 // 설정 화면 (인원 수 + 슬롯별 사람/컴퓨터)
@@ -257,6 +338,17 @@ function renderSetup() {
 }
 
 function bindScreens() {
+  document.querySelectorAll('.diff-btn').forEach(function (b) {
+    b.onclick = function () { save.diff = b.dataset.diff; writeSave(); refreshTitle(); };
+  });
+  $('btn-continue').onclick = function () { M.audio.resume(); resumeGame(); };
+  $('btn-export').onclick = exportSave;
+  $('btn-import').onclick = function () { $('file-input').click(); };
+  $('file-input').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    if (f) importSave(f);
+    e.target.value = '';
+  });
   $('btn-vs-com').onclick = function () {
     M.audio.resume();
     startGame([{ human: true }, { human: false }, { human: false }, { human: false }]);
@@ -296,6 +388,7 @@ function backToTitle() {
   $('actionbar').classList.add('hidden');
   M.ui.setActions('', []);
   M.R3.setMarker(-1);
+  refreshTitle();                              // 자동 저장된 판이 있으면 '이어서 하기' 노출
   M.ui.show('title-screen');
 }
 
@@ -309,6 +402,7 @@ M.ASSET_BASE = location.pathname.indexOf('/mogumarble/') >= 0 ? '../' : '';
   M.R3.buildBoard();
   boardBuilt = true;
   bindScreens();
+  refreshTitle();
   $('loading').classList.add('hidden');
   M.ui.show('title-screen');
 

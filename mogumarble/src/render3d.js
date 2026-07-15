@@ -180,13 +180,23 @@ M.R3 = {
         : def.kind === 'festival' ? '#e8453c' : def.kind === 'express' ? '#8a56d8' : '#f2a93b';
       c.fillRect(5, 5, 246, 246);
       c.strokeRect(0, 0, 256, 256);
-      c.font = '96px sans-serif';
-      c.fillText(def.emoji || '★', 128, 130);
+      var long = def.name.length > 5;
+      c.font = (long ? 84 : 96) + 'px sans-serif';
+      c.fillText(def.emoji || '★', 128, long ? 108 : 130);
       c.fillStyle = '#fff';
-      c.font = 'bold 40px "Malgun Gothic",sans-serif';
       c.strokeStyle = 'rgba(0,0,0,.45)'; c.lineWidth = 8;
-      c.strokeText(def.name, 128, 214);
-      c.fillText(def.name, 128, 214);
+      if (long) {                                              // 긴 코너 이름은 두 줄
+        var mid2 = def.name.indexOf(' ') > 0 ? def.name.indexOf(' ') : Math.ceil(def.name.length / 2);
+        c.font = 'bold 32px "Malgun Gothic",sans-serif';
+        c.strokeText(def.name.slice(0, mid2).trim(), 128, 186);
+        c.fillText(def.name.slice(0, mid2).trim(), 128, 186);
+        c.strokeText(def.name.slice(mid2).trim(), 128, 226);
+        c.fillText(def.name.slice(mid2).trim(), 128, 226);
+      } else {
+        c.font = 'bold 40px "Malgun Gothic",sans-serif';
+        c.strokeText(def.name, 128, 214);
+        c.fillText(def.name, 128, 214);
+      }
     }
     var tex = new THREE.CanvasTexture(cv);
     tex.encoding = THREE.sRGBEncoding;

@@ -282,5 +282,70 @@ const step = (st, d1, d2, answer) => {
   check('시뮬 결정성', play(42) === play(42));
 }
 
+// 17) 난이도: 컴퓨터 시작 자금 배율 + AI 판단 보수/공격성
+{
+  check('난이도 4단계 정의', M.DIFF_ORDER.join(',') === 'easy,normal,hard,crazy' &&
+    M.DIFFS.easy.aiSmart < M.DIFFS.crazy.aiSmart && M.DIFFS.easy.aiReserve > M.DIFFS.crazy.aiReserve);
+  const mkd = (diff) => L.create({
+    players: [{ name: '사람', char: 0, human: true }, { name: '컴', char: 1, human: false }],
+    seed: 5, diff,
+  });
+  const e = mkd('easy'), c = mkd('crazy');
+  check(`이지: 컴 시작 자금 ${e.players[1].money} (사람은 ${e.players[0].money})`,
+    e.players[1].money === Math.round(M.START_MONEY * M.DIFFS.easy.aiMoney) &&
+    e.players[0].money === M.START_MONEY);
+  check(`크레이지: 컴 시작 자금 ${c.players[1].money}`,
+    c.players[1].money === Math.round(M.START_MONEY * M.DIFFS.crazy.aiMoney));
+  const sit = (diff) => {                               // 같은 상황: 자금 300, 90만 매물
+    const st = mkd(diff);
+    st.turn = 1;
+    st.players[1].money = 300;
+    st.rng.chance = () => true;                         // '영리한' 분기 고정
+    L.roll(st, [1, 2]);                                 // 컴 → 3 구매 제안
+    return M.AI.choose(st);
+  };
+  check('이지 AI: 여유 없으면 패스 (reserve ×1.5)', sit('easy') === false);
+  check('크레이지 AI: 과감 구매 (reserve ×0.55)', sit('crazy') === true);
+}
+
+// 18) 세이브: 직렬화 → 복원 → RNG 포함 동일 진행
+{
+  const stepAuto = (s) => {
+    if (s.phase === 'roll') { if (L.cur(s).islandT > 0 && M.AI.wantPayEscape(s)) L.payEscape(s); L.roll(s); }
+    else if (s.phase === 'decision') L.decide(s, M.AI.choose(s));
+    else if (s.phase === 'end') L.endTurn(s);
+  };
+  const st = mk(4, 999);
+  for (let i = 0; i < 40 && st.phase !== 'over'; i++) stepAuto(st);
+  while (st.phase !== 'roll' && st.phase !== 'over') stepAuto(st);
+  if (st.phase === 'over') check('세이브 테스트 전제 (진행 중 상태)', false);
+  else {
+    const snap = JSON.parse(JSON.stringify(L.serialize(st)));   // 파일 왕복 시뮬레이션
+    const st2 = L.load(snap);
+    check('복원: 플레이어·타일·턴 일치', !!st2 && st2.turn === st.turn && st2.round === st.round &&
+      JSON.stringify(st2.players) === JSON.stringify(st.players) &&
+      JSON.stringify(st2.tiles) === JSON.stringify(st.tiles) &&
+      st2.deckPos === st.deckPos && st2.festivalTile === st.festivalTile);
+    check('복원: RNG 상태 일치', st2.rng.getState() === st.rng.getState());
+    for (let i = 0; i < 80; i++) { stepAuto(st); stepAuto(st2); }
+    const key = (s) => JSON.stringify([s.phase, s.turn, s.round, s.winner,
+      s.players.map((p) => [Math.round(p.money), p.pos, p.alive]), s.tiles.map((t) => t.owner), s.deckPos]);
+    check('복원 후 80스텝 동일 진행', key(st) === key(st2));
+  }
+}
+
+// 19) 세이브 검증: 손상 데이터 거부
+{
+  check('load(null) 거부', L.load(null) === null);
+  check('보드 크기 불일치 거부', L.load({ v: 1, players: [{}, {}], tiles: new Array(24).fill({}), deck: [] }) === null);
+  check('버전 불일치 거부', L.load({ v: 99 }) === null);
+}
+
+// 20) 산업단지 칸 개명 (기믹은 무인도 그대로)
+{
+  check('12번 칸 = 동화의료기기산업단지 (island 기믹)',
+    M.TILES[12].kind === 'island' && M.TILES[12].name === '동화의료기기 산업단지');
+}
+
 console.log(fail === 0 ? '\n✅ 시뮬레이션 전체 통과' : `\n❌ 실패 ${fail}건`);
 process.exit(fail === 0 ? 0 : 1);
