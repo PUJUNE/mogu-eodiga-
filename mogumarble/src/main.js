@@ -62,7 +62,7 @@ function playEvents(evs, done) {
         });
         break;
       case 'tripledouble':
-        enq(function (next) { M.ui.toast('😵 더블 3연속! 동화의료기기산업단지로 견학을 끌려간다…', 1.8); setTimeout(next, 700); });
+        enq(function (next) { M.ui.toast('😵 더블 3연속! ' + tileName(M.ISLAND_IDX) + '(으)로 이동…', 1.8); setTimeout(next, 700); });
         break;
       case 'move':
         enq(function (next) {
@@ -99,7 +99,7 @@ function playEvents(evs, done) {
         });
         break;
       case 'island':
-        enq(function (next) { M.audio.island(); M.ui.toast('🏭 동화의료기기산업단지 견학! ' + M.ISLAND_TURNS + '턴 안에 더블이 필요해…', 1.9); M.ui.refreshHud(st); setTimeout(next, 700); });
+        enq(function (next) { M.audio.island(); M.ui.toast(M.THEME.islandEmoji + ' ' + tileName(M.ISLAND_IDX) + '! ' + M.ISLAND_TURNS + '턴 안에 더블이 필요해…', 1.9); M.ui.refreshHud(st); setTimeout(next, 700); });
         break;
       case 'stuck':
         enq(function (next) { M.ui.toast('🏭 탈출 실패… (남은 ' + e.left + '턴)', 1.4); M.ui.refreshHud(st); setTimeout(next, 500); });
@@ -113,12 +113,13 @@ function playEvents(evs, done) {
       case 'festival':
         enq(function (next) {
           M.audio.festival();
-          M.ui.toast(e.tile >= 0 ? '🎪 모구 축제! ' + tileName(e.tile) + ' 통행료 ×2!' : '🎪 축제… 아직 내 땅이 없다', 1.7);
+          var fe = M.THEME.festivalEmoji, fn = tileName(24);
+          M.ui.toast(e.tile >= 0 ? fe + ' ' + fn + '! ' + tileName(e.tile) + ' 통행료 ×2!' : fe + ' ' + fn + '… 아직 내 땅이 없다', 1.7);
           refresh(); setTimeout(next, 600);
         });
         break;
       case 'express':
-        enq(function (next) { M.audio.hop(); M.ui.toast('🚂 모구 특급열차 — 출발지로!', 1.5); setTimeout(next, 500); });
+        enq(function (next) { M.audio.hop(); M.ui.toast(M.THEME.expressEmoji + ' ' + tileName(36) + ' — 출발지로!', 1.5); setTimeout(next, 500); });
         break;
       case 'liquidate':
         enq(function (next) { M.audio.pay(); M.ui.toast('📉 ' + tileName(e.tile) + ' 강제 매각 (+' + M.ui.fmt(e.value) + ')', 1.5); refresh(); setTimeout(next, 550); });
@@ -240,7 +241,7 @@ function startGame(slots) {
     seed: (Date.now() % 900000000) + 7,
     diff: save.diff,
   });
-  enterMatch('모구의 마블 — 성남·수원·원주를 접수하라!');
+  enterMatch(M.THEME.tagline);
 }
 
 function resumeGame() {
@@ -277,6 +278,37 @@ function refreshTitle() {
       (humans < m.players.length ? ' · ' + (M.DIFFS[m.diff] || M.DIFFS.normal).name : '') + ')';
     btn.classList.remove('hidden');
   } else btn.classList.add('hidden');
+}
+
+/* ══════════ 지명 모드 (성남·원주·수원 ↔ 하와이 북클럽) ══════════ */
+var MODE_STORE = 'mogumarble.mode';
+function persistMode(k) { try { localStorage.setItem(MODE_STORE, k); } catch (e) { } }
+function loadMode() { try { var k = localStorage.getItem(MODE_STORE); return M.MODES[k] ? k : 'mogu'; } catch (e) { return 'mogu'; } }
+
+// 타이틀 화면의 로고·부제·아이콘·설명·토글 상태를 현재 모드로 갱신
+function applyModeUI() {
+  var u = M.MODE.ui;
+  $('title-logo').textContent = u.logo;
+  $('title-sub').textContent = u.sub;
+  $('title-icon').textContent = u.icon;
+  $('title-info').innerHTML = u.info;
+  document.querySelectorAll('.mode-btn').forEach(function (b) {
+    b.classList.toggle('sel', b.dataset.mode === M.MODE_KEY);
+  });
+  document.title = u.logo;
+}
+
+// 타이틀에서만 전환. 현재 모드 세이브 보존 → 새 모드 데이터 적용 → 보드 재생성
+function switchMode(key) {
+  if (key === M.MODE_KEY || st) return;
+  M.audio.resume();
+  writeSave();
+  M.applyMode(key);
+  persistMode(key);
+  save = loadSave();
+  M.R3.rebuildBoard();
+  applyModeUI();
+  refreshTitle();
 }
 
 function exportSave() {
@@ -338,6 +370,9 @@ function renderSetup() {
 }
 
 function bindScreens() {
+  document.querySelectorAll('.mode-btn').forEach(function (b) {
+    b.onclick = function () { switchMode(b.dataset.mode); };
+  });
   document.querySelectorAll('.diff-btn').forEach(function (b) {
     b.onclick = function () { save.diff = b.dataset.diff; writeSave(); refreshTitle(); };
   });
@@ -399,9 +434,12 @@ M.ASSET_BASE = location.pathname.indexOf('/mogumarble/') >= 0 ? '../' : '';
     $('loading').textContent = '3D 엔진을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.';
     return;
   }
+  M.applyMode(loadMode());                     // 직전에 고른 지명 모드 복원
+  save = loadSave();                           // 해당 모드 세이브 로드
   M.R3.buildBoard();
   boardBuilt = true;
   bindScreens();
+  applyModeUI();
   refreshTitle();
   $('loading').classList.add('hidden');
   M.ui.show('title-screen');

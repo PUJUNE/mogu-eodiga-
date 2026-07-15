@@ -95,6 +95,14 @@
     background:rgba(10,30,64,.7);border:2px solid rgba(255,255,255,.5);border-radius:22px;
     text-decoration:none;display:inline-block;font-family:inherit;}
 
+  /* 지명 모드 선택 */
+  #mode-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px;}
+  .mode-btn{padding:10px 20px;font-size:15px;font-weight:900;color:#e2f0ff;cursor:pointer;font-family:inherit;
+    background:rgba(10,30,64,.7);border:2px solid rgba(255,255,255,.4);border-radius:22px;}
+  .mode-btn.sel{color:#08202c;border-color:#fff;box-shadow:0 0 14px rgba(255,225,74,.55);}
+  .mode-btn.sel[data-mode="mogu"]{background:#ffd43b;}
+  .mode-btn.sel[data-mode="hawaii"]{background:#c9a3ff;}
+
   /* 난이도 선택 */
   #diff-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:16px;}
   .diff-btn{padding:9px 18px;font-size:14px;font-weight:900;color:#e2f0ff;cursor:pointer;font-family:inherit;
@@ -170,10 +178,14 @@
 </div>
 
 <div id="title-screen" class="screen">
-  <div class="logo">모구의 마블</div>
-  <div class="sub">MOGU MARBLE · 성남 × 수원 × 원주</div>
+  <div class="logo" id="title-logo">모구의 마블</div>
+  <div class="sub" id="title-sub">MOGU MARBLE · 성남 × 수원 × 원주</div>
   <div id="title-icon">🐱🎲</div>
-  <div class="info">
+  <div id="mode-row">
+    <button class="mode-btn" data-mode="mogu">🐱 성남·원주·수원</button>
+    <button class="mode-btn" data-mode="hawaii">📚 하와이 북클럽</button>
+  </div>
+  <div class="info" id="title-info">
     부루마블 · 모두의 마블 모티브 3D 보드게임! (48칸 · 도시별 명소 12곳)<br>
     주사위를 굴려 <b>성남·수원·원주의 명소</b>를 사들이고 별장→빌딩→호텔을 지어요.<br>
     <b>한 도시 8곳 제패 = 즉시 승리!</b> 통행료로 상대를 파산시켜도 승리!<br>

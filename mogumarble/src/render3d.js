@@ -230,14 +230,14 @@ M.R3 = {
     lc.textAlign = 'center';
     lc.font = 'bold 92px "Malgun Gothic",sans-serif';
     lc.strokeStyle = '#155724'; lc.lineWidth = 18;
-    lc.strokeText('모구의 마블', 256, 120);
+    lc.strokeText(M.LOGO.title, 256, 120);
     lc.fillStyle = '#ffe14a';
-    lc.fillText('모구의 마블', 256, 120);
+    lc.fillText(M.LOGO.title, 256, 120);
     lc.font = 'bold 40px "Malgun Gothic",sans-serif';
     lc.strokeStyle = 'rgba(21,87,36,.8)'; lc.lineWidth = 9;
-    lc.strokeText('성남 · 수원 · 원주', 256, 190);
+    lc.strokeText(M.LOGO.sub, 256, 190);
     lc.fillStyle = '#eafff0';
-    lc.fillText('성남 · 수원 · 원주', 256, 190);
+    lc.fillText(M.LOGO.sub, 256, 190);
     var logoTex = new THREE.CanvasTexture(logoCv);
     logoTex.encoding = THREE.sRGBEncoding;
     var logo = new THREE.Mesh(new THREE.PlaneGeometry(92, 46),
@@ -298,6 +298,24 @@ M.R3 = {
     this.propG = new THREE.Group();
     g.add(this.propG);
     this.buildDice();
+  },
+
+  // ── 모드 전환 시 보드 그룹 통째 재생성 (타이틀 화면 전용) ──
+  rebuildBoard: function () {
+    if (this.boardG) {
+      this.scene.remove(this.boardG);
+      this.boardG.traverse(function (o) {
+        if (o.geometry) o.geometry.dispose();
+        if (o.material) {
+          var arr = Array.isArray(o.material) ? o.material : [o.material];
+          arr.forEach(function (mm) { if (mm.map) mm.map.dispose(); mm.dispose(); });
+        }
+      });
+    }
+    this.tileMeshes = [];
+    this.tokens = [];
+    this.markerRing = null;
+    this.buildBoard();
   },
 
   // ── 소유 표시 + 건물 + 축제 마커 (상태 갱신 시 재생성) ──
