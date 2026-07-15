@@ -246,7 +246,7 @@ M.R3 = {
     logo.position.set(0, 0.55, 20);
     g.add(logo);
     try {
-      var moguTex = new THREE.TextureLoader().load(M.ASSET_BASE + 'game/assets/mogu-icon.png');
+      var moguTex = new THREE.TextureLoader().load(M.ASSET_BASE + 'mogumarble/assets/center.jpg');
       moguTex.encoding = THREE.sRGBEncoding;
       var face = new THREE.Mesh(new THREE.PlaneGeometry(42, 42),
         new THREE.MeshBasicMaterial({ map: moguTex, transparent: true, depthWrite: false }));
