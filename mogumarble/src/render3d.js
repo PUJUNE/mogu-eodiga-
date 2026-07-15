@@ -78,20 +78,45 @@ M.R3 = {
     this.camera.lookAt(c.target);
   },
 
+  // 시점 이동(팬): 화면 드래그 방향을 따라 카메라 목표점을 수평 이동
+  pan: function (dx, dy) {
+    var c = this.cam;
+    var k = c.dist * 0.0016;
+    var sy = Math.sin(c.yaw), cy = Math.cos(c.yaw);
+    c.target.x += -(cy * dx + sy * dy) * k;
+    c.target.z += (sy * dx - cy * dy) * k;
+    var lim = HALF * 1.5;                                        // 보드 주변으로 제한
+    c.target.x = Math.max(-lim, Math.min(lim, c.target.x));
+    c.target.z = Math.max(-lim, Math.min(lim, c.target.z));
+    this.updateCamera();
+  },
+  resetCamera: function () {
+    var c = this.cam;
+    c.yaw = 0; c.pitch = 0.86; c.dist = 300;
+    c.target.set(0, 0, 0);
+    this.updateCamera();
+  },
+
   bindOrbit: function () {
     var self = this, el = this.renderer.domElement;
-    var drag = null, pinch = null;
+    var drag = null, pinch = null;                               // pinch: {d, mx, my}
+    el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
     el.addEventListener('pointerdown', function (e) {
       if (pinch) return;
-      drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      // 우클릭 또는 Shift+드래그 = 시점 이동(팬), 그 외 = 회전
+      drag = { id: e.pointerId, x: e.clientX, y: e.clientY, mode: (e.button === 2 || e.shiftKey) ? 'pan' : 'orbit' };
       el.setPointerCapture(e.pointerId);
     });
     el.addEventListener('pointermove', function (e) {
-      if (!drag || e.pointerId !== drag.id) return;
-      self.cam.yaw -= (e.clientX - drag.x) * 0.005;
-      self.cam.pitch = Math.max(0.35, Math.min(1.35, self.cam.pitch + (e.clientY - drag.y) * 0.004));
+      if (!drag || e.pointerId !== drag.id || pinch) return;
+      var dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      if (drag.mode === 'pan') self.pan(dx, dy);
+      else {
+        self.cam.yaw -= dx * 0.005;
+        self.cam.pitch = Math.max(0.35, Math.min(1.35, self.cam.pitch + dy * 0.004));
+        self.updateCamera();
+      }
       drag.x = e.clientX; drag.y = e.clientY;
-      self.updateCamera();
     });
     var end = function (e) { if (drag && e.pointerId === drag.id) drag = null; };
     el.addEventListener('pointerup', end);
@@ -100,17 +125,26 @@ M.R3 = {
       self.cam.dist = Math.max(self.cam.min, Math.min(self.cam.max, self.cam.dist + e.deltaY * 0.12));
       self.updateCamera();
     }, { passive: true });
+    // 모바일: 두 손가락 = 시점 이동(중점 이동) + 핀치 줌 동시 처리
+    var touchInfo = function (e) {
+      return {
+        d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY),
+        mx: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        my: (e.touches[0].clientY + e.touches[1].clientY) / 2,
+      };
+    };
     el.addEventListener('touchstart', function (e) {
-      if (e.touches.length === 2) { drag = null; pinch = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); }
+      if (e.touches.length === 2) { drag = null; pinch = touchInfo(e); }
     }, { passive: true });
     el.addEventListener('touchmove', function (e) {
       if (pinch && e.touches.length === 2) {
-        var d2 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-        self.cam.dist = Math.max(self.cam.min, Math.min(self.cam.max, self.cam.dist - (d2 - pinch) * 0.35));
-        pinch = d2; self.updateCamera();
+        var t = touchInfo(e);
+        self.cam.dist = Math.max(self.cam.min, Math.min(self.cam.max, self.cam.dist - (t.d - pinch.d) * 0.35));
+        self.pan(t.mx - pinch.mx, t.my - pinch.my);              // 두 손가락 이동 = 시점 이동
+        pinch = t;
       }
     }, { passive: true });
-    el.addEventListener('touchend', function () { pinch = null; }, { passive: true });
+    el.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; }, { passive: true });
   },
 
   // ── 칸 상판 텍스처 (캔버스 → 한글 라벨) ──

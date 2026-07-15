@@ -278,6 +278,7 @@ function bindScreens() {
   $('btn-setup-back').onclick = function () { M.ui.show('title-screen'); };
   $('btn-again').onclick = function () { startGame(lastSlots); };
   $('btn-end-title').onclick = backToTitle;
+  $('btn-cam-reset').onclick = function () { M.R3.resetCamera(); };
   $('btn-home').onclick = function () {
     if (st && st.phase !== 'over' && !confirm('게임을 끝내고 나갈까요?')) return;
     backToTitle();
