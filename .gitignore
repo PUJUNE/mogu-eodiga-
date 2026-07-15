@@ -7,3 +7,6 @@ node_modules/
 
 # 대용량 AI 모델 파일
 *.onnx
+
+# 구글 드라이브 동기화 파일
+desktop.ini
