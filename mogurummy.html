@@ -107,6 +107,36 @@
   .tile.hintt{outline:3px solid #66d98a;animation:hintblink .6s ease-in-out 3;}
   @keyframes hintblink{50%{outline-color:transparent;}}
   .tile.fresh{box-shadow:0 0 8px rgba(127,216,255,.9),0 2px 3px rgba(0,0,0,.4);}
+  .tgroup.droptgt{border-color:#7fd8ff;background:rgba(60,120,160,.35);box-shadow:0 0 12px rgba(127,216,255,.8);}
+  #newgroup.droptgt{border-color:#7fd8ff;color:#7fd8ff;box-shadow:0 0 12px rgba(127,216,255,.8);}
+  #table-wrap.droptgt{box-shadow:inset 0 0 0 3px rgba(127,216,255,.55);}
+
+  /* ── 컴퓨터 턴 모래시계 ── */
+  #hourglass{position:fixed;top:104px;left:50%;transform:translateX(-50%);z-index:22;
+    display:flex;align-items:center;gap:10px;pointer-events:none;
+    background:rgba(10,16,30,.88);border:2px solid rgba(150,180,230,.4);border-radius:16px;
+    padding:8px 16px;}
+  #hg-who{font-size:14px;font-weight:800;color:#ffd83d;white-space:nowrap;}
+  #hg-label{font-size:12px;font-weight:800;color:#9fb6dc;white-space:nowrap;}
+  .hg-frame{position:relative;width:30px;height:48px;animation:hgwob 1.4s ease-in-out infinite;}
+  @keyframes hgwob{0%,100%{transform:rotate(-4deg);}50%{transform:rotate(4deg);}}
+  .hg-frame::before,.hg-frame::after{content:'';position:absolute;left:0;width:30px;height:4px;
+    background:#b8863a;border-radius:2px;}
+  .hg-frame::before{top:-4px;} .hg-frame::after{bottom:-4px;}
+  .hg-top,.hg-bottom{position:absolute;left:1px;width:28px;height:21px;overflow:hidden;
+    background:rgba(230,240,255,.14);}
+  .hg-top{top:0;clip-path:polygon(0 0,100% 0,54% 100%,46% 100%);}
+  .hg-bottom{bottom:0;clip-path:polygon(46% 0,54% 0,100% 100%,0 100%);}
+  #hg-sand-top{position:absolute;left:0;bottom:0;width:100%;height:100%;background:#ffd83d;
+    animation:hgdrain 5s linear forwards;}
+  #hg-sand-bottom{position:absolute;left:0;bottom:0;width:100%;height:0;background:#ffd83d;
+    animation:hgfill 5s linear forwards;}
+  @keyframes hgdrain{to{height:0;}}
+  @keyframes hgfill{to{height:100%;}}
+  #hg-stream{position:absolute;left:50%;top:21px;width:2px;height:23px;margin-left:-1px;
+    background:repeating-linear-gradient(#ffd83d 0 3px,transparent 3px 6px);
+    animation:hgfall .45s linear infinite;}
+  @keyframes hgfall{to{background-position-y:6px;}}
 
   /* ── 내 랙/버튼 ── */
   #rack-wrap{background:linear-gradient(#20180ef0,#181207f5);border-top:3px solid #6a4e26;padding:7px 8px 10px;}
@@ -190,6 +220,17 @@
   <div id="table-wrap">
     <div id="table"></div>
   </div>
+  <div id="hourglass" class="hidden">
+    <div class="hg-frame">
+      <div class="hg-top"><div id="hg-sand-top"></div></div>
+      <div id="hg-stream"></div>
+      <div class="hg-bottom"><div id="hg-sand-bottom"></div></div>
+    </div>
+    <div>
+      <div id="hg-who">🐭 치즈</div>
+      <div id="hg-label">생각 중…</div>
+    </div>
+  </div>
   <div id="rack-wrap">
     <div id="turnmsg"></div>
     <div id="actrow">
@@ -242,7 +283,7 @@ var DIFF_COLORS={easy:'#66d98a',normal:'#57c8e8',hard:'#ffb347',crazy:'#ff6a6a'}
 // 상대 캐릭터 (보스전에서는 마지막 상대가 쥐왕으로 교체)
 var OPP_POOL=[{e:'🐭',n:'치즈'},{e:'🐹',n:'햄냥'},{e:'🐰',n:'토토'}];
 var BOSS={e:'👹',n:'쥐왕'};
-var AI_DELAY=850;
+var AI_THINK_MS=5000;            // 컴퓨터 턴 소요 시간 (모래시계 연출과 동기)
 
 /* ══════════ 저장/진행 (난이도별 독립) ══════════ */
 function freshProg(){return {unlocked:1, cleared:{}, bestScore:0};}
@@ -454,6 +495,7 @@ function renderTable(){
     arrangeSet(g).forEach(function(t){
       var td=tileEl(t,(st.sel&&st.sel.id===t.id?' sel':'')+(st.turnRackIds[t.id]?' fresh':''));
       td.addEventListener('click',function(ev){ev.stopPropagation();tapTableTile(t,gi);});
+      td.addEventListener('pointerdown',function(ev){tableDragStart(ev,t,gi);});
       gd.appendChild(td);
     });
     gd.addEventListener('click',function(){tapGroup(gi);});
@@ -522,6 +564,7 @@ function tapRackTile(t){
   renderAll();
 }
 function tapTableTile(t,gi){
+  if(dragSuppress)return;
   if(!myTurn())return;
   if(st.sel){tapGroup(gi);return;} // 선택 중이면 이 묶음에 놓기
   if(!st.opened[0]&&!st.turnRackIds[t.id]){toast('첫 등록 전에는 판 위 타일을 움직일 수 없어요');playSound('invalid');return;}
@@ -529,6 +572,7 @@ function tapTableTile(t,gi){
   renderAll();
 }
 function tapGroup(gi){
+  if(dragSuppress&&!st.sel)return;
   if(!myTurn()||!st.sel)return;
   if(st.sel.from==='table'&&st.sel.gi===gi){st.sel=null;renderAll();return;}
   // 첫 등록 전에는 기존(잠긴) 묶음에 못 붙임 — 이번 턴 타일로만 된 묶음만 가능
@@ -576,6 +620,7 @@ function takeSelected(){ // 선택된 타일을 원위치에서 제거해 반환
 }
 
 function humanTurnStart(){
+  hideHourglass();
   st.snap={table:deep(st.table),hand:deep(st.hands[0])};
   st.turnRackIds={};st.sel=null;
   playSound('turn');
@@ -652,7 +697,7 @@ function sortRack(mode){
   renderRack();
 }
 
-/* ── 손패 드래그 정리 ── */
+/* ── 드래그: 손패 정리 + 판으로 끌어서 내기 + 판 위 이동/회수 ── */
 var drag=null, dragSuppress=false;
 function rackReorder(id,to){ // 손패에서 id 타일을 to 위치(제거 후 기준)로 이동
   var h=st.hands[0],from=findTile(h,id);
@@ -672,40 +717,100 @@ function rackIndexAt(x,y,skipId){ // 포인터 위치 → 삽입 인덱스(드�
   }
   return out;
 }
+function inRackArea(y){
+  var r=$('rack-wrap').getBoundingClientRect();
+  return y>=r.top-6;
+}
+function clearDropHints(){
+  var el=document.querySelector('.tgroup.droptgt');
+  if(el)el.classList.remove('droptgt');
+  var nz=$('newgroup');
+  if(nz)nz.classList.remove('droptgt');
+  $('table-wrap').classList.remove('droptgt');
+}
+function dropTargetAt(x,y){ // 포인터 아래 드롭 대상 판정
+  var els=document.elementsFromPoint(x,y);
+  for(var i=0;i<els.length;i++){
+    var el=els[i];
+    if(el.classList&&el.classList.contains('tgroup'))return {type:'group',gi:+el.dataset.gi,el:el};
+    if(el.id==='newgroup')return {type:'new'};
+    if(el.id==='rack'||el.id==='rack-wrap')return {type:'rack'};
+    if(el.id==='table'||el.id==='table-wrap')return {type:'new'};   // 판 빈 자리 = 새 묶음
+  }
+  return null;
+}
 function rackDragStart(ev,t){
   if(!st||st.done||drag)return;
-  drag={id:t.id,tile:t,sx:ev.clientX,sy:ev.clientY,active:false,ghost:null};
-  window.addEventListener('pointermove',rackDragMove);
-  window.addEventListener('pointerup',rackDragEnd);
-  window.addEventListener('pointercancel',rackDragEnd);
+  drag={id:t.id,tile:t,from:'rack',sx:ev.clientX,sy:ev.clientY,x:ev.clientX,y:ev.clientY,active:false,ghost:null,srcEl:null};
+  bindDrag();
 }
-function rackDragMove(ev){
+function tableDragStart(ev,t,gi){
+  if(!st||st.done||drag||!myTurn())return;
+  if(!st.opened[0]&&!st.turnRackIds[t.id])return;   // 첫 등록 전 잠긴 타일은 탭 안내에 맡김
+  drag={id:t.id,tile:t,from:'table',gi:gi,sx:ev.clientX,sy:ev.clientY,x:ev.clientX,y:ev.clientY,active:false,ghost:null,srcEl:ev.currentTarget};
+  bindDrag();
+}
+function bindDrag(){
+  window.addEventListener('pointermove',dragMove);
+  window.addEventListener('pointerup',dragEnd);
+  window.addEventListener('pointercancel',dragEnd);
+}
+function dragMove(ev){
   if(!drag)return;
+  drag.x=ev.clientX;drag.y=ev.clientY;
   if(!drag.active){
     if(Math.abs(ev.clientX-drag.sx)+Math.abs(ev.clientY-drag.sy)<10)return;
     drag.active=true;
     var g=tileEl(drag.tile,'');g.id='drag-ghost';
     document.body.appendChild(g);drag.ghost=g;
-    renderRack();
+    if(drag.from==='rack')renderRack();
+    else if(drag.srcEl)drag.srcEl.classList.add('dragging');
   }
   drag.ghost.style.left=ev.clientX+'px';drag.ghost.style.top=ev.clientY+'px';
-  var h=st.hands[0],from=findTile(h,drag.id);
-  if(from<0)return;
-  var to=rackIndexAt(ev.clientX,ev.clientY,drag.id);
-  var cur=from; // 제거 후 기준 현재 위치 = from
-  if(to!==cur)rackReorder(drag.id,to);
-}
-function rackDragEnd(){
-  if(!drag)return;
-  window.removeEventListener('pointermove',rackDragMove);
-  window.removeEventListener('pointerup',rackDragEnd);
-  window.removeEventListener('pointercancel',rackDragEnd);
-  if(drag.ghost&&drag.ghost.parentNode)drag.ghost.parentNode.removeChild(drag.ghost);
-  var was=drag.active;drag=null;
-  if(was){ // 드래그 직후 따라오는 click은 선택으로 처리하지 않음
-    dragSuppress=true;setTimeout(function(){dragSuppress=false;},0);
-    renderRack();playSound('put');
+  var inRack=inRackArea(ev.clientY);
+  if(drag.from==='rack'&&inRack){                   // 랙 안: 실시간 손패 정리
+    var h=st.hands[0],from=findTile(h,drag.id);
+    if(from>=0){
+      var to=rackIndexAt(ev.clientX,ev.clientY,drag.id);
+      if(to!==from)rackReorder(drag.id,to);
+    }
   }
+  clearDropHints();                                 // 판 위: 드롭 대상 하이라이트
+  if(myTurn()&&!inRack){
+    var tgt=dropTargetAt(ev.clientX,ev.clientY);
+    if(tgt&&tgt.type==='group')tgt.el.classList.add('droptgt');
+    else if(tgt&&tgt.type==='new'){
+      var nz=$('newgroup');
+      if(nz)nz.classList.add('droptgt');
+      $('table-wrap').classList.add('droptgt');
+    }
+  }
+}
+function dragEnd(){
+  if(!drag)return;
+  window.removeEventListener('pointermove',dragMove);
+  window.removeEventListener('pointerup',dragEnd);
+  window.removeEventListener('pointercancel',dragEnd);
+  clearDropHints();
+  if(drag.ghost&&drag.ghost.parentNode)drag.ghost.parentNode.removeChild(drag.ghost);
+  if(drag.srcEl)drag.srcEl.classList.remove('dragging');
+  var d=drag;drag=null;
+  if(!d.active)return;                              // 움직이지 않음 → click(탭)으로 처리
+  dragSuppress=true;setTimeout(function(){dragSuppress=false;},0);
+  if(d.from==='rack'&&inRackArea(d.y)){renderRack();playSound('put');return;}  // 손패 정리 확정
+  var tgt=dropTargetAt(d.x,d.y);
+  if(!tgt||!myTurn()){renderAll();return;}          // 판 밖/상대 턴 → 원위치
+  st.sel={id:d.id,from:d.from,gi:d.gi};
+  if(tgt.type==='group'){
+    if(d.from==='table'&&tgt.gi===d.gi){st.sel=null;renderAll();return;}
+    tapGroup(tgt.gi);                               // 규칙 검사·토스트는 탭 로직 재사용
+  }else if(tgt.type==='new'){
+    tapNewGroup();
+  }else if(tgt.type==='rack'&&d.from==='table'){
+    if(st.turnRackIds[d.id])moveSelToRack();
+    else{toast('원래 판에 있던 타일은 랙으로 가져올 수 없어요');playSound('invalid');}
+  }
+  if(st&&st.sel){st.sel=null;renderAll();}          // 배치가 거부된 경우 선택 해제
 }
 
 /* ══════════ 턴 진행 ══════════ */
@@ -713,13 +818,29 @@ function advanceTurn(){
   if(st.done)return;
   if(!st.pool.length&&st.passStreak>=st.cfg.players)return showdown();
   st.turn=(st.turn+1)%st.cfg.players;
-  if(st.turn===0){st.round++;humanTurnStart();}
+  if(st.turn===0){st.round++;hideHourglass();humanTurnStart();}
   else{renderAll();var gid=st.gid;
-    setTimeout(function(){if(st&&!st.done&&st.gid===gid)aiTurn(st.turn);},AI_DELAY);}
+    var wait=AI_THINK_MS-400+Math.random()*800;    // 턴당 약 5초
+    showHourglass(st.turn,wait);
+    setTimeout(function(){if(st&&!st.done&&st.gid===gid)aiTurn(st.turn);},wait);}
 }
+
+/* ── 컴퓨터 생각 모래시계 ── */
+function showHourglass(pi,ms){
+  var o=st.opps[pi-1];
+  $('hg-who').textContent=o.e+' '+o.n;
+  $('hourglass').classList.remove('hidden');
+  ['hg-sand-top','hg-sand-bottom'].forEach(function(id){ // 모래 애니메이션 재시작
+    var el=$(id);
+    el.style.animation='none';void el.offsetWidth;
+    el.style.animation='';el.style.animationDuration=(ms/1000)+'s';
+  });
+}
+function hideHourglass(){$('hourglass').classList.add('hidden');}
 
 /* ══════════ AI ══════════ */
 function aiTurn(pi){
+  hideHourglass();
   var o=st.opps[pi-1],skill=o.skill,hand=st.hands[pi];
   var played=0,i;
   if(!st.opened[pi]){
