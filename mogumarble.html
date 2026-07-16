@@ -131,6 +131,18 @@
   .slot-toggle.human{background:#7be381;color:#0a3a10;}
   #setup-hint{margin:12px 0 4px;font-size:13px;font-weight:800;color:#cfe8ff;min-height:1.2em;}
 
+  /* 상대 이름 고르기 (하와이 북클럽) */
+  #name-screen{background:linear-gradient(#5b3a9dee 0%,#0d47a1ee 100%);}
+  #name-screen h1{font-size:27px;font-weight:900;color:#ffe14a;margin:0 0 8px;text-shadow:0 3px 0 #6a2fa8;}
+  #name-desc{font-size:14px;font-weight:800;color:#e2d6ff;margin:0 0 18px;}
+  #name-desc b{color:#ffe14a;}
+  #name-cands{display:flex;flex-wrap:wrap;gap:11px;justify-content:center;width:min(360px,90vw);}
+  .name-btn{padding:13px 20px;font-size:17px;font-weight:900;color:#e9e0ff;cursor:pointer;font-family:inherit;
+    background:rgba(20,20,60,.7);border:3px solid rgba(255,255,255,.4);border-radius:14px;min-width:88px;}
+  .name-btn.sel{background:#c9a3ff;color:#2a114a;border-color:#fff;box-shadow:0 0 15px rgba(201,163,255,.8);}
+  .name-btn:active{transform:translateY(2px);}
+  #name-hint{margin:16px 0 4px;font-size:13.5px;font-weight:800;color:#e2d6ff;min-height:1.2em;}
+
   #end-screen{background:rgba(6,18,44,.82);}
   #end-reason{font-size:19px;font-weight:900;color:#aee0ff;}
   #end-winner{font-size:min(44px,10vw);font-weight:900;color:#ffe14a;margin:10px 0 16px;
@@ -224,6 +236,17 @@
   <div class="menu-col">
     <button class="bigbtn" id="btn-setup-start">🎲 게임 시작!</button>
     <button class="bigbtn blue" id="btn-setup-back">← 뒤로</button>
+  </div>
+</div>
+
+<div id="name-screen" class="screen hidden">
+  <h1>상대를 골라요</h1>
+  <p id="name-desc">📚 하와이 북클럽 — <b>모구의 상대 3명</b>을 골라요 (모두 컴퓨터)</p>
+  <div id="name-cands"></div>
+  <div id="name-hint"></div>
+  <div class="menu-col">
+    <button class="bigbtn" id="btn-name-start">🎲 게임 시작!</button>
+    <button class="bigbtn blue" id="btn-name-back">← 뒤로</button>
   </div>
 </div>
 
@@ -385,6 +408,8 @@ var MODE_HAWAII = {
   logo: { title: '하와이 마블', sub: '독서모임 방문장소' },
   theme: { islandEmoji: '🏝️', festivalEmoji: '🎄', expressEmoji: '🎬',
            tagline: '하와이 마블 — 독서모임이 다녀간 장소를 접수하라!' },
+  // 컴퓨터 상대 후보 (하와이 북클럽 전용) — 이 중 3명을 골라 모구의 상대로.
+  opponents: ['석준', '형섭', '연지', '상훈', '지원'],
   ui: {
     logo: '하와이 마블',
     sub: 'HAWAII BOOKCLUB · 2022 × 2024 × 2026',
@@ -482,6 +507,7 @@ M.applyMode = function (key) {
   M.LOGO = mode.logo;
   M.THEME = mode.theme;
   M.SAVE_KEY = mode.saveKey;
+  M.OPPONENTS = mode.opponents || null;        // 상대 이름 후보 (없으면 캐릭터 기본명 사용)
   return mode;
 };
 
@@ -1021,7 +1047,7 @@ M.ui = {
 
   show: function (id) { this.hideAll(); $(id).classList.remove('hidden'); },
   hideAll: function () {
-    ['title-screen', 'setup-screen', 'end-screen'].forEach(function (s) { $(s).classList.add('hidden'); });
+    ['title-screen', 'setup-screen', 'name-screen', 'end-screen'].forEach(function (s) { $(s).classList.add('hidden'); });
   },
 
   toast: function (msg, sec) {
@@ -2012,7 +2038,7 @@ function finishGame() {
 function startGame(slots) {
   lastSlots = slots;
   st = L.create({
-    players: slots.map(function (s, i) { return { name: M.CHARS[i].name, char: i, human: s.human }; }),
+    players: slots.map(function (s, i) { return { name: s.name || M.CHARS[i].name, char: i, human: s.human }; }),
     seed: (Date.now() % 900000000) + 7,
     diff: save.diff,
   });
@@ -2144,6 +2170,38 @@ function renderSetup() {
   $('btn-setup-start').disabled = humans === 0;
 }
 
+// 상대 이름 고르기 (하와이 북클럽 — 컴퓨터 상대 3명 선택)
+var namePick = [];
+function openNamePick() {
+  var cands = M.OPPONENTS || [];
+  namePick = cands.slice(0, 3);                 // 기본값: 앞 3명 미리 선택
+  renderNamePick();
+  M.ui.show('name-screen');
+}
+function renderNamePick() {
+  var cands = M.OPPONENTS || [];
+  var wrap = $('name-cands');
+  wrap.innerHTML = '';
+  cands.forEach(function (nm) {
+    var picked = namePick.indexOf(nm) >= 0;
+    var order = picked ? namePick.indexOf(nm) + 1 : 0;
+    var b = document.createElement('button');
+    b.className = 'name-btn' + (picked ? ' sel' : '');
+    b.textContent = (picked ? order + '. ' : '') + nm;
+    b.onclick = function () {
+      var at = namePick.indexOf(nm);
+      if (at >= 0) namePick.splice(at, 1);        // 이미 고른 건 해제
+      else if (namePick.length < 3) namePick.push(nm);  // 최대 3명
+      renderNamePick();
+    };
+    wrap.appendChild(b);
+  });
+  $('name-hint').textContent = namePick.length === 3
+    ? '🐱 모구 vs ' + namePick.join(' · ') + ' — 준비 완료!'
+    : '상대 ' + namePick.length + '/3명 선택 — ' + (3 - namePick.length) + '명 더 골라요';
+  $('btn-name-start').disabled = namePick.length !== 3;
+}
+
 function bindScreens() {
   document.querySelectorAll('.mode-btn').forEach(function (b) {
     b.onclick = function () { switchMode(b.dataset.mode); };
@@ -2161,7 +2219,19 @@ function bindScreens() {
   });
   $('btn-vs-com').onclick = function () {
     M.audio.resume();
+    // 하와이 북클럽 모드: 상대 3명 이름을 고르는 화면으로. 그 외에는 바로 시작.
+    if (M.OPPONENTS && M.OPPONENTS.length) { openNamePick(); return; }
     startGame([{ human: true }, { human: false }, { human: false }, { human: false }]);
+  };
+  $('btn-name-back').onclick = function () { M.ui.show('title-screen'); };
+  $('btn-name-start').onclick = function () {
+    if (namePick.length !== 3) return;
+    startGame([
+      { human: true },
+      { human: false, name: namePick[0] },
+      { human: false, name: namePick[1] },
+      { human: false, name: namePick[2] },
+    ]);
   };
   $('btn-multi').onclick = function () {
     M.audio.resume();

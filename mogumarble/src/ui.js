@@ -7,7 +7,7 @@ M.ui = {
 
   show: function (id) { this.hideAll(); $(id).classList.remove('hidden'); },
   hideAll: function () {
-    ['title-screen', 'setup-screen', 'end-screen'].forEach(function (s) { $(s).classList.add('hidden'); });
+    ['title-screen', 'setup-screen', 'name-screen', 'end-screen'].forEach(function (s) { $(s).classList.add('hidden'); });
   },
 
   toast: function (msg, sec) {

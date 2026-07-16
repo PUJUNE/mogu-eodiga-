@@ -237,7 +237,7 @@ function finishGame() {
 function startGame(slots) {
   lastSlots = slots;
   st = L.create({
-    players: slots.map(function (s, i) { return { name: M.CHARS[i].name, char: i, human: s.human }; }),
+    players: slots.map(function (s, i) { return { name: s.name || M.CHARS[i].name, char: i, human: s.human }; }),
     seed: (Date.now() % 900000000) + 7,
     diff: save.diff,
   });
@@ -369,6 +369,38 @@ function renderSetup() {
   $('btn-setup-start').disabled = humans === 0;
 }
 
+// 상대 이름 고르기 (하와이 북클럽 — 컴퓨터 상대 3명 선택)
+var namePick = [];
+function openNamePick() {
+  var cands = M.OPPONENTS || [];
+  namePick = cands.slice(0, 3);                 // 기본값: 앞 3명 미리 선택
+  renderNamePick();
+  M.ui.show('name-screen');
+}
+function renderNamePick() {
+  var cands = M.OPPONENTS || [];
+  var wrap = $('name-cands');
+  wrap.innerHTML = '';
+  cands.forEach(function (nm) {
+    var picked = namePick.indexOf(nm) >= 0;
+    var order = picked ? namePick.indexOf(nm) + 1 : 0;
+    var b = document.createElement('button');
+    b.className = 'name-btn' + (picked ? ' sel' : '');
+    b.textContent = (picked ? order + '. ' : '') + nm;
+    b.onclick = function () {
+      var at = namePick.indexOf(nm);
+      if (at >= 0) namePick.splice(at, 1);        // 이미 고른 건 해제
+      else if (namePick.length < 3) namePick.push(nm);  // 최대 3명
+      renderNamePick();
+    };
+    wrap.appendChild(b);
+  });
+  $('name-hint').textContent = namePick.length === 3
+    ? '🐱 모구 vs ' + namePick.join(' · ') + ' — 준비 완료!'
+    : '상대 ' + namePick.length + '/3명 선택 — ' + (3 - namePick.length) + '명 더 골라요';
+  $('btn-name-start').disabled = namePick.length !== 3;
+}
+
 function bindScreens() {
   document.querySelectorAll('.mode-btn').forEach(function (b) {
     b.onclick = function () { switchMode(b.dataset.mode); };
@@ -386,7 +418,19 @@ function bindScreens() {
   });
   $('btn-vs-com').onclick = function () {
     M.audio.resume();
+    // 하와이 북클럽 모드: 상대 3명 이름을 고르는 화면으로. 그 외에는 바로 시작.
+    if (M.OPPONENTS && M.OPPONENTS.length) { openNamePick(); return; }
     startGame([{ human: true }, { human: false }, { human: false }, { human: false }]);
+  };
+  $('btn-name-back').onclick = function () { M.ui.show('title-screen'); };
+  $('btn-name-start').onclick = function () {
+    if (namePick.length !== 3) return;
+    startGame([
+      { human: true },
+      { human: false, name: namePick[0] },
+      { human: false, name: namePick[1] },
+      { human: false, name: namePick[2] },
+    ]);
   };
   $('btn-multi').onclick = function () {
     M.audio.resume();

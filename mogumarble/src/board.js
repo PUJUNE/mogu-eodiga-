@@ -131,6 +131,8 @@ var MODE_HAWAII = {
   logo: { title: '하와이 마블', sub: '독서모임 방문장소' },
   theme: { islandEmoji: '🏝️', festivalEmoji: '🎄', expressEmoji: '🎬',
            tagline: '하와이 마블 — 독서모임이 다녀간 장소를 접수하라!' },
+  // 컴퓨터 상대 후보 (하와이 북클럽 전용) — 이 중 3명을 골라 모구의 상대로.
+  opponents: ['석준', '형섭', '연지', '상훈', '지원'],
   ui: {
     logo: '하와이 마블',
     sub: 'HAWAII BOOKCLUB · 2022 × 2024 × 2026',
@@ -228,6 +230,7 @@ M.applyMode = function (key) {
   M.LOGO = mode.logo;
   M.THEME = mode.theme;
   M.SAVE_KEY = mode.saveKey;
+  M.OPPONENTS = mode.opponents || null;        // 상대 이름 후보 (없으면 캐릭터 기본명 사용)
   return mode;
 };
 
