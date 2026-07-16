@@ -28,7 +28,29 @@
     filter:drop-shadow(0 8px 10px rgba(0,0,0,.4)); }
   @keyframes bob { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-12px) rotate(4deg)} }
 
+  /* ── 게임 검색창 ── */
+  #search-wrap { position:relative; width:min(460px, 88vw); margin-top:24px; }
+  #game-search { width:100%; box-sizing:border-box; padding:13px 78px 13px 46px; font-size:16px;
+    font-weight:700; color:#fff; font-family:inherit; background:rgba(255,255,255,.1);
+    border:3px solid rgba(255,255,255,.4); border-radius:26px; outline:none;
+    transition:border-color .15s, background .15s, box-shadow .15s; }
+  #game-search::placeholder { color:rgba(255,255,255,.45); font-weight:600; }
+  #game-search::-webkit-search-cancel-button, #game-search::-webkit-search-decoration { display:none; -webkit-appearance:none; }
+  #game-search:focus { border-color:#ffd83d; background:rgba(255,255,255,.16);
+    box-shadow:0 0 14px rgba(255,216,61,.35); }
+  #search-ico { position:absolute; left:17px; top:50%; transform:translateY(-52%);
+    font-size:17px; pointer-events:none; opacity:.75; }
+  #search-clear { position:absolute; right:10px; top:50%; transform:translateY(-50%);
+    display:none; padding:5px 11px; font-size:13px; font-weight:800; color:#fff; cursor:pointer;
+    background:rgba(255,255,255,.18); border:none; border-radius:16px; font-family:inherit; }
+  #search-clear:hover { background:rgba(255,255,255,.3); }
+  #search-count { margin-top:9px; font-size:13px; font-weight:700; color:#9fb6dc; min-height:1.2em; }
+  #no-result { display:none; margin-top:34px; text-align:center; color:#bcd0f0; }
+  #no-result .nr-ico { font-size:44px; }
+  #no-result .nr-msg { margin-top:8px; font-size:15px; font-weight:800; }
+
   #cards { display:flex; gap:22px; margin-top:26px; flex-wrap:wrap; justify-content:center; }
+  .card.filtered-out { display:none; }
   .card { display:block; width:270px; text-decoration:none; color:#fff;
     background:rgba(255,255,255,.07); border:3px solid rgba(255,255,255,.35); border-radius:18px;
     padding:20px 20px 18px; text-align:center; transition:transform .12s, border-color .12s, background .12s;
@@ -71,6 +93,17 @@
     <span class="yt-ico">▶</span> 모구촌 유튜브 채널
   </a>
   <img id="mogu-face" src="game/assets/mogu-icon.png" alt="모구">
+  <div id="search-wrap">
+    <span id="search-ico">🔍</span>
+    <input id="game-search" type="search" placeholder="게임 검색… (예: 마블, 3D, 보드, 액션)"
+      autocomplete="off" spellcheck="false">
+    <button id="search-clear" title="지우기">✕</button>
+  </div>
+  <div id="search-count"></div>
+  <div id="no-result">
+    <div class="nr-ico">🙀</div>
+    <div class="nr-msg">앗, 그런 게임은 아직 없어요!<br>다른 이름으로 검색해 보세요</div>
+  </div>
   <div id="cards">
     <a class="card" href="eodiga.html" id="card-eodiga">
       <div class="art">🧺🌊</div>
@@ -195,5 +228,47 @@
   </div>
   <div class="foot">🐱 mogu game series · made with June & 아타리</div>
 </div>
+<script>
+(function () {
+  "use strict";
+  var input = document.getElementById('game-search');
+  var clearBtn = document.getElementById('search-clear');
+  var countEl = document.getElementById('search-count');
+  var noResult = document.getElementById('no-result');
+  var cards = Array.prototype.slice.call(document.querySelectorAll('#cards .card'));
+  var total = cards.length;
+  // 카드별 검색 텍스트 (제목 + 설명, 공백 제거 소문자)
+  var norm = function (s) { return (s || '').toLowerCase().replace(/\s+/g, ''); };
+  var haystacks = cards.map(function (c) {
+    var h2 = c.querySelector('h2'), p = c.querySelector('p');
+    return norm((h2 ? h2.textContent : '') + ' ' + (p ? p.textContent : ''));
+  });
+
+  function applyFilter() {
+    var q = norm(input.value);
+    var shown = 0;
+    for (var i = 0; i < cards.length; i++) {
+      var hit = !q || haystacks[i].indexOf(q) >= 0;
+      cards[i].classList.toggle('filtered-out', !hit);
+      if (hit) shown++;
+    }
+    clearBtn.style.display = q ? 'block' : 'none';
+    noResult.style.display = shown === 0 ? 'block' : 'none';
+    countEl.textContent = !q ? '전체 ' + total + '개 게임'
+      : shown === 0 ? '' : '🎮 ' + shown + '개 게임 발견!';
+  }
+
+  input.addEventListener('input', applyFilter);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { input.value = ''; applyFilter(); input.blur(); }
+    if (e.key === 'Enter') {                      // 결과가 1개면 바로 입장
+      var visible = cards.filter(function (c) { return !c.classList.contains('filtered-out'); });
+      if (visible.length === 1) location.href = visible[0].getAttribute('href');
+    }
+  });
+  clearBtn.addEventListener('click', function () { input.value = ''; applyFilter(); input.focus(); });
+  applyFilter();
+})();
+</script>
 </body>
 </html>
