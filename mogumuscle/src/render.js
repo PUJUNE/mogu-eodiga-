@@ -4,13 +4,15 @@
 const M = window.MMS;
 const W = 480, H = 270;
 
-// NES풍 팔레트
+// NES풍 제한 팔레트 (역할 색 고정 — Loop C/D)
 const PAL = {
-  floor: '#20308c', wall: '#5c3a1a',
-  matW: '#e8e0d0', matS: '#c8bea8', apron: '#28389c',
-  rope: '#e8a020', ropeHi: '#f8cc60', ropeZap: '#f8e048',
-  post: '#e8e8e8', postS: '#9090b0',
-  crowdBg1: '#1a5c28', crowdBg2: '#15481f',
+  floor: '#101858', floorD: '#0a1040', moat: '#080b2c',   // 장외 바닥 (어둡게 = 링 분리 강화)
+  wall: '#4a2e12', wallHi: '#6a4420',
+  matW: '#e8dcc0', matS: '#cbbd98', matLine: '#b6a074', apron: '#202c86', apronS: '#141c58',
+  rope: '#f0a010', ropeHi: '#ffd24a', ropeBk: '#7a3a04', ropeZap: '#f8e048',  // 로프 + 어두운 backing
+  post: '#e8e8e8', postS: '#8888a8', postHi: '#ffffff',
+  padA: '#d82800', padB: '#2848c8',                       // 코너 턴버클 패드
+  crowd0: '#153f6e', crowd1: '#12345c', crowdRail: '#0c2036',  // 객석 띠 (배경 역할색)
   skin: '#f0b080', skinS: '#c07848',
   pwr: '#f8e048', pwrS: '#c8a818',
   white: '#f8f8f8', black: '#101010', red: '#d82800', gold: '#f8b800',
@@ -47,57 +49,92 @@ M.Render = {
     const c = this.ctx;
     const RX = M.RING_X, RZ = M.RING_Z;
 
-    // ── 장외 바닥 + 벽 + 배너 ──
-    c.fillStyle = PAL.floor; c.fillRect(0, 0, W, H);
-    c.fillStyle = PAL.wall; c.fillRect(0, 0, W, 34);
-    for (let i = 0; i < 4; i++) {                                    // 배너 (HUD 파워칸 피해서 중앙만)
-      const bx = i < 2 ? 96 + i * 44 : 252 + (i - 2) * 44;
-      c.fillStyle = i % 2 ? '#c8a020' : '#282828'; c.fillRect(bx, 8, 30, 16);
-      c.fillStyle = i % 2 ? '#a88010' : '#383838'; c.fillRect(bx + 2, 10, 26, 12);
-    }
-    // 관중석 (좌상단 계단식 — 원작 구도)
-    for (let r = 0; r < 5; r++) {
-      c.fillStyle = r % 2 ? PAL.crowdBg1 : PAL.crowdBg2;
-      c.fillRect(0, 34 + r * 13, 128 - r * 10, 13);
-      for (let i = 0; i < 13 - r; i++) {
-        c.fillStyle = ['#e8b088', '#f0d8b0', '#c87850'][(i * 5 + r * 3) % 3];
-        c.fillRect(4 + i * 9, 37 + r * 13, 5, 5);
-        c.fillStyle = ['#3048c8', '#c83048', '#28a048'][(i + r) % 3];
-        c.fillRect(5 + i * 9, 42 + r * 13, 3, 4);
+    // ── 장외 바닥 (링 분리 강화: 어두운 바닥 + 링 둘레 해자) ──
+    c.fillStyle = PAL.floorD; c.fillRect(0, 0, W, H);
+    c.fillStyle = PAL.floor; c.fillRect(0, 96, W, H - 96);           // 앞쪽 바닥은 살짝 밝게
+
+    // ── 배경 관중석 (HUD 아래 ~ 링 위, 화면을 누르는 띠 구조 — Loop D) ──
+    const seat = ['#e8b088', '#f0d8b0', '#c87850', '#d8a878'];
+    const shirt = ['#3048c8', '#c83048', '#28a048', '#c8a020'];
+    for (let r = 0; r < 4; r++) {
+      const ry = 34 + r * 11;
+      c.fillStyle = r % 2 ? PAL.crowd0 : PAL.crowd1;
+      c.fillRect(0, ry, W, 11);
+      c.fillStyle = PAL.crowdRail; c.fillRect(0, ry + 10, W, 1);     // 난간 띠
+      for (let i = 0; i < 40; i++) {
+        const hx = 3 + i * 12 + (r % 2) * 6;
+        c.fillStyle = seat[(i * 5 + r * 3) % 4];
+        c.fillRect(hx, ry + 2, 5, 4);                               // 머리
+        c.fillStyle = shirt[(i * 3 + r) % 4];
+        c.fillRect(hx + 1, ry + 6, 3, 3);                           // 몸
       }
     }
+    // 관중석 아래 통로 그림자 (배경 → 장외 분리)
+    c.fillStyle = PAL.moat; c.fillRect(0, 78, W, 4);
 
     // ── 링 매트 (사선 평행사변형) ──
     const TL = [this.sx(-RX, -RZ), this.sy(-RZ)], TR = [this.sx(RX, -RZ), this.sy(-RZ)];
     const BL = [this.sx(-RX, RZ), this.sy(RZ)], BR = [this.sx(RX, RZ), this.sy(RZ)];
+    // 링 아래 짙은 해자 (바닥과 강하게 분리)
+    c.fillStyle = PAL.moat;
+    c.beginPath(); c.moveTo(TL[0] - 6, TL[1] + 4); c.lineTo(TR[0] + 6, TR[1] + 4);
+    c.lineTo(BR[0] + 4, BR[1] + 26); c.lineTo(BL[0] - 4, BL[1] + 26); c.closePath(); c.fill();
+    // 매트 본판
     c.fillStyle = PAL.matW;
     c.beginPath(); c.moveTo(...TL); c.lineTo(...TR); c.lineTo(...BR); c.lineTo(...BL); c.closePath(); c.fill();
-    // 에이프런 (앞면)
+    // 매트 색면 분절 (원작식 4분할 패널 이음선)
+    c.strokeStyle = PAL.matLine; c.lineWidth = 1;
+    const mid = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+    c.beginPath();
+    c.moveTo(...mid(TL, TR, 0.5)); c.lineTo(...mid(BL, BR, 0.5));    // 세로 이음
+    c.moveTo(...mid(TL, BL, 0.5)); c.lineTo(...mid(TR, BR, 0.5));    // 가로 이음
+    c.stroke();
+    // 뒤쪽 매트 살짝 어둡게 (플랫 투영에 약한 깊이감)
+    c.fillStyle = 'rgba(120,104,64,.18)';
+    c.beginPath(); c.moveTo(...TL); c.lineTo(...TR); c.lineTo(...mid(TR, BR, 0.32)); c.lineTo(...mid(TL, BL, 0.32)); c.closePath(); c.fill();
+    // 에이프런 (앞면) — 2톤으로 두께감
     c.fillStyle = PAL.apron;
-    c.beginPath(); c.moveTo(...BL); c.lineTo(...BR); c.lineTo(BR[0] - 3, BR[1] + 16); c.lineTo(BL[0] - 3, BL[1] + 16); c.closePath(); c.fill();
-    c.fillStyle = PAL.matS;
-    c.fillRect(this.sx(-30, 0) , this.sy(0) - 8, 52, 3);            // 중앙 로고 띠
-    c.fillStyle = 'rgba(200,60,70,.55)';
-    c.fillRect(this.sx(-30, 0), this.sy(0) - 5, 52, 10);
+    c.beginPath(); c.moveTo(...BL); c.lineTo(...BR); c.lineTo(BR[0] - 3, BR[1] + 17); c.lineTo(BL[0] - 3, BL[1] + 17); c.closePath(); c.fill();
+    c.fillStyle = PAL.apronS;
+    c.beginPath(); c.moveTo(BL[0] - 3, BL[1] + 12); c.lineTo(BR[0] - 3, BR[1] + 12); c.lineTo(BR[0] - 3, BR[1] + 17); c.lineTo(BL[0] - 3, BL[1] + 17); c.closePath(); c.fill();
+    // 중앙 로고 띠
+    c.fillStyle = PAL.matS; c.fillRect(this.sx(-30, 0), this.sy(0) - 8, 52, 3);
+    c.fillStyle = 'rgba(200,60,70,.5)'; c.fillRect(this.sx(-30, 0), this.sy(0) - 5, 52, 10);
 
     // ── 로프·포스트 ──
     const elec = st.stage.electric;
     const zapOn = (w) => elec;                                       // 링 자체가 전류 (점멸 무효는 개인 판정)
-    const post = (px0, py0) => {
-      c.fillStyle = PAL.post; c.fillRect(px0 - 3, py0 - 38, 6, 38);
-      c.fillStyle = PAL.postS; c.fillRect(px0 - 3, py0 - 38, 2, 38);
-      c.fillStyle = PAL.red; c.fillRect(px0 - 4, py0 - 41, 8, 4);
+    // 코너 포스트 (굵은 기둥 + 턴버클 패드 — 존재감 강화)
+    const post = (px0, py0, pad) => {
+      c.fillStyle = PAL.moat; c.fillRect(px0 - 5, py0 - 41, 10, 41);       // 그림자 backing
+      c.fillStyle = PAL.postS; c.fillRect(px0 - 4, py0 - 40, 8, 40);       // 기둥
+      c.fillStyle = PAL.post; c.fillRect(px0 - 4, py0 - 40, 3, 40);        // 하이라이트 면
+      c.fillStyle = PAL.postHi; c.fillRect(px0 - 4, py0 - 40, 1, 40);
+      // 턴버클 패드 3단 (로프 높이에 맞춰)
+      for (let i = 0; i < 3; i++) {
+        c.fillStyle = pad;
+        c.fillRect(px0 - 6, py0 - 13 - i * 10, 12, 6);
+        c.fillStyle = 'rgba(255,255,255,.28)';
+        c.fillRect(px0 - 6, py0 - 13 - i * 10, 12, 1);
+      }
+      c.fillStyle = PAL.gold; c.fillRect(px0 - 5, py0 - 44, 10, 4);        // 상단 캡
     };
     const ropes3 = (a, b, zap, alpha) => {
       c.globalAlpha = alpha || 1;
       for (let i = 0; i < 3; i++) {
+        const ry = -11 - i * 10;
+        if (!zap) {                                                        // 어두운 backing → 밝은 바닥에서도 또렷
+          c.strokeStyle = PAL.ropeBk; c.lineWidth = 4.5;
+          c.beginPath(); c.moveTo(a[0], a[1] + ry + 1); c.lineTo(b[0], b[1] + ry + 1); c.stroke();
+        }
         c.strokeStyle = zap ? (Math.floor(t * 10 + i) % 2 ? PAL.ropeZap : '#fff8b0')
           : i === 1 ? PAL.ropeHi : PAL.rope;
-        c.lineWidth = 2.5;
-        c.beginPath();
-        c.moveTo(a[0], a[1] - 11 - i * 10);
-        c.lineTo(b[0], b[1] - 11 - i * 10);
-        c.stroke();
+        c.lineWidth = 3.2;
+        c.beginPath(); c.moveTo(a[0], a[1] + ry); c.lineTo(b[0], b[1] + ry); c.stroke();
+        if (!zap) {                                                        // 로프 상단 하이라이트
+          c.strokeStyle = 'rgba(255,240,180,.5)'; c.lineWidth = 1;
+          c.beginPath(); c.moveTo(a[0], a[1] + ry - 1.2); c.lineTo(b[0], b[1] + ry - 1.2); c.stroke();
+        }
       }
       if (zap) {                                                     // 전류 스파크
         for (let i = 0; i < 3; i++) {
@@ -110,7 +147,7 @@ M.Render = {
     };
     ropes3(TL, TR, false);                                           // 뒤
     ropes3(TL, BL, elec); ropes3(TR, BR, elec);                      // 좌우 (전류 링)
-    post(TL[0], TL[1]); post(TR[0], TR[1]);
+    post(TL[0], TL[1], PAL.padB); post(TR[0], TR[1], PAL.padA);      // 뒤 코너 (파란/빨간 패드)
 
     // ── 꼬마 매니저 (구슬 투척 전) ──
     if (st.meat) {
@@ -157,11 +194,15 @@ M.Render = {
       const pos = o.rest ? restPos[o.team] : o.w;
       return { ...o, dx: pos.x, dz: pos.z };
     }).sort((a, b) => a.dz - b.dz);
-    for (const o of drawList) this.drawW(st, o.w, o.team, o.dx, o.dz, T, t, o.rest);
+    for (const o of drawList) {
+      if (o.rest) c.globalAlpha = 0.68;                              // 링 밖 대기자 = 채도/명도 낮춰 후경화 (Loop D)
+      this.drawW(st, o.w, o.team, o.dx, o.dz, T, t, o.rest);
+      if (o.rest) c.globalAlpha = 1;
+    }
 
     // ── 앞 로프·포스트 (레슬러 위) ──
-    ropes3(BL, BR, false, 0.85);
-    post(BL[0], BL[1] + 2); post(BR[0], BR[1] + 2);
+    ropes3(BL, BR, false, 0.9);
+    post(BL[0], BL[1] + 2, PAL.padA); post(BR[0], BR[1] + 2, PAL.padB);  // 앞 코너
 
     // ── FX (도트 스파크·대미지 숫자) ──
     this.fx = this.fx.filter((f) => f.t < f.ttl);
@@ -221,14 +262,24 @@ M.Render = {
     c.fillStyle = 'rgba(10,10,30,.35)';
     c.fillRect(cxp - (down ? 22 : 13), gy - 2, down ? 44 : 26, 4);
 
-    if (down) {                                              // 다운: 대자 눕기
-      const ly = gy - 6;
-      B(-10, ly, 20, 4, skin);                               // 몸통 (누움)
-      B(-4, ly, 8, 4, trunk);
-      B(8, ly - 2, 4, 4, skin);                              // 머리 쪽
-      this.drawHead(w, T, cxp + f * 22, ly - 4, -f, trunk, true);
-      B(-14, ly + 0.5, 4, 3, trunk);                         // 부츠 (팀 컬러)
-      B(-15.5, ly + 1, 1.5, 2, '#282838');
+    if (down) {                                              // 다운: 매트에 대자로 뻗음 (사지 벌림)
+      const ly = gy - 6, boot = trunk, glove = '#e8556a';
+      const fresh = w.state === 'down' && w.downT > (M.Logic.C.DOWN_T - 0.35);  // 막 넘어간 순간
+      if (fresh) {                                           // 슬램 먼지구름
+        c.fillStyle = 'rgba(230,220,200,.5)';
+        for (let i = 0; i < 5; i++) c.fillRect(cxp - 20 + i * 9, gy - 5 - (i % 2) * 3, 5, 3);
+      }
+      B(-11, ly + 1, 22, 4, skin);                           // 등 (누움)
+      B(-4, ly + 1, 8, 4, trunk);                            // 트렁크
+      B(-4, ly + 0.6, 8, 1, PAL.gold);                       // 벨트
+      B(9, ly - 1, 4, 4.5, skin);                            // 어깨 쪽
+      // 뻗은 두 팔 (위·아래로 벌림)
+      B(2, ly - 3.5, 5, 2, skinS); B(6.4, ly - 4.5, 2.2, 2, glove);
+      B(1, ly + 5, 5, 2, skin); B(5.4, ly + 5.5, 2.2, 2, glove);
+      // 접어 세운 다리 (무릎 굽힘 — 슬램 직후 느낌)
+      B(-13, ly - 2.5, 3, 4, skin); B(-13, ly - 5, 3, 3, boot);
+      B(-11, ly + 4, 3.5, 3, skinS); B(-14.5, ly + 4, 3.5, 3, boot);
+      this.drawHead(w, T, cxp + f * 23, ly - 3, -f, trunk, true);
       if (w.state === 'ko') {
         c.font = 'bold 10px monospace'; c.textAlign = 'center';
         c.fillStyle = '#ffd0d0'; c.fillText('K.O.', cxp, gy - 20);
@@ -245,9 +296,14 @@ M.Render = {
     const y = gy - airY - 44;                                // 스프라이트 상단 기준
     const fast = ['run', 'rope', 'fba'].includes(w.state);
     const step = (w.state === 'walk' || fast) ? (Math.floor(t * (fast ? 16 : 9)) % 2 ? 1.5 : -1.5) : 0;
+    // 레슬러 대기 스탠스: 다리를 넓게 벌려 낮게 버팀 (Loop B — 레슬러 가독성)
+    const stance = (w.state === 'idle') ? 1.3 : 0;
     const boot = trunk;                                      // 레슬링 부츠 = 팀 컬러
     const pad = '#f0ece0';                                   // 니패드·엘보패드 (화이트)
     const glove = '#e8556a';
+    // 피격 리코일: 경직 중이면 몸 전체가 뒤로 젖혀짐 (텍스트 없이 타격 읽힘 — Loop E)
+    const recoil = (w.stunT > 0 && !fast && w.state !== 'atk') ? Math.min(4, w.stunT * 11) : 0;
+    if (recoil) { c.save(); c.translate(Math.round(-f * recoil), Math.round(-recoil * 0.5)); }
 
     // 속도선 (로프 반동·돌진·FBA)
     if (fast) {
@@ -292,12 +348,12 @@ M.Render = {
       B(-10 + sway * 2, y + 20.4, 1.3, 2.6, '#d890a0');
     }
 
-    // 다리 (근육 허벅지) + 니패드 + 레이스업 부츠
-    B(-3.6 + step, y + 28, 2.8, 3, skin); B(1 - step, y + 28, 2.8, 3, skinS);
-    B(-3.4 + step, y + 33, 2.4, 1.4, pad); B(1.2 - step, y + 33, 2.4, 1.4, pad);
-    B(-3.6 + step, y + 35.5, 2.8, 2.4, boot); B(1 - step, y + 35.5, 2.8, 2.4, boot);
-    B(-2.6 + step, y + 36, 0.9, 1.8, PAL.white); B(2 - step, y + 36, 0.9, 1.8, PAL.white);  // 레이스
-    B(-4.2 + step, y + 40, 3.6, 1, '#282838'); B(0.6 - step, y + 40, 3.6, 1, '#282838');    // 밑창
+    // 다리 (근육 허벅지) + 니패드 + 레이스업 부츠 — 대기 시 넓은 스탠스
+    B(-3.6 + step - stance, y + 28, 2.8, 3, skin); B(1 - step + stance, y + 28, 2.8, 3, skinS);
+    B(-3.4 + step - stance, y + 33, 2.4, 1.4, pad); B(1.2 - step + stance, y + 33, 2.4, 1.4, pad);
+    B(-3.6 + step - stance, y + 35.5, 2.8, 2.4, boot); B(1 - step + stance, y + 35.5, 2.8, 2.4, boot);
+    B(-2.6 + step - stance, y + 36, 0.9, 1.8, PAL.white); B(2 - step + stance, y + 36, 0.9, 1.8, PAL.white);  // 레이스
+    B(-4.2 + step - stance, y + 40, 3.6, 1, '#282838'); B(0.6 - step + stance, y + 40, 3.6, 1, '#282838');    // 밑창
     // 트렁크 + 챔피언 벨트
     B(-4.5, y + 22, 9, 3.5, trunk);
     B(-4.5, y + 21, 9, 1.3, PAL.gold);
@@ -334,19 +390,21 @@ M.Render = {
       B(3, y + 8, 5, 2, skin); B(7.5, y + 7.5, 2, 2.5, glove);     // 위로 뻗은 팔
       B(-6, y + 12, 2, 3, skinS);
       B(-2 + step, y + 30, 3, 3, skinS);                     // 다리 접기 덧칠
-    } else {                                                 // 평시: 파이팅 포즈
-      B(3.6, y + 10.5, 3, 2.8, skin);                        // 이두 벌크
-      B(6, y + 11.4, 1.8, 2, skin);
-      B(7.6, y + 11, 2.4, 3, glove);                         // 리드 글러브 (앞)
-      B(-7.2, y + 11, 2.4, 5, skinS);
-      B(-7.2, y + 12.6, 2.4, 1.6, pad);                      // 엘보패드
+    } else {                                                 // 평시: 넓게 벌린 파이팅 가드
+      B(3.4, y + 10, 3.2, 3, skin);                          // 앞 이두 벌크
+      B(6.2, y + 10.6, 2, 2.4, skin);
+      B(7.8, y + 9.6, 2.6, 3.4, glove);                      // 리드 글러브 (앞·위로 든 가드)
+      B(-7.6, y + 10.5, 2.6, 3, skinS);                      // 뒷팔 벌크
+      B(-8.4, y + 10, 2.2, 3.2, glove);                      // 뒷 글러브 (뒤로 든 가드)
+      B(-8.4, y + 12.8, 2.2, 1.4, pad);                      // 엘보패드
     }
     // 머리 (측면 프로필 — 방향 표현의 핵심)
     this.drawHead(w, T, cxp, y - 2, f, trunk, false, swap);
-    // 경직 표시
+    if (recoil) c.restore();                                 // 피격 리코일 종료
+    // 경직 스파크 (임팩트 강조)
     if (w.stunT > 0) {
-      c.fillStyle = '#ffe08a'; c.font = '8px monospace'; c.textAlign = 'center';
-      c.fillText('✶', cxp + 8, y - 8);
+      c.fillStyle = '#fff'; c.font = 'bold 10px monospace'; c.textAlign = 'center';
+      c.fillText('✷', cxp - f * 10, y + 4);
     }
   },
 
@@ -391,55 +449,60 @@ M.Render = {
     }
   },
 
-  // ── HUD: 원작식 상단 스트립 + 파워 5칸 + 폴 램프 ──
+  // ── HUD: 원작식 건조한 상단 바 + 파워 5칸 + 폴 램프 (Loop C) ──
   drawHud(st, t) {
     const c = this.ctx;
-    // 중앙 스트립 (FALL·타이머)
-    c.fillStyle = PAL.white; c.fillRect(190, 2, 100, 28);
-    c.fillStyle = '#f0ece0'; c.fillRect(192, 4, 96, 24);
-    c.fillStyle = PAL.red; c.font = 'bold 10px monospace'; c.textAlign = 'center';
-    c.fillText(`FALL ${Math.min(3, st.fallNo)}`, 240, 13);
-    c.font = 'bold 13px monospace';
-    c.fillStyle = st.time < 10 ? (Math.floor(t * 4) % 2 ? '#ff2800' : '#a01800') : PAL.red;
-    c.fillText(String(Math.ceil(st.time)), 240, 26);
-    // 팀 파워 (5칸 × 레슬러 2) + 이름
+    // 상단 HUD 바 (검은 아케이드 바 — 관중석과 분리, 파워칸 가독성)
+    c.fillStyle = '#080810'; c.fillRect(0, 0, W, 33);
+    c.fillStyle = PAL.gold; c.fillRect(0, 33, W, 1);
+    // 중앙 FALL/타이머 (건조한 박스)
+    c.fillStyle = '#181820'; c.fillRect(206, 3, 68, 27);
+    c.fillStyle = PAL.gold; c.fillRect(206, 3, 68, 1); c.fillRect(206, 29, 68, 1);
+    c.font = 'bold 9px monospace'; c.textAlign = 'center';
+    c.fillStyle = '#c8c0d0'; c.fillText(`FALL ${Math.min(3, st.fallNo)}/3`, 240, 12);
+    c.font = 'bold 16px monospace';
+    c.fillStyle = st.time < 10 ? (Math.floor(t * 4) % 2 ? '#ff3020' : '#801008') : PAL.gold;
+    c.fillText(String(Math.ceil(st.time)), 240, 27);
+    // 팀 파워 (5칸 × 레슬러 2) + 이름 — 색 규칙 고정: 3칸+ 초록 / 2칸 노랑 / 1칸 빨강
     const bar = (x, y, wr, right) => {
       const blocks = Math.ceil(Math.max(0, wr.hp) / 20);
       for (let i = 0; i < 5; i++) {
         const bx = right ? x + 72 - (i + 1) * 15 : x + i * 15;
-        c.fillStyle = 'rgba(0,0,0,.45)'; c.fillRect(bx, y, 13, 7);
+        c.fillStyle = '#000'; c.fillRect(bx, y, 14, 8);
+        c.fillStyle = '#30303c'; c.fillRect(bx + 1, y + 1, 12, 6);
         if (i < blocks) {
-          c.fillStyle = blocks > 2 ? '#28c848' : blocks > 1 ? PAL.gold : '#f83820';
-          c.fillRect(bx + 1, y + 1, 11, 5);
+          c.fillStyle = blocks >= 3 ? '#28c848' : blocks === 2 ? PAL.gold : '#f83820';
+          c.fillRect(bx + 1, y + 1, 12, 6);
+          c.fillStyle = 'rgba(255,255,255,.35)'; c.fillRect(bx + 1, y + 1, 12, 1);
         }
       }
       const activeW = st.players[st.pi] === wr || st.enemies[st.ei] === wr;
       c.font = 'bold 8px monospace'; c.textAlign = right ? 'right' : 'left';
-      c.fillStyle = wr.state === 'ko' ? '#8a8a96' : activeW ? PAL.gold : '#e8e8f0';
+      c.fillStyle = wr.state === 'ko' ? '#8a8a96' : activeW ? PAL.gold : '#c8d0e0';
       const tag = (activeW ? '▶' : '') + wr.name + (wr.poweredT > 0 ? '⚡' : '') + (wr.state === 'ko' ? ' KO' : '');
-      c.fillText(tag, right ? x + 72 : x, y - 2);
+      c.fillText(tag, right ? x + 72 : x, y - 1.5);
     };
-    bar(8, 10, st.players[0], false);
-    bar(8, 25, st.players[1], false);
-    bar(400, 10, st.enemies[0], true);
-    bar(400, 25, st.enemies[1], true);
-    // 폴 램프
+    bar(8, 8, st.players[0], false);
+    bar(8, 22, st.players[1], false);
+    bar(400, 8, st.enemies[0], true);
+    bar(400, 22, st.enemies[1], true);
+    // 폴 램프 (양팀 획득 폴)
     const lamp = (cx0, n) => {
       for (let i = 0; i < 2; i++) {
-        c.fillStyle = i < n ? PAL.gold : 'rgba(255,255,255,.25)';
-        c.fillRect(cx0 + i * 9, 8, 6, 6);
+        c.fillStyle = i < n ? PAL.gold : '#303040';
+        c.fillRect(cx0 + i * 9, 12, 6, 8);
+        if (i < n) { c.fillStyle = 'rgba(255,255,255,.4)'; c.fillRect(cx0 + i * 9, 12, 6, 2); }
       }
     };
-    lamp(166, st.falls.p); lamp(294, st.falls.e);
-    // 하단 스테이지 라벨
-    c.font = 'bold 10px sans-serif'; c.textAlign = 'center';
-    c.strokeStyle = 'rgba(0,0,0,.5)'; c.lineWidth = 3;
-    const label = `STAGE ${st.no} · vs ${st.stage.team.name}` +
-      (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '') +
-      (st.stage.electric ? ' · ⚡전류 링' : '');
-    c.strokeText(label, W / 2, H - 5);
-    c.fillStyle = 'rgba(255,255,255,.92)';
-    c.fillText(label, W / 2, H - 5);
+    lamp(180, st.falls.p); lamp(288, st.falls.e);
+    // 하단 스테이지 태그 (전류/난이도만 최소 표기 — 텍스트 의존 축소)
+    if (st.stage.electric || M.diff !== 'normal') {
+      c.font = 'bold 9px monospace'; c.textAlign = 'right';
+      const tag = (M.diff !== 'normal' ? M.DIFFS[M.diff].name : '') +
+        (st.stage.electric ? (M.diff !== 'normal' ? ' · ' : '') + '⚡전류' : '');
+      c.strokeStyle = 'rgba(0,0,0,.6)'; c.lineWidth = 3;
+      c.strokeText(tag, W - 6, H - 6); c.fillStyle = '#ffe08a'; c.fillText(tag, W - 6, H - 6);
+    }
 
     // 연출 오버레이
     c.textAlign = 'center';
