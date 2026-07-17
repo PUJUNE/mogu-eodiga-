@@ -423,6 +423,27 @@ M.Render = {
       c.fillStyle = col;
       c.fillRect(Math.round(left), Math.round(hy + dy * u), ww * u, hh * u);
     };
+
+    // ── 다운 시: 옆 얼굴(측면 프로필)을 90° 세워 코가 위를 향하게 ──
+    // (화면 시점 = 옆에서 봄 → 등 대고 누우면 옆얼굴이 그대로 보이고 주둥이만 위로)
+    if (lying) {
+      c.save();
+      c.translate(hx, hy + 5);                 // 목/어깨 근처를 회전 축으로
+      c.scale(-f, 1);                          // 목·턱이 몸통(안쪽)을 향하도록 좌우 반전
+      c.rotate(-Math.PI / 2);                  // 측면 프로필을 세움 (주둥이 +x → 위쪽)
+      this.drawHead(w, T, 0, 0, 1, trunk, false, swap);  // 기존 측면 머리 재사용
+      // 눈을 감김/✕ 처리 (다운·KO 표정)
+      if (w.state === 'ko') {
+        c.fillStyle = PAL.black; c.font = 'bold 6px monospace'; c.textAlign = 'center';
+        c.fillText('✕', 2 * u, -2.2 * u);      // 측면 눈 위치(회전 로컬)
+      } else {
+        c.fillStyle = PAL.black;               // 감은 눈 (기절)
+        c.fillRect(1.2 * u, -2.6 * u, 2 * u, 0.8 * u);
+      }
+      c.restore();
+      return;
+    }
+
     if (w.kind === 'mogu') {                                 // 도트 태비 고양이
       const fur = swap ? PAL.pwr : '#a06828', furD = swap ? PAL.pwrS : '#7a4c18';
       B(-4.6, -4, 1.8, 2.2, furD); B(2.8, -4, 1.8, 2.2, furD);     // 뾰족 삼각 귀 (2단)
