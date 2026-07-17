@@ -262,24 +262,30 @@ M.Render = {
     c.fillStyle = 'rgba(10,10,30,.35)';
     c.fillRect(cxp - (down ? 22 : 13), gy - 2, down ? 44 : 26, 4);
 
-    if (down) {                                              // 다운: 매트에 대자로 뻗음 (사지 벌림)
-      const ly = gy - 6, boot = trunk, glove = '#e8556a';
-      const fresh = w.state === 'down' && w.downT > (M.Logic.C.DOWN_T - 0.35);  // 막 넘어간 순간
+    if (down) {                                              // 다운: 등 대고 반듯이 누움 (깔끔한 수평 실루엣)
+      // 머리(뒤) → 가슴 → 트렁크 → 다리 → 부츠(앞)를 한 줄로 배치. 바닥선 = gy - 3
+      const ly = gy - 7, boot = trunk, glove = '#e8556a';
+      const fresh = w.state === 'down' && w.downT > (M.Logic.C.DOWN_T - 0.3);   // 막 넘어간 순간
       if (fresh) {                                           // 슬램 먼지구름
-        c.fillStyle = 'rgba(230,220,200,.5)';
-        for (let i = 0; i < 5; i++) c.fillRect(cxp - 20 + i * 9, gy - 5 - (i % 2) * 3, 5, 3);
+        c.fillStyle = 'rgba(232,224,204,.5)';
+        for (let i = 0; i < 5; i++) c.fillRect(cxp - 22 + i * 10, gy - 3 - (i % 2) * 3, 5, 3);
       }
-      B(-11, ly + 1, 22, 4, skin);                           // 등 (누움)
-      B(-4, ly + 1, 8, 4, trunk);                            // 트렁크
-      B(-4, ly + 0.6, 8, 1, PAL.gold);                       // 벨트
-      B(9, ly - 1, 4, 4.5, skin);                            // 어깨 쪽
-      // 뻗은 두 팔 (위·아래로 벌림)
-      B(2, ly - 3.5, 5, 2, skinS); B(6.4, ly - 4.5, 2.2, 2, glove);
-      B(1, ly + 5, 5, 2, skin); B(5.4, ly + 5.5, 2.2, 2, glove);
-      // 접어 세운 다리 (무릎 굽힘 — 슬램 직후 느낌)
-      B(-13, ly - 2.5, 3, 4, skin); B(-13, ly - 5, 3, 3, boot);
-      B(-11, ly + 4, 3.5, 3, skinS); B(-14.5, ly + 4, 3.5, 3, boot);
-      this.drawHead(w, T, cxp + f * 23, ly - 3, -f, trunk, true);
+      // 상체(가슴, 뒤쪽)
+      B(-8.5, ly + 1, 6.5, 4, skin);
+      B(-8.5, ly + 4, 6.5, 1, skinS);                        // 등 바닥 음영
+      // 트렁크 + 벨트 (허리)
+      B(-2.5, ly + 0.8, 5, 4.2, trunk);
+      B(-2.5, ly + 0.3, 5, 1, PAL.gold);
+      // 두 다리 (겹쳐 앞으로 뻗음) + 부츠
+      B(2.2, ly + 1.4, 5.5, 3.4, skin);
+      B(2, ly + 4.2, 5.7, 1, skinS);                         // 다리 바닥 음영
+      B(7, ly + 1, 3, 4, boot);                              // 부츠
+      B(9.4, ly + 1.2, 0.9, 3.6, '#282838');                 // 밑창(발끝)
+      // 가슴 위로 축 늘어진 한 팔
+      B(-3.5, ly - 1.6, 4.5, 1.8, skinS);
+      B(0.2, ly - 1.9, 2, 2, glove);
+      // 머리 (뒤쪽 끝, 매트에 옆으로 누움)
+      this.drawHead(w, T, cxp - f * 20, ly - 1, -f, trunk, true);
       if (w.state === 'ko') {
         c.font = 'bold 10px monospace'; c.textAlign = 'center';
         c.fillStyle = '#ffd0d0'; c.fillText('K.O.', cxp, gy - 20);
