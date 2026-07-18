@@ -10,3 +10,12 @@ node_modules/
 
 # 구글 드라이브 동기화 파일
 desktop.ini
+
+# 게임 렌더링 디버그 스크린샷 (재현 시 재생성)
+**/test/dbg-*
+**/test/pix-*
+game/test/mogu-1-cutout.png
+game/test/shot-hires.png
+
+# 세션 로그·메모리 동기화 사본 (구글 드라이브 로컬 전용)
+working log/
