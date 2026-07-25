@@ -9,6 +9,12 @@
 
   /* ── 공통 부품 ── */
 
+  // 목 — 머리(바닥 ~78-83)와 몸통(상단 85-87) 사이를 잇는다. 몸통보다 먼저 그려
+  // 아래는 옷깃에, 위는 머리에 가려지고 틈 구간만 털색 기둥으로 남는다.
+  function neck(col) {
+    return '<path d="M52 62 Q60 66 68 62 L68 96 L52 96 Z" fill="' + col + '"/>';
+  }
+
   // 신사 코트 (어깨~가슴)
   function coat(c, shirt, tie) {
     return (
@@ -92,6 +98,7 @@
   B.mogu = function () {
     var id = "mgclip" + uid++;
     return wrap(
+      neck("#8a8274") +
       coat({ coat: "#252c3c", lapel: "#181e2c", shirt: "#d8dfec", tie: "#8a2c34" }) +
       '<defs><clipPath id="' + id + '"><circle cx="60" cy="49" r="31"/></clipPath></defs>' +
       '<circle cx="60" cy="49" r="32.5" fill="#161a24"/>' +
@@ -102,6 +109,7 @@
   B.cat = function () {
     var fur = "#e0aa6a";
     return wrap(
+      neck("#e0aa6a") +
       dress("#c85a78") +
       catEars(fur, "#f6d8c0") + catHead(fur) + catStripes("#c08840") +
       eyes("normal", "#2e4a30") + catMuzzle() +
@@ -112,6 +120,7 @@
   B.hindley = function () {
     var fur = "#8a6238";
     return wrap(
+      neck("#8a6238") +
       coat({ coat: "#4a3a26", lapel: "#38290f", shirt: "#d8cfc0", tie: "#5a4630" }) +
       catEars(fur, "#c09a70") + catHead(fur) + catStripes("#6a4826") +
       eyes("scowl", "#33261a") + catMuzzle("#e8d0b0")
@@ -121,6 +130,7 @@
   B.frances = function () {
     var fur = "#f4eeea";
     return wrap(
+      neck("#f4eeea") +
       dress("#e8a8b8", "#fff") +
       catEars(fur, "#f6cad4") + catHead(fur) +
       eyes("kind", "#5a4658") + catMuzzle("#fff") +
@@ -131,6 +141,7 @@
   B.edgar = function () {
     var fur = "#e8c680";
     return wrap(
+      neck("#e8c680") +
       coat({ coat: "#35548a", lapel: "#263e6a", shirt: "#f2ede0", tie: "#c8d6ea" }) +
       dogEars("#c89c50") + '<ellipse cx="60" cy="52" rx="29" ry="28" fill="' + fur + '"/>' +
       eyes("kind", "#43506e") + dogMuzzle("#f6e8c8")
@@ -140,6 +151,7 @@
   B.isabella = function () {
     var fur = "#f2e8d4";
     return wrap(
+      neck("#f2e8d4") +
       dress("#b088d0", "#fff6ff") +
       dogEars("#d8b070") + '<ellipse cx="60" cy="52" rx="28" ry="27" fill="' + fur + '"/>' +
       eyes("kind", "#6a4a76") + dogMuzzle("#faf2e2") +
@@ -149,6 +161,7 @@
   // 넬리 꼬꼬 — 하녀 두건을 쓴 암탉
   B.nelly = function () {
     return wrap(
+      neck("#f6f2ea") +
       dress("#8a6a4a", "#f6f0e0") +
       '<ellipse cx="60" cy="54" rx="26" ry="25" fill="#f6f2ea"/>' +
       '<path d="M46 32 Q48 20 54 28 Q56 16 62 26 Q66 16 70 28 Q74 22 74 32 Z" fill="#d84848"/>' +
@@ -161,6 +174,7 @@
   // 언쇼 영감 — 갈기 무성한 늙은 사자
   B.earnshaw = function () {
     return wrap(
+      neck("#d8b070") +
       '<circle cx="60" cy="52" r="39" fill="#9a6c34"/>' +
       '<circle cx="60" cy="52" r="39" fill="none" stroke="#7c5426" stroke-width="3" stroke-dasharray="7 5"/>' +
       coat({ coat: "#5a4a34", lapel: "#463823", shirt: "#e8e0cc", tie: "#6a5638" }) +
@@ -172,6 +186,7 @@
   // 조지프 — 성경책을 낀 늙은 염소
   B.joseph = function () {
     return wrap(
+      neck("#b8b0a0") +
       coat({ coat: "#3a3a38", lapel: "#262624", shirt: "#cfc8ba", tie: "#4a4a44" }) +
       '<path d="M38 20 C28 12 30 2 40 8 C44 12 44 18 44 24 Z" fill="#c8bca8"/>' +
       '<path d="M82 20 C92 12 90 2 80 8 C76 12 76 18 76 24 Z" fill="#c8bca8"/>' +
@@ -188,6 +203,7 @@
   // 록우드 — 실크해트의 여행자 토끼
   B.lockwood = function () {
     return wrap(
+      neck("#e0d8ca") +
       coat({ coat: "#5a4a3a", lapel: "#463828", shirt: "#e8e2d4", tie: "#8a6a3a" }) +
       '<ellipse cx="47" cy="14" rx="8" ry="20" fill="#d8cfc0" transform="rotate(-8 47 14)"/>' +
       '<ellipse cx="47" cy="16" rx="4" ry="13" fill="#eeb8b8" transform="rotate(-8 47 14)"/>' +
@@ -207,6 +223,7 @@
   B.hareton = function () {
     var fur = "#b08a58";
     return wrap(
+      neck("#b08a58") +
       '<path d="M16 132 C19 98 38 87 60 87 C82 87 101 98 104 132 Z" fill="#8a7048"/>' +
       '<path d="M50 88 L60 103 L70 88 Z" fill="#d8ccb4"/>' +
       '<path d="M22 110 L38 108 M82 108 L98 110" stroke="#6a5636" stroke-width="4" stroke-linecap="round"/>' +
@@ -219,6 +236,7 @@
   B.cathy = function () {
     var fur = "#eccf96";
     return wrap(
+      neck("#eccf96") +
       dress("#88b0d8", "#fff") +
       catEars(fur, "#fce8cc") + catHead(fur) +
       eyes("normal", "#2e4a30") + catMuzzle("#fff6ea") +
@@ -228,6 +246,7 @@
   // 린턴 — 창백하고 여린 강아지, 목도리
   B.linton = function () {
     return wrap(
+      neck("#e8e6ee") +
       coat({ coat: "#8a95a8", lapel: "#707c92", shirt: "#eef0f4", tie: "#9ab0c0" }) +
       dogEars("#c8ccd8") + '<ellipse cx="60" cy="52" rx="26" ry="26" fill="#e8e6ee"/>' +
       eyes("weary", "#5a5a72") + dogMuzzle("#f4f2f8") +
@@ -239,6 +258,7 @@
     var fur = "#cfe4f8";
     return wrap(
       '<g opacity="0.85">' +
+      neck("#cfe4f8") +
       '<path d="M20 130 Q26 120 24 108 C28 92 42 85 60 85 C78 85 92 92 96 108 Q94 120 100 130 L90 122 L80 131 L70 123 L60 131 L50 123 L40 131 L30 122 Z" fill="rgba(190,220,248,.75)"/>' +
       catEars(fur, "#e8f2fc") + catHead(fur) +
       '<ellipse cx="48.5" cy="50" rx="4.2" ry="5.4" fill="#5a7a9c"/><ellipse cx="71.5" cy="50" rx="4.2" ry="5.4" fill="#5a7a9c"/>' +
@@ -252,6 +272,7 @@
   // 선주 영감 — 선장 모자의 바다코끼리
   B.boss = function () {
     return wrap(
+      neck("#9a8570") +
       coat({ coat: "#2c3a50", lapel: "#1e2a3c", shirt: "#e8e4d8", tie: "#3a4a60" }) +
       '<ellipse cx="60" cy="54" rx="30" ry="27" fill="#9a8570"/>' +
       eyes("kind", "#2e2620") +
@@ -266,6 +287,7 @@
   // 물주 쥐 — 카드를 든 도박장 쥐
   B.dealer = function () {
     return wrap(
+      neck("#a8a8b2") +
       coat({ coat: "#5a3a3a", lapel: "#442a2a", shirt: "#d8d0c8", tie: "#2e2020" }) +
       '<circle cx="34" cy="24" r="14" fill="#9a9aa4"/><circle cx="34" cy="24" r="8" fill="#d8a8b0"/>' +
       '<circle cx="86" cy="24" r="14" fill="#9a9aa4"/><circle cx="86" cy="24" r="8" fill="#d8a8b0"/>' +
