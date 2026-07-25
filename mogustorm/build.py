@@ -23,7 +23,7 @@ html = re.sub(
 )
 
 # 2) 모듈 스크립트 병합 (각 파일을 블록 스코프로 감싸 const 충돌 방지)
-order = ["story.js", "engine.js", "audio.js", "portraits.js", "render.js", "ui.js", "main.js"]
+order = ["story.js", "engine.js", "audio.js", "portraits.js", "scenes.js", "render.js", "ui.js", "main.js"]
 merged = []
 for name in order:
     code = (HERE / "src" / name).read_text(encoding="utf-8")

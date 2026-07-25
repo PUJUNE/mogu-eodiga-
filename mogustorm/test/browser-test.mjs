@@ -54,6 +54,8 @@ check('내레이션 타자기 출력 시작', await page.evaluate(() =>
   document.getElementById('vn-text').textContent.length > 0));
 check('의인화 SVG 초상 렌더 (록우드)', await page.evaluate(() =>
   document.querySelectorAll('#vn-chars .portrait svg').length >= 1));
+check('SVG 배경 장면 렌더 (heights_ext)', await page.evaluate(() =>
+  !!document.querySelector('#vn-bg svg')));
 // 클릭 1회 = 즉시 완성 → 대사 전문 노출
 await page.click('#vn-stage');
 await page.waitForTimeout(120);
