@@ -14,25 +14,10 @@
 
   /* ══ 무대: 배경 ══ */
   #vn-stage { position:absolute; inset:0; cursor:pointer; }
-  #vn-bg { position:absolute; inset:0; transition:background 1.2s; }
-  #vn-bg.bg-liverpool  { background:linear-gradient(#5a6a7a 0%, #8a97a4 45%, #46525e 70%, #232a32 100%); }
-  #vn-bg.bg-hall       { background:linear-gradient(#3e2c1c 0%, #6a4a2e 55%, #8a6238 75%, #241708 100%); }
-  #vn-bg.bg-kitchen    { background:linear-gradient(#33261a 0%, #57432c 60%, #1e1610 100%); }
-  #vn-bg.bg-barn       { background:linear-gradient(#2a2014 0%, #4c3a20 65%, #171008 100%); }
-  #vn-bg.bg-heights_ext{ background:linear-gradient(#4c5a66 0%, #6e7c86 40%, #4a5a48 72%, #222c22 100%); }
-  #vn-bg.bg-moor       { background:linear-gradient(#7ea6c8 0%, #a8c2d2 40%, #7c9060 62%, #6a5a7c 82%, #38304a 100%); }
-  #vn-bg.bg-moor_night { background:linear-gradient(#0a1226 0%, #1c2a4c 55%, #22304a 75%, #0c1018 100%); }
-  #vn-bg.bg-moor_sunset{ background:linear-gradient(#5c3a6e 0%, #c86a4a 45%, #e8a05a 60%, #6a4a5c 80%, #2c2030 100%); }
-  #vn-bg.bg-penistone  { background:linear-gradient(#2c3450 0%, #55608a 50%, #5c5468 70%, #262030 100%); }
-  #vn-bg.bg-grange     { background:linear-gradient(#5c5442 0%, #a89a76 40%, #c8b890 60%, #4e4432 100%); }
-  #vn-bg.bg-night      { background:linear-gradient(#0a0e20 0%, #1a2240 60%, #101426 100%); }
-  #vn-bg.bg-sea        { background:linear-gradient(#78b0c8 0%, #a8d0dc 45%, #4880a0 62%, #2c5670 100%); }
-  #vn-bg.bg-tavern     { background:linear-gradient(#2a1a14 0%, #4c2a1e 50%, #1e3a28 78%, #120c08 100%); }
-  /* 야외 배경 지면 실루엣 */
-  #vn-bg::after { content:""; position:absolute; left:-10%; right:-10%; bottom:-14%; height:34%;
-    border-radius:50% 50% 0 0 / 90% 70% 0 0; background:rgba(8,10,14,.55); filter:blur(2px); opacity:0; transition:opacity 1.2s; }
-  #vn-bg.bg-moor::after, #vn-bg.bg-moor_night::after, #vn-bg.bg-moor_sunset::after,
-  #vn-bg.bg-heights_ext::after, #vn-bg.bg-penistone::after, #vn-bg.bg-liverpool::after { opacity:1; }
+  #vn-bg { position:absolute; inset:0; background:#10141e; }
+  #vn-bg svg { width:100%; height:100%; display:block; }
+  #vn-bg.fade-in svg { animation:bgfade .9s ease; }
+  @keyframes bgfade { from{opacity:0} to{opacity:1} }
   /* 비네트 */
   #vn-stage::after { content:""; position:absolute; inset:0; pointer-events:none;
     background:radial-gradient(ellipse at 50% 42%, transparent 55%, rgba(4,6,10,.55) 100%); }
@@ -63,6 +48,7 @@
       radial-gradient(1.2px 1.2px at 55% 38%, #fff 50%, transparent 60%);
     background-size:100% 100%; animation:twinkle 3.4s ease-in-out infinite; }
   @keyframes twinkle { 0%,100%{opacity:.9} 50%{opacity:.5} }
+  #vn-weather.interior::before { opacity:0 !important; }
   #vn-weather.w-cloud::before { opacity:.28;
     background:repeating-linear-gradient(180deg, transparent 0 90px, rgba(230,238,248,.25) 90px 130px, transparent 130px 240px);
     filter:blur(14px); animation:clouddrift 26s linear infinite; }
@@ -257,6 +243,7 @@
 <script src="src/engine.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/portraits.js"></script>
+<script src="src/scenes.js"></script>
 <script src="src/render.js"></script>
 <script src="src/ui.js"></script>
 <script src="src/main.js"></script>

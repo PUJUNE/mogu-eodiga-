@@ -19,13 +19,21 @@
     el.statGrudge = document.getElementById("stat-grudge");
   };
 
-  var BGS = ["liverpool", "hall", "kitchen", "barn", "heights_ext", "moor", "moor_night",
-    "moor_sunset", "penistone", "grange", "night", "sea", "tavern"];
   var WEATHERS = ["rain", "storm", "snow", "stars", "cloud"];
+  // 실내 장면: 비·눈 줄무늬는 창밖 묘사(배경 그림)에 맡기고 전면 오버레이는 끈다 (번개 섬광만 유지)
+  var INTERIOR = { hall: 1, kitchen: 1, barn: 1, grange: 1, night: 1, tavern: 1 };
+  var lastBg = null;
 
   R.setScene = function (node) {
-    BGS.forEach(function (b) { el.bg.classList.toggle("bg-" + b, node.bg === b); });
+    if (node.bg !== lastBg) {
+      lastBg = node.bg;
+      el.bg.innerHTML = NS.Scenes.svg(node.bg);
+      el.bg.classList.remove("fade-in");
+      void el.bg.offsetWidth; // 리플로우로 페이드 애니메이션 재시작
+      el.bg.classList.add("fade-in");
+    }
     WEATHERS.forEach(function (w) { el.weather.classList.toggle("w-" + w, node.weather === w); });
+    el.weather.classList.toggle("interior", !!INTERIOR[node.bg]);
     NS.Audio.setMood(node.mood || "sad");
     R.setCast(node.cast || []);
   };

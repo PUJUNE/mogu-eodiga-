@@ -33,6 +33,9 @@ const scenes = [
   ['a1_8', 'hindley-frances'], ['a1_5', 'cat-mogu'], ['b1_1', 'cat-edgar'],
   ['rev_2', 'isabella'], ['gen2_1', 'gen2'], ['l_sail', 'boss'], ['l_gamble', 'dealer'],
   ['r_1', 'nelly-mogu'],
+  // 배경 장면 확인용
+  ['a1_9', 'bg-moor-night'], ['b1_4', 'bg-kitchen'], ['b1_3b', 'bg-barn'],
+  ['e_elope', 'bg-penistone'], ['gen2_release', 'bg-moor-sunset'], ['r_2', 'bg-grange'],
 ];
 for (const [node, name] of scenes) {
   await page.evaluate((n) => window.MWH._goto(n), node);
