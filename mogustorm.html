@@ -71,15 +71,13 @@
   /* ══ 초상 ══ */
   #vn-chars { position:absolute; left:0; right:0; bottom:212px; display:flex; gap:26px;
     align-items:flex-end; justify-content:center; pointer-events:none; }
-  .portrait { display:flex; flex-direction:column; align-items:center; gap:5px;
+  .portrait { display:flex; flex-direction:column; align-items:center; gap:4px;
     transition:transform .25s, filter .25s, opacity .25s; }
-  .portrait .p-emoji { display:flex; align-items:center; justify-content:center;
-    width:104px; height:104px; font-size:60px; border-radius:50%;
-    background:radial-gradient(circle at 38% 30%, rgba(255,255,255,.28), rgba(20,26,40,.72));
-    border:3px solid rgba(255,255,255,.4); box-shadow:0 8px 20px rgba(0,0,0,.5); }
-  .portrait img { width:104px; height:104px; object-fit:cover; border-radius:50%;
-    border:3px solid rgba(255,216,61,.75); box-shadow:0 8px 20px rgba(0,0,0,.5); background:#20242e; }
-  .portrait .p-name { font-size:13px; font-weight:800; text-shadow:0 2px 4px rgba(0,0,0,.8); }
+  .portrait .p-art { width:122px; height:134px; }
+  .portrait .p-art svg { width:100%; height:100%; overflow:visible;
+    filter:drop-shadow(0 8px 14px rgba(0,0,0,.55)); }
+  .portrait .p-name { font-size:13px; font-weight:800; text-shadow:0 2px 4px rgba(0,0,0,.8);
+    padding:2px 10px; background:rgba(10,14,24,.6); border-radius:9px; }
   .portrait.speaking { transform:translateY(-10px) scale(1.09); filter:brightness(1.05); }
   .portrait.dimmed { filter:brightness(.45) saturate(.6); opacity:.8; }
   #vn-chars.choices-open .portrait { filter:brightness(.25) saturate(.4); opacity:.35; transform:none; }
@@ -139,9 +137,10 @@
     text-shadow:0 0 22px rgba(140,170,255,.65), 0 5px 0 #26304a, 0 10px 20px rgba(0,0,0,.6);
     letter-spacing:min(5px, 1vw); }
   #title-screen .sub { position:relative; margin-top:8px; font-size:15px; color:#aebbdc; font-weight:700; }
-  #title-icon { position:relative; width:104px; height:104px; object-fit:cover; border-radius:50%;
-    margin:18px 0 4px; border:4px solid rgba(255,216,61,.8);
-    animation:bob 1.7s ease-in-out infinite; box-shadow:0 0 24px rgba(140,170,255,.5), 0 10px 14px rgba(0,0,0,.45); }
+  #title-icon { position:relative; width:130px; height:143px; margin:14px 0 2px;
+    animation:bob 1.7s ease-in-out infinite; }
+  #title-icon svg { width:100%; height:100%; overflow:visible;
+    filter:drop-shadow(0 0 18px rgba(140,170,255,.55)) drop-shadow(0 10px 12px rgba(0,0,0,.5)); }
   @keyframes bob { 0%,100%{transform:translateY(0) rotate(-3deg)} 50%{transform:translateY(-12px) rotate(3deg)} }
   #title-progress { position:relative; margin-top:8px; color:#ffd83d; font-size:14px; font-weight:800;
     text-shadow:0 1px 3px rgba(0,0,0,.6); }
@@ -180,9 +179,8 @@
   .g-axis { font-size:12px; color:#9fd8b0; font-weight:800; flex-shrink:0; }
 
   @media (max-width: 560px) {
-    #vn-chars { bottom:196px; gap:12px; }
-    .portrait .p-emoji, .portrait img { width:78px; height:78px; }
-    .portrait .p-emoji { font-size:44px; }
+    #vn-chars { bottom:196px; gap:10px; }
+    .portrait .p-art { width:88px; height:97px; }
     #vn-text { font-size:15px; }
     #vn-choices { bottom:186px; }
     .choice-btn { font-size:14px; padding:12px 16px; }
@@ -219,7 +217,7 @@
   <div id="title-screen" class="screen">
     <div class="logo">모구 폭풍의 언덕</div>
     <div class="sub">~ 워더링 하이츠의 냥이 · 멀티엔딩 비주얼 노벨 ~</div>
-    <img id="title-icon" alt="모구">
+    <div id="title-icon" role="img" aria-label="모구"></div>
     <div id="title-progress"></div>
     <div class="menu-buttons">
       <button class="btn primary" id="btn-continue">이어하기</button>
@@ -280,7 +278,10 @@
     linton:   { name: "린턴",        icon: "🌫️", color: "#b8c8d8" },
     ghost:    { name: "캣서린…?",    icon: "👻",  color: "#c8e8ff" },
     boss:     { name: "선주 영감",   icon: "⚓",  color: "#90b8c8" },
-    dealer:   { name: "물주 쥐",     icon: "🐀",  color: "#a8a8a8" }
+    dealer:   { name: "물주 쥐",     icon: "🐀",  color: "#a8a8a8" },
+    frances:  { name: "프랜시스",    icon: "🕊️", color: "#f0c8d8" },
+    joseph:   { name: "조지프",      icon: "🐐",  color: "#b8b0a0" },
+    lockwood: { name: "록우드",      icon: "🐇",  color: "#c8bca8" }
   };
 
   // 엔딩 메타 — tone 5=최고 행복 … 1=최심 절망, axis: 🏛사회 💰경제 💗개인
@@ -305,19 +306,48 @@
     avatar:     { n: 18, title: "복수의 화신",          tone: 1, axis: "🏛💗 최심 절망", desc: "모두를 파괴하고 홀로 남았다" }
   };
 
-  NS.START = "a1_1";
+  NS.START = "p_1";
   NS.BASE_STATS = { love: 3, grudge: 0 };
 
   var S = (NS.STORY = {});
 
+  /* ════════════ 0부 — 액자: 록우드의 하룻밤 (원작 1~3장) ════════════ */
+
+  S.p_1 = {
+    bg: "heights_ext", weather: "snow", mood: "tense", cast: ["lockwood"],
+    lines: [
+      ["n", "1801년 겨울, 요크셔의 황야. 세상에서 가장 외진 셋집 '스러시크로스 그레인지'에 록우드라는 여행자 신사가 세를 들었습니다."],
+      ["lockwood", "집주인에게 인사나 해 둘까. 워더링 하이츠 — '폭풍의 언덕'이라… 이름 한번 스산하군."],
+      ["n", "언덕 저택의 주인은 벨벳 외투를 걸친 무뚝뚝한 잿빛 고양이 신사였습니다. 그날 밤 폭설에 갇힌 록우드는, 아무도 쓰지 않는 낡은 침실에서 하룻밤을 묵게 되지요."]
+    ],
+    next: "p_2"
+  };
+  S.p_2 = {
+    bg: "night", weather: "storm", mood: "storm", cast: ["lockwood", "ghost"],
+    lines: [
+      ["n", "한밤중 — 덧창을 두드리는 소리에 록우드가 창을 연 순간, 얼음장 같은 작은 손이 그의 손목을 붙잡았습니다."],
+      ["ghost", "들여보내 줘… 나, 캣서린이야. 집에 왔어. 황야에서 길을 잃었단 말이야… 벌써 20년이나…"],
+      ["lockwood", "히이익—!! 노, 놓아라! 유령이다! 이 집엔 유령이 나온다고오!!"],
+      ["n", "비명에 달려온 저택의 주인은, 록우드를 꾸짖는 대신 창을 활짝 열고 어둠에 대고 울부짖었습니다. — '들어와! 캐시, 제발, 한 번만 더!' …그 절규를 록우드는 평생 잊지 못했다고 합니다."]
+    ],
+    next: "p_3"
+  };
+  S.p_3 = {
+    bg: "grange", weather: "none", mood: "sad", cast: ["lockwood", "nelly"],
+    lines: [
+      ["lockwood", "넬리 부인. 대체 그 언덕엔 무슨 사연이 있는 겁니까? 그 무서운 주인은 누구고, 캣서린은 또 누굽니까?"],
+      ["nelly", "…긴 이야기랍니다, 손님. 벽난로에 장작을 더 넣지요. 모든 것은 40년 전 — 언쇼 영감님이 리버풀에서 고양이 한 마리를 데려온 밤부터 시작되었으니까요."]
+    ],
+    next: "a1_1"
+  };
+
   /* ════════════ 1부 — 어린 시절 ════════════ */
 
   S.a1_1 = {
-    bg: "liverpool", weather: "rain", mood: "sad", cast: ["nelly"],
+    bg: "liverpool", weather: "rain", mood: "sad", cast: ["nelly", "earnshaw"],
     lines: [
-      ["n", "이 이야기를 어디서부터 풀어야 할까요. 나, 넬리 꼬꼬가 폭풍의 언덕 저택에서 일한 지도 어느덧 수십 년…"],
-      ["n", "모든 것은 언쇼 영감님이 리버풀 부두에서 비에 젖은 작은 고양이 한 마리를 외투에 싸 온 그날 밤부터 시작되었답니다."],
-      ["earnshaw", "부둣가 상자 뒤에서 울고 있더구나. 이름은… 모구. 오늘부터 이 아이도 우리 식구다."]
+      ["n", "리버풀 부두, 비 내리던 밤. 언쇼 영감님은 외투 속에 작고 꼬질꼬질한 떠돌이 고양이를 품은 채 60마일을 걸어 돌아오셨습니다."],
+      ["earnshaw", "부둣가 상자 뒤에서 울고 있더구나. 이름은… 모구. 어려서 잃은 내 첫아이의 이름을 주마. 오늘부터 이 아이도 우리 식구다."]
     ],
     next: "a1_2"
   };
@@ -370,10 +400,11 @@
     next: "a1_6"
   };
   S.a1_6 = {
-    bg: "heights_ext", weather: "cloud", mood: "tense", cast: ["hindley"],
+    bg: "heights_ext", weather: "cloud", mood: "tense", cast: ["hindley", "joseph"],
     lines: [
       ["n", "하지만 힌들리 도련님의 심술은 날로 심해졌습니다. 아버지의 사랑을 빼앗겼다고 여긴 거지요."],
-      ["hindley", "이 떠돌이! 내 말을 훔쳐 탔지? 마구간 청소는 네 몫이다. 밥은 그 다음이야!"]
+      ["hindley", "이 떠돌이! 내 말을 훔쳐 탔지? 마구간 청소는 네 몫이다. 밥은 그 다음이야!"],
+      ["joseph", "쯧쯧… 주워 온 것들은 은혜를 모르는 법이여. 일이나 하고, 저녁엔 설교나 들어라, 이놈아."]
     ],
     choices: [
       { t: "🤐 묵묵히 참는다 (언젠가는…)",        next: "a1_7a", fx: { grudge: 2 } },
@@ -408,10 +439,12 @@
     next: "a1_8"
   };
   S.a1_8 = {
-    bg: "hall", weather: "rain", mood: "sad", cast: ["earnshaw", "hindley"],
+    bg: "hall", weather: "rain", mood: "sad", cast: ["hindley", "frances"],
     lines: [
-      ["n", "그리고 그해 가을, 언쇼 영감님이 벽난로 앞 의자에서 조용히 숨을 거두셨습니다."],
-      ["hindley", "이제 이 집의 주인은 나다. 모구, 네 방은 오늘부터 헛간이야. 하인은 하인답게 살아라."],
+      ["n", "세월이 흘러 힌들리 도련님은 도시의 대학으로 보내졌고 — 3년 뒤 가을, 언쇼 영감님은 벽난로 앞 의자에서 조용히 숨을 거두셨습니다."],
+      ["n", "장례식 날, 힌들리 도련님이 돌아왔습니다. 낯선 신부 — 눈처럼 희고 잘 웃는 프랜시스 아씨의 손을 잡고서요."],
+      ["hindley", "이제 이 집의 주인은 나다. 모구, 네 방은 오늘부터 헛간이야. 공부도 끝이다. 하인은 하인답게 살아라."],
+      ["frances", "어머 여보, 저 아이가 그 얘기하던…? 후훗, 눈매가 사납기도 해라."],
       ["n", "하루아침에 모구는 식구에서 하인으로 떨어졌습니다. 책도, 따뜻한 밥상도 빼앗긴 채로요."]
     ],
     fx: { grudge: 1 },
@@ -469,13 +502,22 @@
       ["mogu", "(…기억해 두겠어. 이 웃음소리, 전부.)"]
     ],
     fx: { grudge: 1 },
-    next: "b1_4"
+    next: "b1_frances"
   };
   S.b1_3b = {
     bg: "barn", weather: "rain", mood: "sad", cast: ["mogu"],
     lines: [
       ["mogu", "(비단 목도리, 은식기, 무도회… 그런 세상에 내 자리는 없어.)"],
       ["n", "헛간 지붕을 두드리는 빗소리만이 모구의 곁을 지켰습니다. 응어리는 소리 없이 자라났지요."]
+    ],
+    next: "b1_frances"
+  };
+  S.b1_frances = {
+    bg: "hall", weather: "cloud", mood: "sad", cast: ["hindley", "nelly"],
+    lines: [
+      ["n", "이듬해 여름, 프랜시스 아씨는 아들 헤어턴을 낳고 — 반년을 넘기지 못한 채 폐병으로 세상을 떠났습니다."],
+      ["hindley", "프랜시스… 프랜시스!! …술을 가져와. 전부 꺼져! 신도, 이 집도, 죄다 저주받으라지!!"],
+      ["n", "그날부터 힌들리 도련님은 술과 도박에 자신을 내던졌고, 갓난 헤어턴은 내 품에서 자랐습니다. 어두워지는 저택에서 아가씨와 에드거 도련님의 혼담만이 촛불처럼 밝혀졌지요."]
     ],
     next: "b1_4"
   };
@@ -879,9 +921,9 @@
   S.r_sick = {
     bg: "grange", weather: "rain", mood: "sad", cast: ["cat"],
     lines: [
-      ["n", "봄이 오기 전, 아가씨는 눈에 띄게 야위어 갔습니다. 에드거 몰래, 나는 모구를 병실로 들였지요. …그게 마지막이 될 줄 알면서도요."],
-      ["cat", "왔구나. …화내지 마, 그런 얼굴로. 나 지금 싸울 힘도 없단 말이야."],
-      ["cat", "모구. 내가 죽어도 황야에 있을게. 바람이 세게 부는 날엔… 그거, 나야."]
+      ["n", "봄이 오기 전 — 첫 아이를 품은 아가씨는 열병 끝에 눈에 띄게 야위어 갔습니다. 에드거 몰래, 나는 모구를 병실로 들였지요. …그게 마지막이 될 줄 알면서도요."],
+      ["cat", "왔구나. …너와 에드거, 너희 둘이 내 심장을 부숴 놓고선, 둘 다 나더러 살라고 하지. 너무해, 정말."],
+      ["cat", "모구. 내가 죽어도 황야에 있을게. 무덤 따위에 갇혀 줄 것 같아? 바람이 세게 부는 날엔… 그거, 나야."]
     ],
     choices: [
       { t: "💢 원망을 쏟아낸다",           next: "sick_hate", fx: { grudge: 2 } },
@@ -892,9 +934,10 @@
   S.sick_hate = {
     bg: "grange", weather: "storm", mood: "storm", cast: ["cat", "mogu"],
     lines: [
-      ["mogu", "왜 나를 버렸어! 격이 떨어진다고 말한 그 입으로, 이제 와서 황야에 있겠다고? 너는… 너는 스스로를 죽인 거야, 캣서린!"],
+      ["mogu", "왜 나를 버렸어! 네 심장을 배신한 건 너 자신이야, 캣서린! 너는… 너는 스스로를 죽인 거야!"],
       ["cat", "…그래. 맞아. 그러니까 용서하지 마. 대신… 잊지도 마. 그게 내 벌이고, 네 벌이야."],
-      ["n", "그날 밤 아가씨는 숨을 거두었습니다. 창밖에는 때아닌 폭풍 — 그리고 모구의 귀에는, 그날부터 창을 두드리는 소리가 들리기 시작했다고 합니다."]
+      ["mogu", "그래도 가지 마. …유령이 되어도 좋아. 어떤 모습으로든 곁을 떠돌아. 나를 미치게 만들어도 좋으니 — 이 심연에 나 혼자만 두지 마!"],
+      ["n", "그날 밤 아가씨는 딸 캐시를 낳고, 두 시간 뒤 조용히 숨을 거두었습니다. 창밖에는 때아닌 폭풍 — 그리고 모구의 귀에는, 그날부터 창을 두드리는 소리가 들리기 시작했다고 합니다."]
     ],
     next: "ghost_1"
   };
@@ -916,7 +959,7 @@
       ["mogu", "…원망하러 온 게 아니야. 고맙다고 하러 왔어. 부둣가 상자 뒤의 나를 세상으로 꺼내 준 건 츄르 반 개였다고."],
       ["cat", "…바보. 그 얘길 지금 하면… 나 못 가잖아."],
       ["mogu", "가도 돼. 바람이 되어도, 히스꽃이 되어도, 나는 알아볼 수 있어. 약속해."],
-      ["n", "아가씨는 웃으며 눈을 감았습니다. 창밖에는 폭풍 대신, 그해 첫 히스꽃 바람이 불었지요."]
+      ["n", "그날 밤 아가씨는 딸 캐시를 낳고 — 갓난 딸의 이마에 코를 대 본 뒤, 웃으며 눈을 감았습니다. 창밖에는 폭풍 대신, 그해 첫 히스꽃 바람이 불었지요."]
     ],
     next: "gen2_1"
   };
@@ -935,9 +978,9 @@
   S.gen2_1 = {
     bg: "heights_ext", weather: "snow", mood: "sad", cast: ["hareton", "cathy", "linton"],
     lines: [
-      ["n", "세월이 흘렀습니다. 힌들리는 빈 술병 곁에서 생을 마쳤고, 그의 아들 헤어턴은 — 옛날의 모구처럼 — 언덕의 하인으로 자랐지요."],
-      ["n", "아가씨가 남긴 딸 캐시, 이사벨라가 남기고 간 병약한 린턴까지. 언덕과 그레인지의 아이들은 전부 모구의 손아귀 안에서 자랐습니다."],
-      ["mogu", "(저택 두 채, 목초지, 문서 전부. 복수의 판은 다 짜였다. 남은 건 마지막 한 수뿐.)"]
+      ["n", "아가씨가 떠나고 반년 뒤, 힌들리도 빈 술병 곁에서 생을 마쳤습니다. 저당 잡힌 저택은 문서째 모구의 것이 되었고 — 그 아들 헤어턴은, 옛날의 모구처럼 글자도 배우지 못한 하인으로 자랐지요."],
+      ["n", "그리고 12년. 런던으로 달아났던 이사벨라가 죽으며 남긴 병약한 아들 린턴이 언덕으로 끌려왔습니다. 모구는 에드거가 병들어 죽어가는 사이 캐시 아가씨를 저택에 가두어 린턴과 강제로 혼인시켰고 — 그해 가을 린턴마저 시들듯 죽자, 그레인지의 문서까지 전부 모구의 손에 들어왔습니다."],
+      ["mogu", "(저택 두 채, 두 가문의 핏줄 전부 내 발밑에. 언쇼가에게는 언쇼가가 내게 한 그대로. 린턴가에게는 린턴가가 내게 한 그대로. …복수의 판은 완성 직전이다.)"]
     ],
     next: "gen2_2"
   };
@@ -1070,10 +1113,11 @@
   S.end_ghost = {
     bg: "night", weather: "storm", mood: "storm", cast: ["ghost", "mogu"],
     lines: [
-      ["n", "그 겨울밤, 창 두드리는 소리에 모구는 처음으로 — 창을 활짝 열었습니다."],
-      ["ghost", "…이제야 여는구나, 바보야. 황야에서 얼마나 기다렸는데."],
+      ["n", "그 겨울부터 모구는 곡기를 끊고 밤마다 황야를 헤맸습니다. 어디를 보아도 그 애가 보인다면서요. 그리고 어느 폭풍 치는 밤 — 창 두드리는 소리에, 모구는 처음으로 창을 활짝 열었습니다."],
+      ["ghost", "…이제야 여는구나, 바보야. 황야에서 20년을 기다렸는데."],
       ["mogu", "미안. 문단속이 심한 집에서 자랐거든. …가자. 바위까지 경주야."],
-      ["n", "이튿날 아침, 모구는 창가 의자에서 미소 띤 채 잠들어 깨지 않았습니다. 마을 사람들은 지금도 말합니다 — 폭풍 치는 밤 황야에서 나란히 달리는 두 그림자를 봤다고요."]
+      ["n", "이튿날 아침, 모구는 활짝 열린 창가에서 미소 띤 채 잠들어 깨지 않았습니다. 이듬해 새해 첫날, 헤어턴과 캐시는 부부가 되어 그레인지로 내려갔지요."],
+      ["n", "훗날 록우드 씨는 나란한 세 개의 묘비 곁을 지나며 적었습니다 — '이 고요한 흙 속에 잠든 이들에게, 어찌 편치 않은 잠을 상상하랴.' …하지만 목동들은 지금도 말한답니다. 폭풍 치는 밤이면, 황야를 나란히 달리는 두 그림자를 본다고요."]
     ],
     ending: "ghost"
   };
@@ -1135,7 +1179,7 @@
   S.end_avatar = {
     bg: "heights_ext", weather: "storm", mood: "storm", cast: ["mogu"],
     lines: [
-      ["n", "모구는 흔들리지 않았습니다. 캐시와 린턴을 강제로 혼인시켜 그레인지마저 삼켰고, 헤어턴에게선 글자마저 빼앗았지요."],
+      ["n", "모구는 흔들리지 않았습니다. 과부가 된 캐시 아가씨를 부엌데기로 부렸고, 헤어턴에게선 마지막 남은 것 — 캐시 곁에 머물 자격마저 빼앗았지요."],
       ["mogu", "(두 저택, 전 재산, 원수의 핏줄 전부 내 발밑에. 이겼다. 완벽하게. ……그런데 왜, 아무 맛도 나지 않지?)"],
       ["n", "거대한 저택의 거대한 식탁에서 모구는 혼자 식사를 합니다. 창밖 황야에서 부르는 소리가 나도 — 이제는 돌아보는 법조차 잊었습니다."],
       ["n", "복수는 완성되었고, 복수만이 남았습니다."]
@@ -1355,6 +1399,299 @@
 })();
 
 }
+/* ── portraits.js ── */
+{
+// portraits.js — 의인화 동물 캐릭터 SVG 흉상 (빅토리아 시대 의상)
+// 종족: 언쇼가=고양이(가장은 사자), 린턴가=개, 넬리=닭, 조지프=염소,
+//       록우드=토끼, 선주=바다코끼리, 물주=쥐. 모구=실사 얼굴 + 드로잉 몸통.
+(function () {
+  "use strict";
+  var NS = (window.MWH = window.MWH || {});
+  var P = (NS.Portraits = {});
+  var uid = 0;
+
+  /* ── 공통 부품 ── */
+
+  // 신사 코트 (어깨~가슴)
+  function coat(c, shirt, tie) {
+    return (
+      '<path d="M16 132 C19 98 38 87 60 87 C82 87 101 98 104 132 Z" fill="' + c.coat + '"/>' +
+      '<path d="M49 88 L60 106 L71 88 L66 86 L60 92 L54 86 Z" fill="' + c.shirt + '"/>' +
+      '<path d="M49 88 L60 106 L42 101 Z" fill="' + c.lapel + '"/>' +
+      '<path d="M71 88 L60 106 L78 101 Z" fill="' + c.lapel + '"/>' +
+      (tie || '<path d="M57 90 L63 90 L61 99 L59 99 Z" fill="' + (c.tie || "#8a2c34") + '"/>')
+    );
+  }
+  // 드레스 (레이스 칼라)
+  function dress(d, lace) {
+    return (
+      '<path d="M12 132 C17 98 37 85 60 85 C83 85 103 98 108 132 Z" fill="' + d + '"/>' +
+      '<ellipse cx="60" cy="89" rx="17" ry="7.5" fill="' + (lace || "#fff6ee") + '"/>' +
+      '<circle cx="60" cy="93" r="2.4" fill="#d8b048"/>'
+    );
+  }
+  // 눈: mood = normal | scowl | kind | sly | weary
+  function eyes(mood, col) {
+    col = col || "#241f1a";
+    var e =
+      '<ellipse cx="48.5" cy="50" rx="4.6" ry="5.8" fill="' + col + '"/>' +
+      '<ellipse cx="71.5" cy="50" rx="4.6" ry="5.8" fill="' + col + '"/>' +
+      '<circle cx="50" cy="48" r="1.5" fill="#fff"/><circle cx="73" cy="48" r="1.5" fill="#fff"/>';
+    if (mood === "scowl")
+      e += '<path d="M42 42 L55 46 M78 42 L65 46" stroke="' + col + '" stroke-width="2.6" stroke-linecap="round" fill="none"/>';
+    if (mood === "kind")
+      e += '<path d="M42 44 Q48.5 41 55 44 M65 44 Q71.5 41 78 44" stroke="' + col + '" stroke-width="2" stroke-linecap="round" fill="none"/>';
+    if (mood === "sly")
+      e += '<path d="M43 45 L54 44 M77 45 L66 44" stroke="' + col + '" stroke-width="2.4" stroke-linecap="round" fill="none"/>';
+    if (mood === "weary")
+      e += '<path d="M43 57 Q48.5 60 54 57 M66 57 Q71.5 60 77 57" stroke="rgba(90,70,90,.5)" stroke-width="1.8" fill="none"/>';
+    return e;
+  }
+  // 고양이 주둥이 + 수염
+  function catMuzzle(muz) {
+    return (
+      '<ellipse cx="60" cy="63" rx="12" ry="8.5" fill="' + (muz || "#fff2e4") + '"/>' +
+      '<path d="M56.5 59 L63.5 59 L60 63.5 Z" fill="#e08a92"/>' +
+      '<path d="M60 63.5 Q56 68.5 51.5 65.5 M60 63.5 Q64 68.5 68.5 65.5" stroke="#7a5a48" stroke-width="1.6" fill="none" stroke-linecap="round"/>' +
+      '<path d="M30 56 L44 58 M30 63 L44 62 M90 56 L76 58 M90 63 L76 62" stroke="rgba(255,255,255,.75)" stroke-width="1.4" stroke-linecap="round"/>'
+    );
+  }
+  // 고양이 귀
+  function catEars(fur, inner) {
+    return (
+      '<path d="M31 36 L36 8 L54 24 Z" fill="' + fur + '"/><path d="M36 30 L38.5 15 L48 24 Z" fill="' + inner + '"/>' +
+      '<path d="M89 36 L84 8 L66 24 Z" fill="' + fur + '"/><path d="M84 30 L81.5 15 L72 24 Z" fill="' + inner + '"/>'
+    );
+  }
+  function catHead(fur) {
+    return '<ellipse cx="60" cy="52" rx="30" ry="27.5" fill="' + fur + '"/>';
+  }
+  function catStripes(col) {
+    return '<path d="M50 26 L52 34 M60 24 L60 33 M70 26 L68 34" stroke="' + col + '" stroke-width="3" stroke-linecap="round" fill="none"/>';
+  }
+  // 개 (늘어진 귀)
+  function dogEars(ear) {
+    return (
+      '<path d="M33 32 C21 32 19 58 29 66 C37 62 39 44 38 33 Z" fill="' + ear + '"/>' +
+      '<path d="M87 32 C99 32 101 58 91 66 C83 62 81 44 82 33 Z" fill="' + ear + '"/>'
+    );
+  }
+  function dogMuzzle(muz) {
+    return (
+      '<ellipse cx="60" cy="64" rx="14" ry="10" fill="' + (muz || "#f6ecd8") + '"/>' +
+      '<ellipse cx="60" cy="59.5" rx="5" ry="3.6" fill="#3a2e26"/>' +
+      '<path d="M60 63 Q56 69 51 66 M60 63 Q64 69 69 66" stroke="#7a5a48" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+    );
+  }
+
+  function wrap(inner) {
+    return '<svg viewBox="0 0 120 132" xmlns="http://www.w3.org/2000/svg">' + inner + "</svg>";
+  }
+
+  /* ── 캐릭터별 초상 ── */
+  var B = {};
+
+  // 모구 — 실사 얼굴 + 검은 벨벳 코트 (히스클리프)
+  B.mogu = function () {
+    var id = "mgclip" + uid++;
+    return wrap(
+      coat({ coat: "#252c3c", lapel: "#181e2c", shirt: "#d8dfec", tie: "#8a2c34" }) +
+      '<defs><clipPath id="' + id + '"><circle cx="60" cy="49" r="31"/></clipPath></defs>' +
+      '<circle cx="60" cy="49" r="32.5" fill="#161a24"/>' +
+      '<image href="' + NS.ASSETS.mogu + '" x="25" y="14" width="70" height="70" clip-path="url(#' + id + ')" preserveAspectRatio="xMidYMid slice"/>'
+    );
+  };
+  // 캣서린 — 밤색 얼룩 고양이 아가씨
+  B.cat = function () {
+    var fur = "#e0aa6a";
+    return wrap(
+      dress("#c85a78") +
+      catEars(fur, "#f6d8c0") + catHead(fur) + catStripes("#c08840") +
+      eyes("normal", "#2e4a30") + catMuzzle() +
+      '<path d="M84 14 L94 8 L92 20 Z" fill="#d8385a"/><circle cx="91" cy="14" r="3" fill="#f06a88"/>'
+    );
+  };
+  // 힌들리 — 짙은 갈색 고양이, 찌푸린 눈
+  B.hindley = function () {
+    var fur = "#8a6238";
+    return wrap(
+      coat({ coat: "#4a3a26", lapel: "#38290f", shirt: "#d8cfc0", tie: "#5a4630" }) +
+      catEars(fur, "#c09a70") + catHead(fur) + catStripes("#6a4826") +
+      eyes("scowl", "#33261a") + catMuzzle("#e8d0b0")
+    );
+  };
+  // 프랜시스 — 흰 고양이 새색시
+  B.frances = function () {
+    var fur = "#f4eeea";
+    return wrap(
+      dress("#e8a8b8", "#fff") +
+      catEars(fur, "#f6cad4") + catHead(fur) +
+      eyes("kind", "#5a4658") + catMuzzle("#fff") +
+      '<path d="M30 20 Q36 12 42 20 Q36 26 30 20 Z" fill="#e87898"/>'
+    );
+  };
+  // 에드거 — 금빛 리트리버 신사
+  B.edgar = function () {
+    var fur = "#e8c680";
+    return wrap(
+      coat({ coat: "#35548a", lapel: "#263e6a", shirt: "#f2ede0", tie: "#c8d6ea" }) +
+      dogEars("#c89c50") + '<ellipse cx="60" cy="52" rx="29" ry="28" fill="' + fur + '"/>' +
+      eyes("kind", "#43506e") + dogMuzzle("#f6e8c8")
+    );
+  };
+  // 이사벨라 — 크림빛 스패니얼 아가씨
+  B.isabella = function () {
+    var fur = "#f2e8d4";
+    return wrap(
+      dress("#b088d0", "#fff6ff") +
+      dogEars("#d8b070") + '<ellipse cx="60" cy="52" rx="28" ry="27" fill="' + fur + '"/>' +
+      eyes("kind", "#6a4a76") + dogMuzzle("#faf2e2") +
+      '<path d="M82 16 L92 10 L90 22 Z" fill="#c86ad8"/><circle cx="89" cy="16" r="3" fill="#e094ec"/>'
+    );
+  };
+  // 넬리 꼬꼬 — 하녀 두건을 쓴 암탉
+  B.nelly = function () {
+    return wrap(
+      dress("#8a6a4a", "#f6f0e0") +
+      '<ellipse cx="60" cy="54" rx="26" ry="25" fill="#f6f2ea"/>' +
+      '<path d="M46 32 Q48 20 54 28 Q56 16 62 26 Q66 16 70 28 Q74 22 74 32 Z" fill="#d84848"/>' +
+      eyes("kind", "#4a3524") +
+      '<path d="M55 58 L65 58 L60 69 Z" fill="#e8a030"/>' +
+      '<path d="M57 69 Q60 76 63 69" fill="#d05858"/>' +
+      '<path d="M34 46 Q28 54 34 62 M86 46 Q92 54 86 62" stroke="#e0d8c8" stroke-width="4" stroke-linecap="round" fill="none"/>'
+    );
+  };
+  // 언쇼 영감 — 갈기 무성한 늙은 사자
+  B.earnshaw = function () {
+    return wrap(
+      '<circle cx="60" cy="52" r="39" fill="#9a6c34"/>' +
+      '<circle cx="60" cy="52" r="39" fill="none" stroke="#7c5426" stroke-width="3" stroke-dasharray="7 5"/>' +
+      coat({ coat: "#5a4a34", lapel: "#463823", shirt: "#e8e0cc", tie: "#6a5638" }) +
+      '<ellipse cx="60" cy="52" rx="27" ry="26" fill="#d8b070"/>' +
+      eyes("kind", "#3e2e1a") + catMuzzle("#ecd8ac") +
+      '<path d="M44 40 L56 43 M76 40 L64 43" stroke="#b89468" stroke-width="2.4" stroke-linecap="round"/>'
+    );
+  };
+  // 조지프 — 성경책을 낀 늙은 염소
+  B.joseph = function () {
+    return wrap(
+      coat({ coat: "#3a3a38", lapel: "#262624", shirt: "#cfc8ba", tie: "#4a4a44" }) +
+      '<path d="M38 20 C28 12 30 2 40 8 C44 12 44 18 44 24 Z" fill="#c8bca8"/>' +
+      '<path d="M82 20 C92 12 90 2 80 8 C76 12 76 18 76 24 Z" fill="#c8bca8"/>' +
+      '<path d="M32 46 Q24 52 30 60 M88 46 Q96 52 90 60" stroke="#a8a094" stroke-width="5" stroke-linecap="round" fill="none"/>' +
+      '<ellipse cx="60" cy="54" rx="26" ry="29" fill="#b8b0a0"/>' +
+      eyes("scowl", "#33302a") +
+      '<ellipse cx="60" cy="66" rx="11" ry="8" fill="#d8d0c0"/>' +
+      '<ellipse cx="56" cy="63.5" rx="2" ry="2.8" fill="#443e34"/><ellipse cx="64" cy="63.5" rx="2" ry="2.8" fill="#443e34"/>' +
+      '<path d="M54 76 Q60 92 66 76 Q63 80 60 79 Q57 80 54 76 Z" fill="#d8d0c0"/>' +
+      '<rect x="76" y="104" width="20" height="26" rx="2" fill="#6a2c24" transform="rotate(-12 86 117)"/>' +
+      '<path d="M82 108 L90 108 M86 104 L86 112" stroke="#d8b048" stroke-width="2" transform="rotate(-12 86 117)"/>'
+    );
+  };
+  // 록우드 — 실크해트의 여행자 토끼
+  B.lockwood = function () {
+    return wrap(
+      coat({ coat: "#5a4a3a", lapel: "#463828", shirt: "#e8e2d4", tie: "#8a6a3a" }) +
+      '<ellipse cx="47" cy="14" rx="8" ry="20" fill="#d8cfc0" transform="rotate(-8 47 14)"/>' +
+      '<ellipse cx="47" cy="16" rx="4" ry="13" fill="#eeb8b8" transform="rotate(-8 47 14)"/>' +
+      '<ellipse cx="73" cy="14" rx="8" ry="20" fill="#d8cfc0" transform="rotate(8 73 14)"/>' +
+      '<ellipse cx="73" cy="16" rx="4" ry="13" fill="#eeb8b8" transform="rotate(8 73 14)"/>' +
+      '<ellipse cx="60" cy="54" rx="27" ry="26" fill="#e0d8ca"/>' +
+      eyes("normal", "#4a4038") +
+      '<ellipse cx="60" cy="64" rx="10" ry="7.5" fill="#f4efe6"/>' +
+      '<path d="M57 60 L63 60 L60 64 Z" fill="#d89098"/>' +
+      '<path d="M60 64 L60 69 M60 69 Q56 72 53 70 M60 69 Q64 72 67 70" stroke="#8a7a68" stroke-width="1.5" fill="none" stroke-linecap="round"/>' +
+      '<rect x="40" y="24" width="40" height="8" rx="3" fill="#2e2a26"/>' +
+      '<rect x="46" y="2" width="28" height="24" rx="3" fill="#2e2a26"/>' +
+      '<rect x="46" y="20" width="28" height="5" fill="#8a2c34"/>'
+    );
+  };
+  // 헤어턴 — 거친 옷의 젊은 갈색 고양이
+  B.hareton = function () {
+    var fur = "#b08a58";
+    return wrap(
+      '<path d="M16 132 C19 98 38 87 60 87 C82 87 101 98 104 132 Z" fill="#8a7048"/>' +
+      '<path d="M50 88 L60 103 L70 88 Z" fill="#d8ccb4"/>' +
+      '<path d="M22 110 L38 108 M82 108 L98 110" stroke="#6a5636" stroke-width="4" stroke-linecap="round"/>' +
+      catEars(fur, "#d8b888") + catHead(fur) + catStripes("#8a6838") +
+      eyes("normal", "#3a2c1c") + catMuzzle("#e8d4b0") +
+      '<path d="M40 34 L48 38" stroke="#6a5030" stroke-width="2.4" stroke-linecap="round"/>'
+    );
+  };
+  // 캐시 — 어머니를 닮은 금빛 고양이 아가씨
+  B.cathy = function () {
+    var fur = "#eccf96";
+    return wrap(
+      dress("#88b0d8", "#fff") +
+      catEars(fur, "#fce8cc") + catHead(fur) +
+      eyes("normal", "#2e4a30") + catMuzzle("#fff6ea") +
+      '<path d="M82 15 L92 9 L90 21 Z" fill="#4880c0"/><circle cx="89" cy="15" r="3" fill="#78aade"/>'
+    );
+  };
+  // 린턴 — 창백하고 여린 강아지, 목도리
+  B.linton = function () {
+    return wrap(
+      coat({ coat: "#8a95a8", lapel: "#707c92", shirt: "#eef0f4", tie: "#9ab0c0" }) +
+      dogEars("#c8ccd8") + '<ellipse cx="60" cy="52" rx="26" ry="26" fill="#e8e6ee"/>' +
+      eyes("weary", "#5a5a72") + dogMuzzle("#f4f2f8") +
+      '<path d="M34 84 Q60 74 86 84 L86 94 Q60 84 34 94 Z" fill="#9ab0c0"/>'
+    );
+  };
+  // 캣서린의 유령 — 반투명한 푸른 잔상
+  B.ghost = function () {
+    var fur = "#cfe4f8";
+    return wrap(
+      '<g opacity="0.85">' +
+      '<path d="M20 130 Q26 120 24 108 C28 92 42 85 60 85 C78 85 92 92 96 108 Q94 120 100 130 L90 122 L80 131 L70 123 L60 131 L50 123 L40 131 L30 122 Z" fill="rgba(190,220,248,.75)"/>' +
+      catEars(fur, "#e8f2fc") + catHead(fur) +
+      '<ellipse cx="48.5" cy="50" rx="4.2" ry="5.4" fill="#5a7a9c"/><ellipse cx="71.5" cy="50" rx="4.2" ry="5.4" fill="#5a7a9c"/>' +
+      '<ellipse cx="60" cy="63" rx="11" ry="8" fill="#e8f2fc"/>' +
+      '<path d="M56.5 59 L63.5 59 L60 63.5 Z" fill="#a8c0d8"/>' +
+      '<path d="M60 63.5 Q55 69 50 66" stroke="#88a8c4" stroke-width="1.5" fill="none"/>' +
+      "</g>" +
+      '<circle cx="34" cy="30" r="2.5" fill="#e8f4ff" opacity=".8"/><circle cx="90" cy="76" r="2" fill="#e8f4ff" opacity=".6"/>'
+    );
+  };
+  // 선주 영감 — 선장 모자의 바다코끼리
+  B.boss = function () {
+    return wrap(
+      coat({ coat: "#2c3a50", lapel: "#1e2a3c", shirt: "#e8e4d8", tie: "#3a4a60" }) +
+      '<ellipse cx="60" cy="54" rx="30" ry="27" fill="#9a8570"/>' +
+      eyes("kind", "#2e2620") +
+      '<ellipse cx="52" cy="65" rx="9" ry="8" fill="#b8a68e"/><ellipse cx="68" cy="65" rx="9" ry="8" fill="#b8a68e"/>' +
+      '<circle cx="49" cy="63" r="1" fill="#5a4a3a"/><circle cx="54" cy="66" r="1" fill="#5a4a3a"/><circle cx="66" cy="66" r="1" fill="#5a4a3a"/><circle cx="71" cy="63" r="1" fill="#5a4a3a"/>' +
+      '<path d="M53 71 L51 86 L56 86 L57 72 Z" fill="#f2ecda"/><path d="M67 71 L69 86 L64 86 L63 72 Z" fill="#f2ecda"/>' +
+      '<path d="M36 30 L84 30 L79 14 L41 14 Z" fill="#243448"/>' +
+      '<rect x="33" y="28" width="54" height="8" rx="3" fill="#16202e"/>' +
+      '<circle cx="60" cy="22" r="4" fill="#d8b048"/>'
+    );
+  };
+  // 물주 쥐 — 카드를 든 도박장 쥐
+  B.dealer = function () {
+    return wrap(
+      coat({ coat: "#5a3a3a", lapel: "#442a2a", shirt: "#d8d0c8", tie: "#2e2020" }) +
+      '<circle cx="34" cy="24" r="14" fill="#9a9aa4"/><circle cx="34" cy="24" r="8" fill="#d8a8b0"/>' +
+      '<circle cx="86" cy="24" r="14" fill="#9a9aa4"/><circle cx="86" cy="24" r="8" fill="#d8a8b0"/>' +
+      '<ellipse cx="60" cy="54" rx="27" ry="25" fill="#a8a8b2"/>' +
+      eyes("sly", "#2c2630") +
+      '<ellipse cx="60" cy="65" rx="11" ry="8" fill="#c0c0ca"/>' +
+      '<ellipse cx="60" cy="61" rx="4" ry="3" fill="#d87888"/>' +
+      '<path d="M30 60 L46 62 M30 68 L46 66 M90 60 L74 62 M90 68 L74 66" stroke="rgba(230,230,240,.7)" stroke-width="1.3" stroke-linecap="round"/>' +
+      '<rect x="82" y="102" width="17" height="24" rx="2" fill="#f2eee4" transform="rotate(14 90 114)"/>' +
+      '<path d="M88 108 L94 116 M94 108 L88 116" stroke="#c03040" stroke-width="2.4" transform="rotate(14 90 114)"/>'
+    );
+  };
+
+  P.svg = function (id) {
+    var b = B[id];
+    if (b) return b();
+    // 미정의 캐릭터 폴백: 이모지
+    var c = NS.CHARS[id] || {};
+    return wrap('<text x="60" y="72" font-size="56" text-anchor="middle">' + (c.icon || "🐾") + "</text>");
+  };
+})();
+
+}
 /* ── render.js ── */
 {
 // render.js — 배경·날씨·초상·텍스트박스 연출 (DOM 기반)
@@ -1397,17 +1734,10 @@
       var d = document.createElement("div");
       d.className = "portrait";
       d.dataset.who = id;
-      if (id === "mogu") {
-        var img = document.createElement("img");
-        img.src = NS.ASSETS.mogu;
-        img.alt = "모구";
-        d.appendChild(img);
-      } else {
-        var span = document.createElement("span");
-        span.className = "p-emoji";
-        span.textContent = c.icon;
-        d.appendChild(span);
-      }
+      var art = document.createElement("div");
+      art.className = "p-art";
+      art.innerHTML = NS.Portraits.svg(id);
+      d.appendChild(art);
       var nm = document.createElement("div");
       nm.className = "p-name";
       nm.textContent = c.name;
@@ -1507,7 +1837,7 @@
   U.init = function () {
     L = NS.Logic; R = NS.Render; A = NS.Audio;
     R.init();
-    $("title-icon").src = NS.ASSETS.mogu;
+    $("title-icon").innerHTML = NS.Portraits.svg("mogu");
 
     $("btn-new").addEventListener("click", function () { A.unlock(); A.sfxChoice(); U.startNew(); });
     $("btn-continue").addEventListener("click", function () { A.unlock(); A.sfxChoice(); U.continueGame(); });

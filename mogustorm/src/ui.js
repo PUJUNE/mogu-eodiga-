@@ -16,7 +16,7 @@
   U.init = function () {
     L = NS.Logic; R = NS.Render; A = NS.Audio;
     R.init();
-    $("title-icon").src = NS.ASSETS.mogu;
+    $("title-icon").innerHTML = NS.Portraits.svg("mogu");
 
     $("btn-new").addEventListener("click", function () { A.unlock(); A.sfxChoice(); U.startNew(); });
     $("btn-continue").addEventListener("click", function () { A.unlock(); A.sfxChoice(); U.continueGame(); });
