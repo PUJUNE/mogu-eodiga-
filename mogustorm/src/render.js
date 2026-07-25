@@ -38,17 +38,10 @@
       var d = document.createElement("div");
       d.className = "portrait";
       d.dataset.who = id;
-      if (id === "mogu") {
-        var img = document.createElement("img");
-        img.src = NS.ASSETS.mogu;
-        img.alt = "모구";
-        d.appendChild(img);
-      } else {
-        var span = document.createElement("span");
-        span.className = "p-emoji";
-        span.textContent = c.icon;
-        d.appendChild(span);
-      }
+      var art = document.createElement("div");
+      art.className = "p-art";
+      art.innerHTML = NS.Portraits.svg(id);
+      d.appendChild(art);
       var nm = document.createElement("div");
       nm.className = "p-name";
       nm.textContent = c.name;

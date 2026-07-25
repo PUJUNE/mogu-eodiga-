@@ -46,17 +46,19 @@ await page.screenshot({ path: join(shots, 'shot-title.png') });
 // ══ 2. 새 게임 → 대사 진행 → 첫 선택지 ══
 await page.click('#btn-new');
 await page.waitForTimeout(400);
-check('처음부터 → 플레이 화면 (a1_1)', await page.evaluate(() => {
+check('처음부터 → 플레이 화면 (프롤로그 p_1)', await page.evaluate(() => {
   const d = window.MWH._dbg();
-  return d.screen === 'play' && d.node === 'a1_1';
+  return d.screen === 'play' && d.node === 'p_1';
 }));
 check('내레이션 타자기 출력 시작', await page.evaluate(() =>
   document.getElementById('vn-text').textContent.length > 0));
+check('의인화 SVG 초상 렌더 (록우드)', await page.evaluate(() =>
+  document.querySelectorAll('#vn-chars .portrait svg').length >= 1));
 // 클릭 1회 = 즉시 완성 → 대사 전문 노출
 await page.click('#vn-stage');
 await page.waitForTimeout(120);
 check('클릭 → 대사 즉시 완성', await page.evaluate(() =>
-  document.getElementById('vn-text').textContent.includes('넬리 꼬꼬')));
+  document.getElementById('vn-text').textContent.includes('록우드')));
 await page.screenshot({ path: join(shots, 'shot-play.png') });
 // 자동 스킵으로 첫 선택지(a1_3)까지
 await page.evaluate(() => window.MWH._skipLines());
@@ -137,7 +139,7 @@ await tp.tap('#vn-stage');
 await tp.waitForTimeout(300);
 check('빌드본: 탭으로 대사 진행', await tp.evaluate(() => {
   const s = window.MWH._st();
-  return s.lineIdx >= 1 || s.state.node !== 'a1_1';
+  return s.lineIdx >= 1 || s.state.node !== 'p_1';
 }));
 await tp.screenshot({ path: join(shots, 'shot-touch.png') });
 
