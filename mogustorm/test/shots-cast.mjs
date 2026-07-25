@@ -39,7 +39,7 @@ const scenes = [
 ];
 for (const [node, name] of scenes) {
   await page.evaluate((n) => window.MWH._goto(n), node);
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(1100);  // 배경 페이드(0.9s) 완료 후 촬영
   await page.evaluate(() => { const s = window.MWH._st(); }); // settle
   await page.screenshot({ path: join(shots, `dbg-cast-${name}.png`) });
 }
