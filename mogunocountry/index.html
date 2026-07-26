@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구 노인을 위한 나라는 없다</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#12100e;
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif; user-select:none;
+    touch-action:manipulation; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  #app { position:relative; width:100%; height:100%; overflow:hidden; }
+  .hidden { display:none !important; }
+
+  /* ══ 무대: 배경 ══ */
+  #vn-stage { position:absolute; inset:0; cursor:pointer; }
+  #vn-bg { position:absolute; inset:0; background:#161410; }
+  #vn-bg svg { width:100%; height:100%; display:block; }
+  #vn-bg.fade-in svg { animation:bgfade .9s ease; }
+  @keyframes bgfade { from{opacity:0} to{opacity:1} }
+  /* 비네트 */
+  #vn-stage::after { content:""; position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 42%, transparent 58%, rgba(8,6,4,.42) 100%); }
+
+  /* ══ 날씨 레이어 ══ */
+  #vn-weather { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  #vn-weather::before, #vn-weather::after { content:""; position:absolute; inset:-20%; opacity:0; transition:opacity .8s; }
+  #vn-weather.w-rain::before, #vn-weather.w-storm::before {
+    opacity:.3; background:repeating-linear-gradient(105deg, transparent 0 7px, rgba(210,225,245,.5) 7px 8px, transparent 8px 14px);
+    animation:rainfall .5s linear infinite; }
+  @keyframes rainfall { from{transform:translateY(-40px)} to{transform:translateY(40px)} }
+  #vn-weather.w-storm::after { background:#eaf2ff; animation:flash 5.2s ease-out infinite; }
+  @keyframes flash { 0%,88%,94%,100%{opacity:0} 90%{opacity:.5} 92%{opacity:.1} 93%{opacity:.36} }
+  /* 열기 아지랑이 — 사막 정오 */
+  #vn-weather.w-heat::before { opacity:.3;
+    background:repeating-linear-gradient(0deg, transparent 0 26px, rgba(255,236,196,.5) 26px 30px, transparent 30px 56px);
+    filter:blur(7px); animation:heathaze 5.5s ease-in-out infinite; }
+  @keyframes heathaze { 0%,100%{transform:translateY(0) scaleY(1)} 50%{transform:translateY(-9px) scaleY(1.05)} }
+  /* 모래바람 */
+  #vn-weather.w-dust::before { opacity:.34;
+    background:repeating-linear-gradient(96deg, transparent 0 20px, rgba(216,180,120,.4) 20px 26px, transparent 26px 52px);
+    filter:blur(3px); animation:dustblow 2.6s linear infinite; }
+  @keyframes dustblow { from{transform:translateX(-60px)} to{transform:translateX(60px)} }
+  #vn-weather.w-snow::before { opacity:.8;
+    background-image:radial-gradient(3px 3px at 20% 15%, #fff 45%, transparent 55%),
+      radial-gradient(2px 2px at 60% 40%, #fff 45%, transparent 55%),
+      radial-gradient(2.5px 2.5px at 85% 20%, #fff 45%, transparent 55%),
+      radial-gradient(2px 2px at 35% 70%, #fff 45%, transparent 55%),
+      radial-gradient(2.5px 2.5px at 72% 82%, #fff 45%, transparent 55%);
+    background-size:340px 340px; animation:snowfall 7s linear infinite; }
+  @keyframes snowfall { from{background-position:0 -340px} to{background-position:24px 340px} }
+  #vn-weather.w-stars::before { opacity:.9;
+    background-image:radial-gradient(1.6px 1.6px at 12% 18%, #fff 50%, transparent 60%),
+      radial-gradient(1.2px 1.2px at 42% 8%, #fff 50%, transparent 60%),
+      radial-gradient(1.8px 1.8px at 68% 24%, #ffeebb 50%, transparent 60%),
+      radial-gradient(1.2px 1.2px at 85% 12%, #fff 50%, transparent 60%),
+      radial-gradient(1.4px 1.4px at 28% 32%, #cfe0ff 50%, transparent 60%),
+      radial-gradient(1.2px 1.2px at 55% 38%, #fff 50%, transparent 60%);
+    background-size:100% 100%; animation:twinkle 3.4s ease-in-out infinite; }
+  @keyframes twinkle { 0%,100%{opacity:.9} 50%{opacity:.5} }
+  #vn-weather.w-cloud::before { opacity:.26;
+    background:repeating-linear-gradient(180deg, transparent 0 90px, rgba(230,238,248,.24) 90px 130px, transparent 130px 240px);
+    filter:blur(14px); animation:clouddrift 26s linear infinite; }
+  @keyframes clouddrift { from{transform:translateX(-8%)} to{transform:translateX(8%)} }
+  #vn-weather.interior::before { opacity:0 !important; }
+
+  /* ══ 초상 ══ */
+  #vn-chars { position:absolute; left:0; right:0; bottom:212px; display:flex; gap:26px;
+    align-items:flex-end; justify-content:center; pointer-events:none; }
+  .portrait { position:relative; display:flex; flex-direction:column; align-items:center; gap:4px;
+    transition:transform .25s, filter .25s, opacity .25s; }
+  /* 접지 그림자 — 인물이 배경 위에 뜨지 않도록 */
+  .portrait::before { content:""; position:absolute; left:50%; bottom:23px; transform:translateX(-50%);
+    width:76px; height:13px; border-radius:50%; background:rgba(10,8,4,.32); filter:blur(6px); z-index:-1; }
+  .portrait .p-art { width:122px; height:134px; }
+  .portrait .p-art svg { width:100%; height:100%; overflow:visible;
+    filter:drop-shadow(0 8px 14px rgba(0,0,0,.55)); }
+  .portrait .p-name { font-size:13px; font-weight:800; text-shadow:0 2px 4px rgba(0,0,0,.85);
+    padding:2px 10px; background:rgba(20,16,10,.44); border-radius:9px; }
+  .portrait.speaking { transform:translateY(-10px) scale(1.09); filter:brightness(1.05); }
+  .portrait.dimmed { filter:brightness(.45) saturate(.6); opacity:.8; }
+  #vn-chars.choices-open .portrait { filter:brightness(.25) saturate(.4); opacity:.35; transform:none; }
+
+  /* ══ 텍스트박스 ══ */
+  #vn-ui { position:absolute; inset:0; pointer-events:none; }
+  #vn-textwrap { position:absolute; left:50%; bottom:calc(14px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+    width:min(760px, 94vw); pointer-events:none; }
+  #vn-name { display:inline-block; margin:0 0 -12px 18px; position:relative; z-index:2;
+    padding:5px 16px; font-size:15px; font-weight:900; color:#f0c060;
+    background:rgba(22,18,12,.95); border:2px solid rgba(255,240,210,.35); border-radius:10px;
+    box-shadow:0 3px 8px rgba(0,0,0,.5); }
+  #vn-box { position:relative; min-height:112px; padding:20px 22px 16px; box-sizing:border-box;
+    background:rgba(18,14,10,.87); border:2px solid rgba(255,238,206,.28); border-radius:16px;
+    box-shadow:0 10px 26px rgba(0,0,0,.5); }
+  #vn-text { font-size:17px; line-height:1.75; color:#f6f2ea; min-height:60px; white-space:pre-wrap; }
+  #vn-text.narration { font-style:italic; color:#d6cbb6; }
+  #vn-hint { position:absolute; right:16px; bottom:8px; font-size:14px; color:#f0c060;
+    animation:hintblink 1s ease-in-out infinite; display:none; }
+  @keyframes hintblink { 0%,100%{opacity:1; transform:translateY(0)} 50%{opacity:.35; transform:translateY(3px)} }
+
+  /* ══ 선택지 ══ */
+  #vn-choices { position:absolute; left:50%; bottom:200px; transform:translateX(-50%);
+    display:flex; flex-direction:column; gap:12px; width:min(600px, 90vw); pointer-events:auto; }
+  .choice-btn { padding:14px 20px; font-size:16px; font-weight:800; color:#fff; font-family:inherit;
+    text-align:left; cursor:pointer; background:rgba(36,28,20,.92);
+    border:2px solid rgba(240,192,96,.55); border-radius:14px;
+    box-shadow:0 6px 16px rgba(0,0,0,.5); transition:transform .12s, background .12s, border-color .12s; }
+  .choice-btn:hover, .choice-btn:active { transform:translateX(6px) scale(1.02);
+    background:rgba(72,52,24,.95); border-color:#f0c060; }
+
+  /* ══ HUD ══ */
+  #vn-hud { position:absolute; top:calc(10px + env(safe-area-inset-top)); left:12px; right:12px;
+    display:flex; justify-content:space-between; pointer-events:none; }
+  .hud-chips { display:flex; gap:8px; }
+  .chip { padding:6px 13px; font-size:14px; font-weight:900; color:#fff; border-radius:14px;
+    background:rgba(20,16,10,.72); border:2px solid rgba(255,240,210,.3); text-shadow:0 1px 3px rgba(0,0,0,.6); }
+  #stat-luck { color:#e8d090; } #stat-guard { color:#9dc8e8; } #stat-grace { color:#f0b0a0; }
+  #btn-mute { pointer-events:auto; cursor:pointer; font-family:inherit; }
+
+  /* ══ 공통 스크린 ══ */
+  .screen { position:absolute; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:20px; box-sizing:border-box; }
+  .menu-buttons { display:flex; gap:12px; margin-top:20px; flex-wrap:wrap; justify-content:center; }
+  .btn { padding:12px 26px; font-size:16px; font-weight:800; color:#fff; font-family:inherit;
+    background:#7a5a34; border:3px solid rgba(255,246,230,.8); border-radius:12px; cursor:pointer;
+    box-shadow:0 4px 10px rgba(0,0,0,.45); text-decoration:none; display:inline-block; }
+  .btn.primary { background:#a8702c; }
+  .btn.series { padding:9px 18px; font-size:13px; background:#4a5a6a; }
+
+  /* ══ 타이틀 ══ */
+  #title-screen { background:linear-gradient(#1c2036 0%, #4a3a4a 32%, #8a5a48 58%, #c8865a 78%, #2a1c14 100%); }
+  #title-screen::before { content:""; position:absolute; inset:-20%; pointer-events:none; opacity:.2;
+    background:repeating-linear-gradient(96deg, transparent 0 20px, rgba(216,180,120,.4) 20px 26px, transparent 26px 52px);
+    filter:blur(3px); animation:dustblow 2.8s linear infinite; }
+  #title-screen .logo { position:relative; font-size:min(38px, 7.2vw); font-weight:900; color:#f4e8d4; white-space:nowrap;
+    text-shadow:0 0 22px rgba(255,190,120,.6), 0 5px 0 #3a2a1c, 0 10px 20px rgba(0,0,0,.6);
+    letter-spacing:min(3px, .7vw); }
+  #title-screen .sub { position:relative; margin-top:8px; font-size:15px; color:#d8bc96; font-weight:700; }
+  #title-icon { position:relative; width:130px; height:143px; margin:14px 0 2px;
+    animation:bob 1.9s ease-in-out infinite; }
+  #title-icon svg { width:100%; height:100%; overflow:visible;
+    filter:drop-shadow(0 0 18px rgba(255,190,120,.5)) drop-shadow(0 10px 12px rgba(0,0,0,.5)); }
+  @keyframes bob { 0%,100%{transform:translateY(0) rotate(-2deg)} 50%{transform:translateY(-11px) rotate(2deg)} }
+  #title-progress { position:relative; margin-top:8px; color:#f0c060; font-size:14px; font-weight:800;
+    text-shadow:0 1px 3px rgba(0,0,0,.6); }
+  #title-hint { position:relative; margin-top:14px; color:rgba(255,246,232,.9); font-size:13px; line-height:1.8;
+    text-shadow:0 1px 3px rgba(0,0,0,.5); padding:0 12px; }
+
+  /* ══ 엔딩 카드 ══ */
+  #ending-screen { background:rgba(14,10,6,.94); }
+  #end-tone { font-size:19px; font-weight:800; color:#d8cbb2; }
+  #end-no { margin-top:14px; font-size:15px; font-weight:900; color:#f0c060; letter-spacing:2px; }
+  #end-title { margin-top:8px; font-size:min(40px, 8.4vw); font-weight:900; color:#fff;
+    text-shadow:0 0 20px rgba(255,190,120,.5), 0 5px 12px rgba(0,0,0,.6); }
+  #end-axis { margin-top:10px; font-size:16px; font-weight:800; color:#a8d0a0; }
+  #end-desc { margin-top:6px; font-size:15px; color:#d4cab6; }
+  #end-spectrum { position:relative; width:min(440px, 82vw); height:14px; margin-top:22px; border-radius:8px;
+    background:linear-gradient(90deg, #f0c060 0%, #b0cc78 30%, #88a8bc 55%, #6a6070 78%, #2c2620 100%);
+    border:2px solid rgba(255,246,230,.45); }
+  #end-marker { position:absolute; top:-9px; margin-left:-9px; font-size:20px; filter:drop-shadow(0 2px 3px rgba(0,0,0,.7)); }
+  .spec-labels { display:flex; justify-content:space-between; width:min(440px, 82vw); margin-top:6px;
+    font-size:12px; color:#a8987e; font-weight:700; }
+  #end-count { margin-top:16px; font-size:14px; color:#d8bc96; font-weight:700; }
+
+  /* ══ 엔딩 갤러리 ══ */
+  #gallery-screen { background:linear-gradient(#1c1812 0%, #342a20 55%, #14100c 100%); justify-content:flex-start;
+    padding-top:calc(26px + env(safe-area-inset-top)); }
+  #gallery-screen h2 { margin:0; font-size:min(30px, 7vw); font-weight:900; color:#f4e8d4;
+    text-shadow:0 0 14px rgba(255,190,120,.45); }
+  #gallery-count { margin-top:6px; font-size:14px; color:#f0c060; font-weight:800; }
+  #gallery-list { margin-top:16px; width:min(680px, 94vw); flex:1; overflow-y:auto; text-align:left;
+    display:flex; flex-direction:column; gap:7px; padding-bottom:10px; -webkit-overflow-scrolling:touch; }
+  .g-row { display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:12px;
+    background:rgba(255,246,230,.05); border:2px solid rgba(255,246,230,.14); color:#8e8272; font-size:14px; }
+  .g-row.got { background:rgba(240,192,96,.08); border-color:rgba(240,192,96,.4); color:#f4efe4; }
+  .g-tone { font-size:20px; flex-shrink:0; }
+  .g-body { flex:1; font-weight:700; line-height:1.5; }
+  .g-axis { font-size:12px; color:#a8d0a0; font-weight:800; flex-shrink:0; }
+
+  @media (max-width: 560px) {
+    #vn-chars { bottom:196px; gap:10px; }
+    .portrait .p-art { width:88px; height:97px; }
+    #vn-text { font-size:15px; }
+    #vn-choices { bottom:186px; }
+    .choice-btn { font-size:14px; padding:12px 16px; }
+    .chip { padding:5px 10px; font-size:13px; }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="vn-stage">
+    <div id="vn-bg"></div>
+    <div id="vn-weather"></div>
+    <div id="vn-chars"></div>
+    <div id="vn-ui" class="hidden">
+      <div id="vn-hud">
+        <div class="hud-chips">
+          <span class="chip" id="stat-luck">🪙 0</span>
+          <span class="chip" id="stat-guard">🎯 0</span>
+          <span class="chip" id="stat-grace">🕯 0</span>
+        </div>
+        <div class="hud-chips">
+          <button class="chip" id="btn-mute">🔊</button>
+        </div>
+      </div>
+      <div id="vn-choices"></div>
+      <div id="vn-textwrap">
+        <div id="vn-name"></div>
+        <div id="vn-box">
+          <div id="vn-text"></div>
+          <div id="vn-hint">▼</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="title-screen" class="screen">
+    <div class="logo">모구 노인을 위한 나라는 없다</div>
+    <div class="sub">~ 1980년 텍사스 국경 · 멀티엔딩 비주얼 노벨 ~</div>
+    <div id="title-icon" role="img" aria-label="모구"></div>
+    <div id="title-progress"></div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-continue">이어하기</button>
+      <button class="btn" id="btn-new">처음부터</button>
+      <button class="btn" id="btn-gallery">🏆 엔딩 갤러리</button>
+    </div>
+    <div class="menu-buttons"><a class="btn series" id="btn-home" href="index.html">🏠 모구 게임 시리즈</a></div>
+    <div id="title-hint">코맥 매카시 『노인을 위한 나라는 없다』 원작 — 사막에서 돈가방을 주운 용접공 모구의 이야기<br>
+      클릭 / Enter / Space = 진행 · 원작 13장을 13부로 · 엔딩 24종 (행복 ☀️ ↔ ⛈️ 절망)</div>
+  </div>
+
+  <div id="gallery-screen" class="screen hidden">
+    <h2>🏆 엔딩 갤러리</h2>
+    <div id="gallery-count"></div>
+    <div id="gallery-list"></div>
+    <div class="menu-buttons"><button class="btn" id="btn-gallery-back">← 타이틀로</button></div>
+  </div>
+
+  <div id="ending-screen" class="screen hidden">
+    <div id="end-tone"></div>
+    <div id="end-no"></div>
+    <div id="end-title"></div>
+    <div id="end-axis"></div>
+    <div id="end-desc"></div>
+    <div id="end-spectrum"><span id="end-marker">🪙</span></div>
+    <div class="spec-labels"><span>☀️ 행복</span><span>⛈️ 절망</span></div>
+    <div id="end-count"></div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-end-title">타이틀로</button>
+      <button class="btn" id="btn-end-gallery">🏆 엔딩 갤러리</button>
+    </div>
+  </div>
+</div>
+
+<script>window.MNC = { ASSETS: { mogu: "../game/assets/mogu-icon.png" } };</script>
+<script src="src/story.js"></script>
+<script src="src/engine.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/portraits.js"></script>
+<script src="src/scenes.js"></script>
+<script src="src/render.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
