@@ -110,8 +110,88 @@ function bakeSprite(type, theme) {
   return c;
 }
 
-// 교통 차량은 다이캐스트 미니카 사진(24방향 중 후방 3프레임)을 그대로 쓴다.
-const CAR_COLORS = ['red', 'white', 'orange', 'gray'];
+// ── 교통 차량 굽기 (후방 눈높이 뷰) ────────────────────────────────────
+// 다이캐스트 사진 팩(24방향)은 전 프레임이 위에서 내려찍은 각도라, 추격 시점
+// 도로에 붙이면 탑다운 차를 세워 둔 판처럼 보인다. 후방 뷰는 플레이어 차와
+// 같은 방식으로 직접 그린다.
+const TRAFFIC_HUES = [
+  ['#c8443c', '#7e2a24'],   // 빨강
+  ['#2f6fb8', '#1d4a80'],   // 파랑
+  ['#e0a828', '#9a7314'],   // 노랑
+  ['#3f9a5c', '#27663c'],   // 초록
+  ['#8a5ac0', '#5c3a86'],   // 보라
+  ['#d0ccc2', '#918c80'],   // 은색
+];
+
+function bakeTraffic(type, hue, night) {
+  const W = 200, H = type === 'truck' ? 220 : type === 'van' ? 196 : 158;
+  const c = mkCanvas(W, H), g = c.getContext('2d');
+  const rr = (x, y, w, h, r) => {
+    g.beginPath(); g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r);
+    g.closePath(); g.fill();
+  };
+  const [body, dark] = TRAFFIC_HUES[hue % TRAFFIC_HUES.length];
+  const glass = night ? '#141a26' : '#3d4f66';
+
+  g.fillStyle = 'rgba(0,0,0,.32)';                      // 접지 그림자
+  g.beginPath(); g.ellipse(W / 2, H * 0.97, W * 0.47, H * 0.03, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#17181d';                              // 뒷바퀴
+  rr(W * 0.02, H * 0.80, W * 0.15, H * 0.17, W * 0.03);
+  rr(W * 0.83, H * 0.80, W * 0.15, H * 0.17, W * 0.03);
+
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, body); grd.addColorStop(0.6, body); grd.addColorStop(1, dark);
+
+  if (type === 'sedan') {
+    g.fillStyle = grd;
+    rr(W * 0.17, H * 0.04, W * 0.66, H * 0.50, W * 0.09);   // 캐빈
+    rr(W * 0.05, H * 0.40, W * 0.90, H * 0.53, W * 0.06);   // 트렁크·펜더
+    g.fillStyle = glass;                                     // 뒷유리
+    rr(W * 0.22, H * 0.10, W * 0.56, H * 0.30, W * 0.05);
+    g.fillStyle = 'rgba(255,255,255,.14)';
+    rr(W * 0.24, H * 0.11, W * 0.20, H * 0.27, W * 0.04);
+  } else if (type === 'van') {
+    g.fillStyle = grd;
+    rr(W * 0.06, H * 0.03, W * 0.88, H * 0.90, W * 0.07);   // 박스 차체
+    g.fillStyle = glass;                                     // 뒷문 유리 2장
+    rr(W * 0.13, H * 0.08, W * 0.34, H * 0.22, W * 0.03);
+    rr(W * 0.53, H * 0.08, W * 0.34, H * 0.22, W * 0.03);
+    g.strokeStyle = 'rgba(0,0,0,.30)';                       // 문 이음선
+    g.lineWidth = Math.max(2, W * 0.012);
+    g.beginPath(); g.moveTo(W * 0.5, H * 0.06); g.lineTo(W * 0.5, H * 0.84); g.stroke();
+  } else {                                                   // truck
+    g.fillStyle = '#b9b4a8';                                 // 컨테이너
+    rr(W * 0.04, H * 0.02, W * 0.92, H * 0.72, W * 0.03);
+    g.strokeStyle = 'rgba(0,0,0,.22)';
+    g.lineWidth = Math.max(2, W * 0.01);
+    for (let i = 1; i <= 3; i++) {                           // 롤도어 골
+      g.beginPath(); g.moveTo(W * 0.09, H * (0.02 + 0.17 * i)); g.lineTo(W * 0.91, H * (0.02 + 0.17 * i)); g.stroke();
+    }
+    g.fillStyle = grd;                                       // 하부 섀시는 차체색
+    rr(W * 0.05, H * 0.72, W * 0.90, H * 0.20, W * 0.03);
+  }
+
+  g.fillStyle = '#20232a';                                   // 범퍼
+  rr(W * 0.06, H * 0.87, W * 0.88, H * 0.065, H * 0.02);
+
+  const ly = type === 'truck' ? H * 0.745 : type === 'van' ? H * 0.60 : H * 0.56;
+  if (night) {                                               // 야간: 미등 점등 글로우
+    for (const lx of [W * 0.165, W * 0.835]) {
+      const glow = g.createRadialGradient(lx, ly + H * 0.035, 2, lx, ly + H * 0.035, W * 0.15);
+      glow.addColorStop(0, 'rgba(255,84,64,.6)'); glow.addColorStop(1, 'rgba(255,84,64,0)');
+      g.fillStyle = glow;
+      g.beginPath(); g.arc(lx, ly + H * 0.035, W * 0.15, 0, Math.PI * 2); g.fill();
+    }
+  }
+  g.fillStyle = night ? '#ff6a52' : '#b8322a';               // 미등
+  rr(W * 0.10, ly, W * 0.13, H * 0.07, H * 0.018);
+  rr(W * 0.77, ly, W * 0.13, H * 0.07, H * 0.018);
+  g.fillStyle = '#e8e4da';                                   // 번호판
+  rr(W * 0.42, ly + H * 0.02, W * 0.16, H * 0.06, H * 0.012);
+  return c;
+}
 
 // ── 모구 레이서 굽기 (오픈탑 차체 + 모구 뒷모습 합성) ──────────────────
 // 모구를 먼저 그리고 차체를 그 위에 덮어, 하반신이 차체에 가려 '앉아 있게' 만든다.
@@ -176,7 +256,7 @@ function bakeMogu(moguImg) {
 // ── 렌더러 ─────────────────────────────────────────────────────────────
 M.Render = {
   canvas: null, ctx: null, w: 0, h: 0,
-  stage: null, backdrop: null, sprites: null, carImgs: null, asphalt: null, asphaltPat: null,
+  stage: null, backdrop: null, sprites: null, traffic: null, asphalt: null, asphaltPat: null,
   mogu: null, moguImg: null,
   offFar: 0, offMid: 0, lastPos: 0, shake: 0,
 
@@ -193,14 +273,9 @@ M.Render = {
     this.moguImg = load(M.ASSETS.mogu, (im) => { this.mogu = bakeMogu(im); });
     this.mogu = bakeMogu(null);
 
-    // 실사 배경(월드별) · 다이캐스트 교통차(후방 3프레임) · 아스팔트 타일
+    // 실사 배경(월드별) · 아스팔트 타일
     this.bgImgs = {};
     for (const k in M.ASSETS.bg) this.bgImgs[k] = load(M.ASSETS.bg[k], () => {});
-    this.carImgs = {};
-    for (const col in M.ASSETS.cars) {
-      this.carImgs[col] = {};
-      for (const tag in M.ASSETS.cars[col]) this.carImgs[col][tag] = load(M.ASSETS.cars[col][tag], () => {});
-    }
     this.asphalt = load(M.ASSETS.asphalt, (im) => {
       this.asphaltPat = this.ctx.createPattern(im, 'repeat');
     });
@@ -222,6 +297,11 @@ M.Render = {
     this.backdrop = this.bgImgs[stage.world] || null;
     this.sprites = {};
     for (const t of ['lamp', 'sign']) this.sprites[t] = bakeSprite(t, theme);
+    this.traffic = {};
+    for (const t of ['sedan', 'van', 'truck']) {
+      this.traffic[t] = [];
+      for (let hue = 0; hue < TRAFFIC_HUES.length; hue++) this.traffic[t].push(bakeTraffic(t, hue, theme.night));
+    }
     this.offFar = 0; this.offMid = 0; this.lastPos = 0; this.shake = 0;
   },
 
@@ -318,10 +398,13 @@ M.Render = {
       ctx.fillRect(0, p2.y, w, p1.y - p2.y + 1);
       poly(ctx, p1.x, p1.y, p1.w * 1.14, p2.x, p2.y, p2.w * 1.14, alt ? theme.rumble : theme.rumble2);
       poly(ctx, p1.x, p1.y, p1.w, p2.x, p2.y, p2.w, alt ? theme.road : theme.road2);
-      // 차선 도색은 원경에서 서브픽셀로 사라지므로 최소 폭을 보장한다
+      // 편도 3차선 도색 — 왼쪽 가장자리 황색 실선 + 오른쪽 흰 실선(일방통행 관례),
+      // 차선 경계는 ±1/3 지점의 흰 점선. 중앙 황색 복선은 가운데 차선을 반으로
+      // 갈라 4개의 불균등한 차선처럼 보이게 하므로 두지 않는다.
+      // 도색은 원경에서 서브픽셀로 사라지므로 최소 폭을 보장한다.
       const mark = (den) => [Math.max(0.7, p1.w / den), Math.max(0.7, p2.w / den)];
-      const [ew1, ew2] = mark(34);                          // 갓길 흰 실선
-      poly(ctx, p1.x - p1.w * 0.955, p1.y, ew1, p2.x - p2.w * 0.955, p2.y, ew2, theme.lane);
+      const [ew1, ew2] = mark(34);
+      poly(ctx, p1.x - p1.w * 0.955, p1.y, ew1, p2.x - p2.w * 0.955, p2.y, ew2, theme.center);
       poly(ctx, p1.x + p1.w * 0.955, p1.y, ew1, p2.x + p2.w * 0.955, p2.y, ew2, theme.lane);
 
       if (alt) {                                            // 차선 점선
@@ -331,10 +414,6 @@ M.Render = {
           poly(ctx, p1.x + p1.w * o, p1.y, lw1, p2.x + p2.w * o, p2.y, lw2, theme.lane);
         }
       }
-      const [cw1, cw2] = mark(42);                          // 중앙 이중 황색선
-      const cs1 = Math.max(1.6, p1.w * 0.055), cs2 = Math.max(1.6, p2.w * 0.055);
-      poly(ctx, p1.x - cs1, p1.y, cw1, p2.x - cs2, p2.y, cw2, theme.center);
-      poly(ctx, p1.x + cs1, p1.y, cw1, p2.x + cs2, p2.y, cw2, theme.center);
 
       if (seg.fog < 1) {                                    // 거리 안개
         ctx.globalAlpha = 1 - seg.fog;
@@ -408,12 +487,7 @@ M.Render = {
         const segRel = seg.p1.world.z - st.pos + (seg.looped ? -stage.length : 0);
         if (Math.abs(rel - segRel) > M.SEG_LEN / 2) continue;
         const p = seg.p1.screen;
-        // 옆으로 벌어진 차일수록 살짝 돌아간 후방 프레임을 써서 시선 방향을 맞춘다
-        const lat = c.offset - st.playerX;
-        const tag = lat < -0.3 ? 'r' : lat > 0.3 ? 'l' : 'c';
-        const set = this.carImgs[CAR_COLORS[c.hue % CAR_COLORS.length]];
-        const img = (set && (set[tag] || set.c));
-        if (!img || !img.width) continue;
+        const img = this.traffic[c.type][c.hue % TRAFFIC_HUES.length];
         // 바로 옆을 스치는 차는 원본(200px)을 몇 배로 늘려야 해서 흐릿한 거대 컷아웃이 된다.
         // 화면 폭의 절반으로 크기를 묶고, 그보다 더 가까워지면 아예 그리지 않는다.
         let dw = p.w * M.Logic.CAR_HALF * 2;

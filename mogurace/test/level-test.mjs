@@ -43,11 +43,14 @@ for (let s = 1; s <= 30; s++) {
   // 출발 직선: 처음 100세그먼트는 커브 없음
   for (let i = 0; i < 100; i++) if (stg.segs[i].curve !== 0) { bad(s, '출발 직선 아님'); break; }
 
-  // 교통 차량
+  // 교통 차량 — 반드시 차선 중앙(-2/3·0·+2/3)에 정렬
   if (stg.cars.length !== stg.trafficN) bad(s, '교통 대수 불일치');
+  const laneCenters = [-(2 / 3), 0, 2 / 3];
   for (const c of stg.cars) {
-    if (Math.abs(c.offset) > 0.82) bad(s, `차량 초기 오프셋 이탈 ${c.offset.toFixed(2)}`);
-    if (c.z < 0 || c.z > stg.length) bad(s, '차량 z 범위 이탈');
+    if (!laneCenters.some((l) => Math.abs(c.offset - l) < 1e-9)) {
+      bad(s, `차량 오프셋 ${c.offset.toFixed(3)} — 차선 중앙 아님`); break;
+    }
+    if (c.z < 0 || c.z > stg.length) { bad(s, '차량 z 범위 이탈'); break; }
   }
 
   // 결정성

@@ -1,10 +1,13 @@
 // logic.js — 차량 물리 + 마우스 입력 해석 + 충돌·체크포인트 (DOM 무의존 — node 헤드리스 테스트 가능)
-// 조작: 주행 시작 시점의 커서가 기준점. 기준점 대비 위 = 엑셀, 정지 = 유지,
-//       아래로 되돌리면 엑셀 뗌, 좌클릭 홀드 = 브레이크, 좌우 = 조향. 전부 절대 위치 매핑.
+// 조작: 준비 화면에서 클릭한 자리가 기준점. 기준점 위 = 엑셀(거리 비례),
+//       기준점 주변 데드존 = 페달 오프(관성 감속), 기준점 아래 = 브레이크(거리 비례),
+//       좌우 = 조향. 전부 절대 위치 매핑이고 손을 멈추면 그 입력이 유지된다.
 const M = window.MRC;
 
 // ── 마우스 → 조작 매핑 범위 (화면 비율) ──
-const RANGE_Y = 0.30;            // 화면 높이의 30% 위로 밀면 엑셀 전개
+const RANGE_Y = 0.30;            // 기준점에서 화면 높이 30% 위 = 엑셀 전개
+const BRAKE_Y = 0.20;            // 기준점에서 화면 높이 20% 아래 = 풀 브레이크
+const DEAD_Y = 0.035;            // 기준점 주변 데드존(작은 원) — 엑셀도 브레이크도 밟지 않음
 const RANGE_X = 0.28;            // 화면 폭의 28% 옆으로 밀면 최대 타각
 
 // ── 차량 물리 ──
@@ -26,17 +29,20 @@ const IDLE_CLOSE = 1.8;                  // 커서 이탈 시 엑셀이 닫히�
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 M.Logic = {
-  // 렌더가 같은 값으로 그리도록 공개한다 — 여기서 갈라지면 보이는 폭과 부딪히는 폭이 어긋난다
+  // 렌더·테스트가 같은 값을 쓰도록 공개한다 — 여기서 갈라지면 판정과 표시가 어긋난다
   CAR_HALF, PLAYER_HALF, CAR_LEN,
+  RANGE_Y, BRAKE_Y, DEAD_Y, RANGE_X,
 
   // 화면 좌표 → 조작량. 순수 함수라 테스트에서 경계값을 그대로 찍어볼 수 있다.
+  // Y축: 데드존 위 = 엑셀 0→1, 데드존 안 = 둘 다 0(관성), 데드존 아래 = 브레이크 0→1.
   readInput(inp) {
-    const ry = Math.max(1, inp.h * RANGE_Y);
-    const rx = Math.max(1, inp.w * RANGE_X);
+    const dy = (inp.refY - inp.y) / Math.max(1, inp.h);   // + = 기준점 위
+    let throttle = 0, brake = 0;
+    if (dy > DEAD_Y) throttle = clamp((dy - DEAD_Y) / (RANGE_Y - DEAD_Y), 0, 1);
+    else if (dy < -DEAD_Y) brake = clamp((-dy - DEAD_Y) / (BRAKE_Y - DEAD_Y), 0, 1);
     return {
-      throttle: clamp((inp.refY - inp.y) / ry, 0, 1),
-      steer: clamp((inp.x - inp.refX) / rx, -1, 1),
-      brake: !!inp.brake,
+      throttle, brake,
+      steer: clamp((inp.x - inp.refX) / Math.max(1, inp.w * RANGE_X), -1, 1),
     };
   },
 
@@ -46,7 +52,7 @@ M.Logic = {
       stage, no, phase: 'ready',
       pos: 0, speed: 0, playerX: 0,
       time: stage.startTime, elapsed: 0,
-      throttle: 0, steer: 0, brake: false,
+      throttle: 0, steer: 0, brake: 0,
       cpPassed: 0, nextCpAt: stage.checkpoints.length ? stage.checkpoints[0] : stage.total,
       cars: stage.cars.map((c) => Object.assign({}, c)),
       hitT: 0, railT: 0, offT: 0, stars: 0,
@@ -64,7 +70,7 @@ M.Logic = {
       st.throttle = r.throttle; st.steer = r.steer; st.brake = r.brake;
     } else {
       st.throttle = Math.max(0, st.throttle - IDLE_CLOSE * dt);
-      if (inp) st.brake = !!inp.brake;
+      st.brake = 0;
     }
 
     if (st.phase === 'ready') {
@@ -80,9 +86,12 @@ M.Logic = {
     const speedPct = st.speed / M.MAX_SPEED;
 
     // ── 종방향: 엑셀·브레이크·구름저항 ──
-    if (st.brake) st.speed += BRAKING * dt;
+    // 브레이크는 관성 감속(COAST)에서 시작해 깊이에 따라 풀 브레이크(BRAKING)로 보간한다.
+    // BRAKING×깊이로 하면 얕은 브레이크가 구름저항보다 약해서 페달을 밟았는데
+    // 더 늦게 서는 모순이 나고, 데드존 경계에서 감속이 불연속으로 튄다.
+    if (st.brake > 0) st.speed += (COAST + (BRAKING - COAST) * st.brake) * dt;
     else if (st.throttle > 0) st.speed += ACCEL * st.throttle * dt;
-    else st.speed += COAST * dt;
+    else st.speed += COAST * dt;                                 // 데드존 — 관성 감속
 
     // ── 횡방향: 조향 + 커브 원심력 ──
     const dx = dt * 2 * speedPct;
@@ -165,14 +174,12 @@ M.Logic = {
     return ev;
   },
 
-  // 교통 차량: 전진 + 앞차를 만나면 차선을 살짝 비켜준다 (플레이어와 무관하게 결정적)
+  // 교통 차량: 제 차선 중앙을 지키며 전진만 한다 (표류시키면 차선을 넘는다)
   _updateCars(st, dt) {
     const L = st.stage.length;
     for (const c of st.cars) {
       c.z += c.speed * dt;
       if (c.z > L) c.z -= L;
-      c.offset += Math.sin(c.z / 9000 + c.hue) * 0.12 * dt;
-      c.offset = clamp(c.offset, -0.82, 0.82);
     }
   },
 

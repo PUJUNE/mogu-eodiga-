@@ -147,16 +147,17 @@ M.makeStage = function (no) {
   }
 
   // ── 교통 (추월 대상) ──
+  // 차선 중앙(-2/3 · 0 · +2/3)에 정렬해 제 차선을 지키며 달린다 — 표류·차선 이탈 없음
   const cars = [];
   for (let i = 0; i < trafficN; i++) {
     const z = rng.range(300, total - 120) * M.SEG_LEN;
+    const lane = rng.int(0, M.LANES - 1);
     cars.push({
-      offset: rng.range(-0.72, 0.72),
-      z,
+      offset: (lane - (M.LANES - 1) / 2) * (2 / M.LANES),
+      lane, z,
       speed: M.MAX_SPEED * rng.range(0.22, 0.46),
       type: rng.pick(['sedan', 'van', 'truck', 'sedan']),
       hue: rng.int(0, 5),
-      lane: 0,
     });
   }
 

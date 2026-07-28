@@ -15,13 +15,19 @@ const M = globalThis.window.MRC;
 export { M };
 
 // ── 가상 마우스: 봇도 실제와 같은 화면 좌표 경로로 조작한다 ──
+// brake는 0..1 깊이 — 기준점 아래로 그만큼 내린 좌표를 만든다 (클릭 아님).
 export const SCREEN = { w: 1600, h: 900, refX: 800, refY: 450 };
-export function mouse(throttle, steer, brake = false) {
+export function mouse(throttle, steer, brake = 0) {
+  const { DEAD_Y, RANGE_Y, BRAKE_Y } = M.Logic;
+  const b = brake === true ? 1 : +brake || 0;
+  let dy = 0;                                        // 기준점 위(+) — 화면 높이 비율
+  if (b > 0) dy = -(DEAD_Y + b * (BRAKE_Y - DEAD_Y));
+  else if (throttle > 0) dy = DEAD_Y + throttle * (RANGE_Y - DEAD_Y);
   return {
-    active: true, brake,
+    active: true,
     w: SCREEN.w, h: SCREEN.h, refX: SCREEN.refX, refY: SCREEN.refY,
     x: SCREEN.refX + steer * 0.28 * SCREEN.w,
-    y: SCREEN.refY - throttle * 0.30 * SCREEN.h,
+    y: SCREEN.refY - dy * SCREEN.h,
   };
 }
 

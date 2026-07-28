@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 let mode = 'title';                 // title | map | run | pause | result
 let st = null;
 
-const input = { active: false, brake: false, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
+const input = { active: false, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
 let refSet = false;                 // 기준점이 잡히기 전에는 커서 움직임을 조작으로 읽지 않는다
 const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
@@ -19,10 +19,10 @@ function syncSize() { input.w = window.innerWidth; input.h = window.innerHeight;
 syncSize();
 window.addEventListener('resize', syncSize);
 
-// 기준점은 위로 밀 여유와 좌우 여유가 남도록 클램프한다
+// 기준점은 위(엑셀 30%)·아래(브레이크 20%)·좌우 여유가 남도록 클램프한다
 function setRef(x, y) {
   input.refX = Math.min(Math.max(x, input.w * 0.18), input.w * 0.82);
-  input.refY = Math.min(Math.max(y, input.h * 0.34), input.h * 0.94);
+  input.refY = Math.min(Math.max(y, input.h * 0.34), input.h * 0.78);
   input.x = x; input.y = y;
   input.active = true;
   refSet = true;
@@ -40,7 +40,7 @@ function goMap() {
 function startStage(no) {
   st = M.Logic.create(no);
   mode = 'run';
-  input.active = false; input.brake = false; refSet = false;
+  input.active = false; refSet = false;
   M.ui.hideAll();
   $('hud').classList.remove('hidden');
   $('ready-overlay').classList.remove('hidden');
@@ -84,11 +84,9 @@ app.addEventListener('pointerdown', (e) => {
   M.audio.resume();
   if (mode !== 'run' || !st) return;
   e.preventDefault();
-  if (st.phase === 'ready') { setRef(e.clientX, e.clientY); return; }   // 클릭한 자리가 기준점
-  if (e.button === 0) input.brake = true;                              // 좌클릭 = 브레이크
+  if (st.phase === 'ready') setRef(e.clientX, e.clientY);              // 클릭한 자리가 기준점
 });
-app.addEventListener('pointerup', () => { input.brake = false; });
-app.addEventListener('pointercancel', () => { input.brake = false; input.active = false; });
+app.addEventListener('pointercancel', () => { input.active = false; });
 app.addEventListener('pointermove', (e) => {
   input.x = e.clientX; input.y = e.clientY;
   // 기준점만 잡혀 있으면 다시 활성화한다 — 터치는 손을 뗄 때마다 비활성화되므로
@@ -98,18 +96,15 @@ app.addEventListener('pointermove', (e) => {
 app.addEventListener('pointerleave', () => { input.active = false; });
 app.addEventListener('pointerenter', () => { if (mode === 'run' && refSet) input.active = true; });
 
-// 터치: 손을 떼면 엑셀이 닫히고, 좌하단 버튼이 브레이크를 맡는다
+// 터치: 드래그가 마우스와 같은 매핑 — 위 = 엑셀, 아래 = 브레이크, 손을 떼면 관성 주행
 if (isTouch) {
   document.body.classList.add('touch');
-  $('ready-hint').innerHTML = '화면을 눌러 기준점을 정하고<br>손가락을 위로 밀면 출발 — 좌우로 조향';
-  $('title-hint').textContent = '누른 자리가 기준점 · 위로 밀면 엑셀 · 좌우로 조향';
+  $('ready-hint').innerHTML = '화면을 눌러 기준점을 정하고<br>위로 밀면 엑셀 · 아래로 당기면 브레이크';
+  $('title-hint').textContent = '누른 자리가 기준점 · 위로 엑셀 · 아래로 브레이크 · 좌우 조향';
   document.addEventListener('touchmove', (e) => {
     if (!e.target.closest('#map-scroll')) e.preventDefault();
   }, { passive: false });
   document.addEventListener('gesturestart', (e) => e.preventDefault());
-  const bb = $('vbtn-brake');
-  bb.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); input.brake = true; });
-  bb.addEventListener('pointerup', (e) => { e.stopPropagation(); input.brake = false; });
 }
 
 // 메뉴 조작만 키보드 보조 (주행은 마우스 전용)
@@ -152,7 +147,7 @@ M._dbg = () => ({
   mode, no: st ? st.no : 0, phase: st ? st.phase : null,
   speed: st ? Math.round(st.speed) : 0, kmh: st ? Math.round(st.speed * 3.6 / 1000) : 0,
   throttle: st ? +st.throttle.toFixed(2) : 0, steer: st ? +st.steer.toFixed(2) : 0,
-  brake: st ? !!st.brake : false, playerX: st ? +st.playerX.toFixed(2) : 0,
+  brake: st ? +st.brake.toFixed(2) : 0, playerX: st ? +st.playerX.toFixed(2) : 0,
   time: st ? +st.time.toFixed(1) : 0, cp: st ? st.cpPassed : 0,
   progress: st ? +(M.Logic.progress(st) * 100).toFixed(1) : 0,
   stars: st ? st.stars : 0, refX: Math.round(input.refX), refY: Math.round(input.refY),
@@ -178,10 +173,10 @@ function updateHud() {
   if (on) {
     ref.style.left = input.refX + 'px'; ref.style.top = input.refY + 'px';
     dot.style.left = input.x + 'px'; dot.style.top = input.y + 'px';
-    dot.style.background = st.brake ? '#ff5a4a' : '#7de08a';
+    dot.style.background = st.brake > 0 ? '#ff5a4a' : st.throttle > 0 ? '#7de08a' : '#ffd83d';
   }
   $('gauge-throttle').style.height = (st.throttle * 100).toFixed(0) + '%';
-  $('gauge-brake').style.opacity = st.brake ? 1 : 0.18;
+  $('gauge-brake').style.opacity = 0.18 + st.brake * 0.82;   // 깊이 비례
   $('gauge-steer-needle').style.left = (50 + st.steer * 46).toFixed(1) + '%';
 }
 
@@ -192,7 +187,6 @@ function frame(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
   $('vbtn-pause').style.display = isTouch && mode === 'run' ? 'flex' : 'none';
-  $('vbtn-brake').style.display = isTouch && mode === 'run' ? 'flex' : 'none';
 
   if (mode === 'run' && st) {
     handleEvents(M.Logic.step(st, dt, input));

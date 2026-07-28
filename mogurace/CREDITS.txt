@@ -8,13 +8,7 @@
 
 [표기 의무 있음 — CC BY]
 
-1. 교통 차량 (assets/car-*.png)
-   "24-direction rotating cars", by Vircon32 (Carra).
-   Published at OpenGameArt under license CC-BY 4.0.
-   https://opengameart.org/content/24-direction-rotating-cars
-   가공 — 24방향 시트에서 후방 3프레임만 잘라내 여백 제거·축소.
-
-2. 노면 아스팔트 결 (assets/asphalt.png)
+1. 노면 아스팔트 결 (assets/asphalt.png)
    "City Road Voxel Tileset", by davididev.
    Published at OpenGameArt under license CC-BY 3.0.
    https://opengameart.org/content/city-road-voxel-tileset
@@ -39,8 +33,9 @@
 
 [자체 제작]
 
-4. 모구 스프라이트 (assets/mogu-race.png) — 모구 사진 컷아웃, 모구 게임 시리즈 자체 자산.
-5. 모구 레이서 차체·가드레일·가로등·표지·노면 도색 — 캔버스로 직접 그림.
+3. 모구 스프라이트 (assets/mogu-race.png) — 모구 사진 컷아웃, 모구 게임 시리즈 자체 자산.
+4. 모구 레이서 차체·교통 차량(세단·밴·트럭 후방 뷰)·가드레일·가로등·표지·노면 도색
+   — 캔버스로 직접 그림.
 
 
 사용하지 않기로 한 자료
@@ -48,3 +43,5 @@
 구글 스트리트뷰·네이버·카카오 로드뷰 이미지는 각 서비스 약관이 저장·재배포를 제한하므로
 사용하지 않았습니다. Mapillary·KartaView(CC-BY-SA 4.0)는 수정본까지 동일 라이선스로
 배포해야 하는 조건이 붙어 이번 작업에서는 제외했습니다.
+"24-direction rotating cars"(Vircon32, CC-BY 4.0)는 한 차례 교통 차량으로 썼으나,
+전 프레임이 위에서 내려찍은 각도라 추격 시점에 맞지 않아 제외했습니다.

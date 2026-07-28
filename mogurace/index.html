@@ -112,8 +112,6 @@
   .vbtn { position:absolute; display:none; align-items:center; justify-content:center; z-index:7;
     background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.6); color:#fff; font-weight:800; }
   #vbtn-pause { top:10px; left:10px; width:44px; height:44px; border-radius:10px; font-size:18px; }
-  #vbtn-brake { bottom:20px; left:20px; width:86px; height:86px; border-radius:50%; font-size:15px;
-    background:rgba(200,56,44,.5); }
   body.touch #app { cursor:none; }
 </style>
 </head>
@@ -147,7 +145,7 @@
     <div id="ready-box">
       <div id="ready-title">기준점을 정하세요</div>
       <div id="ready-hint">화면 아래쪽을 <b>클릭</b>하면 그 자리가 기준점<br>
-        마우스를 <b>앞으로 밀면 출발</b> — 좌우로 밀면 조향</div>
+        <b>앞으로 밀면 출발</b> · 뒤로 당기면 브레이크 · 좌우로 조향</div>
     </div>
   </div>
 
@@ -157,15 +155,14 @@
     <img id="title-icon" alt="모구">
     <div id="title-hint">마우스 하나로 모는 해안 절벽 고속도로</div>
     <div class="ctl-table">
-      기준점보다 <b>앞으로</b> — 엑셀<br>
-      마우스 <b>정지</b> — 그대로 유지<br>
-      기준점 쪽으로 <b>뒤로</b> — 엑셀 뗌<br>
-      <b>좌클릭</b> — 브레이크 &nbsp;/&nbsp; <b>좌우</b> — 조향
+      기준점보다 <b>앞으로</b> — 엑셀 (멀수록 깊게)<br>
+      기준점보다 <b>뒤로</b> — 브레이크 (멀수록 깊게)<br>
+      기준점 <b>근처</b> — 페달 오프, 관성 주행<br>
+      <b>좌우</b> — 조향 &nbsp;·&nbsp; 마우스 <b>정지</b> — 그대로 유지
     </div>
     <button class="btn" id="btn-start">▶ 코스 선택</button>
     <button class="btn sub-btn" id="btn-series">모구 게임 시리즈</button>
-    <div id="credits">교통 차량 "24-direction rotating cars" by Vircon32 (Carra) · CC BY 4.0<br>
-      노면 텍스처 "City Road Voxel Tileset" by davididev · CC BY 3.0<br>
+    <div id="credits">노면 텍스처 "City Road Voxel Tileset" by davididev · CC BY 3.0<br>
       배경 사진 위키미디어 공용 (퍼블릭 도메인 / CC0)</div>
   </div>
 
@@ -191,19 +188,12 @@
   </div>
 
   <div class="vbtn" id="vbtn-pause">⏸</div>
-  <div class="vbtn" id="vbtn-brake">BRAKE</div>
 </div>
 
 <script>window.MRC = { ASSETS: {
   mogu: "assets/mogu-race.png",
   asphalt: "assets/asphalt.png",
-  bg: { 1: "assets/bg-w1.jpg", 2: "assets/bg-w2.jpg", 3: "assets/bg-w3.jpg", 4: "assets/bg-w4.jpg", 5: "assets/bg-w5.jpg" },
-  cars: {
-    red:    { l: "assets/car-red-l.png",    c: "assets/car-red-c.png",    r: "assets/car-red-r.png" },
-    white:  { l: "assets/car-white-l.png",  c: "assets/car-white-c.png",  r: "assets/car-white-r.png" },
-    orange: { l: "assets/car-orange-l.png", c: "assets/car-orange-c.png", r: "assets/car-orange-r.png" },
-    gray:   { l: "assets/car-gray-l.png",   c: "assets/car-gray-c.png",   r: "assets/car-gray-r.png" }
-  }
+  bg: { 1: "assets/bg-w1.jpg", 2: "assets/bg-w2.jpg", 3: "assets/bg-w3.jpg", 4: "assets/bg-w4.jpg", 5: "assets/bg-w5.jpg" }
 } };</script>
 <script type="module" src="src/rng.js"></script>
 <script type="module" src="src/levels.js"></script>

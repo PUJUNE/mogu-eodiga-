@@ -13,21 +13,31 @@ function section(name, fn) {
   else console.log(`FAIL ${name}`);
 }
 
-// ── 1. 마우스 → 조작 매핑 (사양 그대로) ──
-section('마우스 매핑 (기준점 절대 위치 · 앞=엑셀 · 뒤=해제 · 클릭=브레이크)', () => {
-  const base = { active: true, brake: false, w: SCREEN.w, h: SCREEN.h, refX: SCREEN.refX, refY: SCREEN.refY };
-  const at = (x, y, brake = false) => M.Logic.readInput(Object.assign({}, base, { x, y, brake }));
+// ── 1. 마우스 → 조작 매핑 (앞=엑셀 · 데드존=관성 · 뒤=브레이크 깊이 비례) ──
+section('마우스 매핑 (앞=엑셀 · 데드존=관성 · 뒤=브레이크 깊이 비례)', () => {
+  const { DEAD_Y, RANGE_Y, BRAKE_Y } = M.Logic;
+  const base = { active: true, w: SCREEN.w, h: SCREEN.h, refX: SCREEN.refX, refY: SCREEN.refY };
+  // dyFrac + = 기준점 위 (화면 높이 비율)
+  const at = (dxFrac, dyFrac) => M.Logic.readInput(Object.assign({}, base, {
+    x: SCREEN.refX + dxFrac * SCREEN.w, y: SCREEN.refY - dyFrac * SCREEN.h,
+  }));
 
-  const stop = at(SCREEN.refX, SCREEN.refY);
-  if (stop.throttle !== 0 || stop.steer !== 0) bad('기준점에서 엑셀·조향이 0이 아님');
-  if (!near(at(SCREEN.refX, SCREEN.refY - 0.15 * SCREEN.h).throttle, 0.5)) bad('앞 15%에서 엑셀 0.5 아님');
-  if (!near(at(SCREEN.refX, SCREEN.refY - 0.30 * SCREEN.h).throttle, 1)) bad('앞 30%에서 엑셀 전개 아님');
-  if (at(SCREEN.refX, SCREEN.refY - 0.60 * SCREEN.h).throttle !== 1) bad('엑셀이 1을 넘어감');
-  if (at(SCREEN.refX, SCREEN.refY + 0.20 * SCREEN.h).throttle !== 0) bad('기준점 뒤에서 엑셀이 0이 아님');
-  if (!near(at(SCREEN.refX + 0.28 * SCREEN.w, SCREEN.refY).steer, 1)) bad('우측 28%에서 최대 타각 아님');
-  if (!near(at(SCREEN.refX - 0.14 * SCREEN.w, SCREEN.refY).steer, -0.5)) bad('좌측 14%에서 -0.5 아님');
-  if (at(SCREEN.refX - SCREEN.w, SCREEN.refY).steer !== -1) bad('조향이 -1을 넘어감');
-  if (!at(SCREEN.refX, SCREEN.refY, true).brake) bad('좌클릭이 브레이크로 안 잡힘');
+  const stop = at(0, 0);
+  if (stop.throttle !== 0 || stop.brake !== 0 || stop.steer !== 0) bad('기준점에서 전 입력이 0이 아님');
+  if (at(0, DEAD_Y * 0.9).throttle !== 0) bad('데드존 위쪽인데 엑셀이 걸림');
+  if (at(0, -DEAD_Y * 0.9).brake !== 0) bad('데드존 아래쪽인데 브레이크가 걸림');
+  if (!near(at(0, RANGE_Y).throttle, 1)) bad('엑셀 전개 지점에서 1이 아님');
+  if (at(0, RANGE_Y * 2).throttle !== 1) bad('엑셀이 1을 넘어감');
+  if (!near(at(0, (DEAD_Y + RANGE_Y) / 2).throttle, 0.5)) bad('엑셀 중간 지점에서 0.5가 아님');
+  if (!near(at(0, -BRAKE_Y).brake, 1)) bad('브레이크 전개 지점에서 1이 아님');
+  if (at(0, -BRAKE_Y * 2).brake !== 1) bad('브레이크가 1을 넘어감');
+  const shallow = at(0, -(DEAD_Y + 0.02)).brake, deep = at(0, -BRAKE_Y * 0.8).brake;
+  if (!(shallow > 0 && deep > shallow && deep < 1)) bad(`브레이크 깊이 비례 실패 (얕음 ${shallow.toFixed(2)} 깊음 ${deep.toFixed(2)})`);
+  if (at(0, -0.1).throttle !== 0) bad('브레이크 중인데 엑셀이 걸림');
+  if (!near(at(0.28, 0).steer, 1)) bad('우측 28%에서 최대 타각 아님');
+  if (!near(at(-0.14, 0).steer, -0.5)) bad('좌측 14%에서 -0.5 아님');
+  if (at(-2, 0).steer !== -1) bad('조향이 -1을 넘어감');
+  return `데드존 ±${DEAD_Y} · 엑셀 전개 +${RANGE_Y} · 브레이크 전개 -${BRAKE_Y}`;
 });
 
 // ── 2. 손을 멈추면 입력이 유지된다 ──
@@ -47,20 +57,28 @@ section('커서 이탈 — 엑셀만 감쇠', () => {
   const st = M.Logic.create(1);
   for (let i = 0; i < 180; i++) M.Logic.step(st, DT, mouse(1, 0.4));
   const before = st.throttle, steerBefore = st.steer;
-  for (let i = 0; i < 60; i++) M.Logic.step(st, DT, { active: false, brake: false });
+  for (let i = 0; i < 60; i++) M.Logic.step(st, DT, { active: false });
   if (st.throttle >= before) bad('커서 이탈 후 엑셀이 안 닫힘');
+  if (st.brake !== 0) bad('커서 이탈인데 브레이크가 남아 있음');
   if (st.steer !== steerBefore) bad('커서 이탈 시 조향이 흔들림');
   return `엑셀 ${before.toFixed(2)} → ${st.throttle.toFixed(2)} (조향 ${st.steer.toFixed(2)} 유지)`;
 });
 
-// ── 4. 브레이크가 실제로 감속시킨다 ──
-section('좌클릭 브레이크 감속', () => {
-  const st = M.Logic.create(1);
-  for (let i = 0; i < 240; i++) M.Logic.step(st, DT, mouse(1, 0));
-  const top = st.speed;
-  for (let i = 0; i < 60; i++) M.Logic.step(st, DT, mouse(1, 0, true));
-  if (st.speed >= top * 0.75) bad(`브레이크 효과 미약 ${(top / 1000).toFixed(1)} → ${(st.speed / 1000).toFixed(1)}`);
-  return `${(top * 3.6 / 1000).toFixed(0)} → ${(st.speed * 3.6 / 1000).toFixed(0)} km/h (1초)`;
+// ── 4. 뒤로 당긴 깊이에 비례한 브레이크 + 데드존 자연 감속 ──
+section('브레이크 깊이 비례 · 데드존 관성 감속', () => {
+  const run = (brake, coast = false) => {              // 4초 가속 후 1초 조작
+    const st = M.Logic.create(1);
+    for (let i = 0; i < 240; i++) M.Logic.step(st, DT, mouse(1, 0));
+    const top = st.speed;
+    for (let i = 0; i < 60; i++) M.Logic.step(st, DT, coast ? mouse(0, 0) : mouse(0, 0, brake));
+    return { top, end: st.speed };
+  };
+  const deep = run(1), shallow = run(0.3), coast = run(0, true);
+  if (coast.end >= coast.top) bad('데드존 관성 주행인데 자연 감속하지 않음');
+  if (shallow.end >= coast.end) bad(`얕은 브레이크(${(shallow.end / 1000).toFixed(1)})가 관성(${(coast.end / 1000).toFixed(1)})보다 덜 감속`);
+  if (deep.end >= shallow.end) bad(`깊은 브레이크(${(deep.end / 1000).toFixed(1)})가 얕은(${(shallow.end / 1000).toFixed(1)})보다 덜 감속`);
+  const k = (v) => (v * 3.6 / 1000).toFixed(0);
+  return `1초 감속 — 관성 ${k(coast.top)}→${k(coast.end)} · 얕게 →${k(shallow.end)} · 깊게 →${k(deep.end)} km/h`;
 });
 
 // ── 5. 노면 이탈 감속 + 가드레일 ──
@@ -109,6 +127,18 @@ section('충돌 판정 (차폭 · 차선 · 고속 터널링)', () => {
   const realJump = M.MAX_SPEED / 30;
   if (realJump > CAR_LEN * 2) bad(`실주행 프레임 도약 ${realJump.toFixed(0)}단위가 관통 임계(${CAR_LEN * 2})를 넘음`);
   return `차폭 합 ${sep.toFixed(2)} < 차선 ${LANE.toFixed(2)} · 실주행 도약 ${realJump.toFixed(0)} < 임계 ${CAR_LEN * 2} · 도약 ${jump}단위도 스윕이 감지`;
+});
+
+// ── 5c. 교통 차량 차선 준수 ──
+section('교통 차량 차선 준수', () => {
+  const st = M.Logic.create(7);
+  const before = st.cars.map((c) => c.offset);
+  for (let i = 0; i < 60 * 30; i++) M.Logic.step(st, DT, mouse(0.5, 0));   // 30초 주행
+  const drifted = st.cars.filter((c, i) => Math.abs(c.offset - before[i]) > 1e-9).length;
+  if (drifted) bad(`주행 중 차선을 벗어난 차량 ${drifted}대`);
+  const lane = 2 / 3;
+  if (M.Logic.CAR_HALF * 2 >= lane) bad(`차폭 ${(M.Logic.CAR_HALF * 2).toFixed(2)}이 차선 폭 ${lane.toFixed(2)} 이상`);
+  return `30초 주행 후 전 차량(${st.cars.length}대) 차선 유지 · 차폭 ${(M.Logic.CAR_HALF * 2).toFixed(2)} < 차선 ${lane.toFixed(2)}`;
 });
 
 // ── 6. 전 코스 완주 가능 (숙련 봇) ──

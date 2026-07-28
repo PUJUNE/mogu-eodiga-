@@ -70,17 +70,20 @@ ok(d.mode === 'run' && d.phase === 'ready', '주행 진입 — 기준점 대기'
 ok(await page.locator('#ready-overlay').isVisible(), '준비 안내 표시');
 await page.screenshot({ path: join(shots, 'shot-ready.png') });
 
-const REF_X = Math.round(W / 2), REF_Y = Math.round(H * 0.8);
-await page.mouse.move(REF_X, REF_Y);
+const REF_X = Math.round(W / 2), CLICK_Y = Math.round(H * 0.8);
+// 기준점은 아래로 브레이크 20% 여유가 남도록 화면 78% 위로 클램프된다
+const CLAMP_Y = Math.round(Math.min(H * 0.78, Math.max(H * 0.34, CLICK_Y)));
+await page.mouse.move(REF_X, CLICK_Y);
 await page.mouse.down(); await page.mouse.up();
 await page.waitForTimeout(120);
 d = await page.evaluate(() => window.MRC._dbg());
-ok(Math.abs(d.refX - REF_X) < 3 && Math.abs(d.refY - REF_Y) < 3, '클릭한 자리가 기준점',
-  `(${d.refX}, ${d.refY})`);
+ok(Math.abs(d.refX - REF_X) < 3 && Math.abs(d.refY - CLAMP_Y) < 3, '클릭 지점이 기준점(브레이크 여유 클램프)',
+  `클릭 ${CLICK_Y} → 기준점 ${d.refY}`);
 ok(d.phase === 'ready', '기준점만 잡고 아직 출발 안 함');
+const RY = d.refY;                                   // 이후 조작은 실제 기준점 기준
 
 // ── 앞으로 밀면 엑셀 ──
-await page.mouse.move(REF_X, REF_Y - H * 0.30, { steps: 8 });
+await page.mouse.move(REF_X, RY - H * 0.32, { steps: 8 });
 await page.waitForTimeout(500);
 d = await page.evaluate(() => window.MRC._dbg());
 ok(d.phase === 'run', '앞으로 밀어 출발');
@@ -97,32 +100,36 @@ ok(after.throttle === before.throttle && after.kmh > before.kmh,
   '마우스 정지 — 엑셀 유지된 채 계속 가속', `${before.kmh} → ${after.kmh} km/h`);
 
 // ── 좌우 이동 = 조향 ──
-await page.mouse.move(REF_X + W * 0.28, REF_Y - H * 0.30, { steps: 6 });
+await page.mouse.move(REF_X + W * 0.28, RY - H * 0.32, { steps: 6 });
 await page.waitForTimeout(400);
 d = await page.evaluate(() => window.MRC._dbg());
 ok(d.steer > 0.95, '우측 28%에서 최대 우조향', `steer ${d.steer}`);
 ok(d.playerX > 0, '차가 오른쪽으로 이동', `x ${d.playerX}`);
-await page.mouse.move(REF_X, REF_Y - H * 0.30, { steps: 6 });
+await page.mouse.move(REF_X, RY - H * 0.32, { steps: 6 });
 await page.waitForTimeout(300);
 await page.screenshot({ path: join(shots, 'shot-play.png') });
 
-// ── 뒤로 되돌리면 엑셀 뗌 ──
-await page.mouse.move(REF_X, REF_Y + 20, { steps: 6 });
+// ── 기준점 주변 데드존 = 관성 주행 ──
+await page.mouse.move(REF_X, RY + 20, { steps: 6 });        // 데드존 안 (2.5% < 3.5%)
 await page.waitForTimeout(250);
 d = await page.evaluate(() => window.MRC._dbg());
-ok(d.throttle === 0, '기준점 뒤로 되돌리면 엑셀 뗌', `throttle ${d.throttle}`);
+ok(d.throttle === 0 && d.brake === 0, '데드존 — 엑셀도 브레이크도 안 밟음(관성)',
+  `throttle ${d.throttle} brake ${d.brake}`);
 
-// ── 좌클릭 = 브레이크 ──
-await page.mouse.move(REF_X, REF_Y - H * 0.30, { steps: 4 });
+// ── 뒤로 당긴 깊이에 비례한 브레이크 ──
+await page.mouse.move(REF_X, RY - H * 0.32, { steps: 4 });
 await page.waitForTimeout(600);
 const fast = (await page.evaluate(() => window.MRC._dbg())).kmh;
-await page.mouse.down();
-await page.waitForTimeout(700);
+await page.mouse.move(REF_X, RY + H * 0.07, { steps: 4 });      // 얕게
+await page.waitForTimeout(250);
+const shallowBrake = (await page.evaluate(() => window.MRC._dbg())).brake;
+await page.mouse.move(REF_X, RY + H * 0.20, { steps: 4 });      // 깊게
+await page.waitForTimeout(450);
 d = await page.evaluate(() => window.MRC._dbg());
-ok(d.brake === true, '좌클릭이 브레이크로 전달됨');
+ok(shallowBrake > 0 && shallowBrake < 1 && d.brake === 1,
+  '뒤로 당긴 깊이에 비례한 브레이크', `얕게 ${shallowBrake} → 깊게 ${d.brake}`);
 ok(d.kmh < fast, '브레이크로 감속', `${fast} → ${d.kmh} km/h`);
 await page.screenshot({ path: join(shots, 'shot-brake.png') });
-await page.mouse.up();
 
 // ── 실제 주행으로 체크포인트 통과 ──
 // 화면 좌표만 조작하는 미니 봇 — 중앙을 유지하며 전개 엑셀로 달린다
@@ -133,7 +140,7 @@ while (Date.now() - t0 < 22000) {
   if (s.cp > 0) { cp = s.cp; break; }
   if (s.phase !== 'run') break;
   const steer = Math.max(-1, Math.min(1, -s.playerX * 2.2));
-  await page.mouse.move(REF_X + steer * W * 0.28, REF_Y - H * 0.30);
+  await page.mouse.move(REF_X + steer * W * 0.28, RY - H * 0.32);
   await page.waitForTimeout(60);
 }
 ok(cp >= 1, '주행으로 체크포인트 통과', `CP ${cp}`);
@@ -151,12 +158,12 @@ const assets = await page.evaluate(() => {
   return {
     backdrop: ok(R.backdrop),
     asphalt: !!R.asphaltPat,
-    cars: Object.keys(R.carImgs || {}).filter((c) => ['l', 'c', 'r'].every((t) => ok(R.carImgs[c][t]))).length,
+    traffic: R.traffic ? ['sedan', 'van', 'truck'].every((t) => (R.traffic[t] || []).length === 6) : false,
   };
 });
 ok(assets.backdrop, '월드 실사 배경 이미지 로드');
 ok(assets.asphalt, '노면 아스팔트 패턴 생성');
-ok(assets.cars === 4, '교통 차량 후방 스프라이트 4색 로드', `${assets.cars}색`);
+ok(assets.traffic, '교통 차량 후방 스프라이트 3종×6색 생성');
 
 const painted = await page.evaluate(() => {
   const c = document.getElementById('game-canvas');
