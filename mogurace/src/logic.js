@@ -13,9 +13,9 @@ const RANGE_X = 0.28;            // 화면 폭의 28% 옆으로 밀면 최대 �
 // ── 차량 물리 ──
 const ACCEL = M.MAX_SPEED / 4.6;
 const BRAKING = -M.MAX_SPEED / 1.7;
-const COAST = -M.MAX_SPEED / 14;         // 엑셀 뗐을 때 구름저항 — 풀 속도에서 멈추기까지 14초
-                                         // (기존 5.5초는 페달을 뗀 것만으로 브레이크처럼 서 버렸음.
-                                         //  감속은 브레이크 몫이고, 데드존은 완만한 관성 주행이어야 함)
+const COAST = -M.MAX_SPEED / 9;          // 엑셀 뗐을 때 구름저항 — 풀 속도에서 멈추기까지 9초
+                                         // (5.5초는 페달만 떼도 브레이크처럼 섰고, 14초는 관성이
+                                         //  너무 유지되어 감속이 전부 브레이크 몫이 됨 — 중간으로 조율)
 const OFFROAD_DECEL = -M.MAX_SPEED / 1.9;
 const OFFROAD_LIMIT = M.MAX_SPEED / 3.6; // 노면 이탈 시 유지 가능한 상한
 const STEER = 1.25;                      // 조향 권한
