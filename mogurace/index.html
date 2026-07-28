@@ -82,6 +82,8 @@
     background:#d24a3c; border:2px solid rgba(255,255,255,.7); border-radius:12px; }
   .btn.sub-btn { background:#3a4a6a; }
   .btn:active { transform:translateY(2px); }
+  #credits { margin-top:16px; font-size:10px; line-height:1.7; color:rgba(255,255,255,.45);
+    text-align:center; padding:0 16px; }
 
   /* ── 코스 맵 ── */
   #map-screen { justify-content:flex-start; padding-top:14px; }
@@ -162,6 +164,9 @@
     </div>
     <button class="btn" id="btn-start">▶ 코스 선택</button>
     <button class="btn sub-btn" id="btn-series">모구 게임 시리즈</button>
+    <div id="credits">교통 차량 "24-direction rotating cars" by Vircon32 (Carra) · CC BY 4.0<br>
+      노면 텍스처 "City Road Voxel Tileset" by davididev · CC BY 3.0<br>
+      배경 사진 위키미디어 공용 (퍼블릭 도메인 / CC0)</div>
   </div>
 
   <div id="map-screen" class="screen hidden">
@@ -189,7 +194,17 @@
   <div class="vbtn" id="vbtn-brake">BRAKE</div>
 </div>
 
-<script>window.MRC = { ASSETS: { mogu: "assets/mogu-race.png" } };</script>
+<script>window.MRC = { ASSETS: {
+  mogu: "assets/mogu-race.png",
+  asphalt: "assets/asphalt.png",
+  bg: { 1: "assets/bg-w1.jpg", 2: "assets/bg-w2.jpg", 3: "assets/bg-w3.jpg", 4: "assets/bg-w4.jpg", 5: "assets/bg-w5.jpg" },
+  cars: {
+    red:    { l: "assets/car-red-l.png",    c: "assets/car-red-c.png",    r: "assets/car-red-r.png" },
+    white:  { l: "assets/car-white-l.png",  c: "assets/car-white-c.png",  r: "assets/car-white-r.png" },
+    orange: { l: "assets/car-orange-l.png", c: "assets/car-orange-c.png", r: "assets/car-orange-r.png" },
+    gray:   { l: "assets/car-gray-l.png",   c: "assets/car-gray-c.png",   r: "assets/car-gray-r.png" }
+  }
+} };</script>
 <script type="module" src="src/rng.js"></script>
 <script type="module" src="src/levels.js"></script>
 <script type="module" src="src/logic.js"></script>

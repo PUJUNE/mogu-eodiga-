@@ -51,6 +51,7 @@ await page.goto(BASE + '/mogurace/index.html');
 await page.waitForFunction(() => window.MRC && window.MRC._dbg, null, { timeout: 8000 });
 ok(await page.locator('#title-screen').isVisible(), '타이틀 화면 표시');
 ok((await page.locator('#title-icon').getAttribute('src')) !== null, '타이틀 모구 이미지 연결');
+ok((await page.locator('#credits').textContent()).includes('CC BY'), 'CC-BY 크레딧 표기');
 await page.screenshot({ path: join(shots, 'shot-title.png') });
 
 // ── 코스 맵 ──
@@ -144,6 +145,19 @@ ok((await page.locator('#hud-speed').textContent()) !== '0', 'HUD 속도계 갱�
 ok(parseFloat(await page.locator('#hud-time').textContent()) > 0, 'HUD 제한시간 표시');
 ok(await page.locator('#ref-cross').isVisible(), '기준점 십자선 표시');
 ok(await page.locator('#cursor-dot').isVisible(), '현재 커서 표시');
+const assets = await page.evaluate(() => {
+  const R = window.MRC.Render;
+  const ok = (im) => !!(im && im.complete && im.naturalWidth > 0);
+  return {
+    backdrop: ok(R.backdrop),
+    asphalt: !!R.asphaltPat,
+    cars: Object.keys(R.carImgs || {}).filter((c) => ['l', 'c', 'r'].every((t) => ok(R.carImgs[c][t]))).length,
+  };
+});
+ok(assets.backdrop, '월드 실사 배경 이미지 로드');
+ok(assets.asphalt, '노면 아스팔트 패턴 생성');
+ok(assets.cars === 4, '교통 차량 후방 스프라이트 4색 로드', `${assets.cars}색`);
+
 const painted = await page.evaluate(() => {
   const c = document.getElementById('game-canvas');
   const g = c.getContext('2d');

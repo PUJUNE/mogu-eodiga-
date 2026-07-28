@@ -1,0 +1,50 @@
+모구레이스 — 외부 그래픽 에셋 출처와 라이선스
+================================================
+
+이 게임의 배경 사진·교통 차량·노면 텍스처는 외부 자유 라이선스 자료를 가공해 사용합니다.
+아래 중 CC-BY 항목은 표기가 의무이고, 퍼블릭 도메인·CC0 항목은 표기 의무가 없으나
+출처를 남깁니다.
+
+
+[표기 의무 있음 — CC BY]
+
+1. 교통 차량 (assets/car-*.png)
+   "24-direction rotating cars", by Vircon32 (Carra).
+   Published at OpenGameArt under license CC-BY 4.0.
+   https://opengameart.org/content/24-direction-rotating-cars
+   가공 — 24방향 시트에서 후방 3프레임만 잘라내 여백 제거·축소.
+
+2. 노면 아스팔트 결 (assets/asphalt.png)
+   "City Road Voxel Tileset", by davididev.
+   Published at OpenGameArt under license CC-BY 3.0.
+   https://opengameart.org/content/city-road-voxel-tileset
+   가공 — 텍스처 아틀라스에서 아스팔트 32×32 패치를 잘라 64×64 타일로 확대.
+
+
+[표기 의무 없음 — 퍼블릭 도메인 / CC0, 출처만 기록]
+
+3. 월드 배경 사진 (assets/bg-w1~5.jpg) — 모두 위키미디어 공용
+   W1 해안 절벽   "The Sea Cliff Bridge. NSW Aust." (CC0)
+                  https://commons.wikimedia.org/wiki/File:The_Sea_Cliff_Bridge._NSW_Aust._(21016079739).jpg
+   W2 협곡        "#TravelTuesday with My Public Lands" (Public domain, US BLM)
+                  https://commons.wikimedia.org/wiki/File:-TravelTuesday_with_My_Public_Lands_(24446459920).jpg
+   W3 사막        "#TravelTuesday with My Public Lands" (Public domain, US BLM)
+                  https://commons.wikimedia.org/wiki/File:-TravelTuesday_with_My_Public_Lands_(24715787636).jpg
+   W4 설산        "South Cow Mountain Winter Snow" (Public domain, US BLM)
+                  https://commons.wikimedia.org/wiki/File:South_Cow_Mountain_Winter_Snow_(51746948053).jpg
+   W5 도시 야경   "Night city traffic" (CC0, Unsplash)
+                  https://commons.wikimedia.org/wiki/File:Night_city_traffic_(Unsplash).jpg
+   가공 — 지평선에 맞춰 자르고 폭 1280으로 축소, 아래쪽을 월드 지면색으로 페이드.
+
+
+[자체 제작]
+
+4. 모구 스프라이트 (assets/mogu-race.png) — 모구 사진 컷아웃, 모구 게임 시리즈 자체 자산.
+5. 모구 레이서 차체·가드레일·가로등·표지·노면 도색 — 캔버스로 직접 그림.
+
+
+사용하지 않기로 한 자료
+------------------------
+구글 스트리트뷰·네이버·카카오 로드뷰 이미지는 각 서비스 약관이 저장·재배포를 제한하므로
+사용하지 않았습니다. Mapillary·KartaView(CC-BY-SA 4.0)는 수정본까지 동일 라이선스로
+배포해야 하는 조건이 붙어 이번 작업에서는 제외했습니다.

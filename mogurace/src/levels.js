@@ -13,41 +13,36 @@ M.WORLDS = {
     name: '해안 절벽', night: false, far: 'city', side: 'cliff', sea: true,
     sky0: '#2f7fd0', sky1: '#a8dcf2', haze: '#cfe7f2', sun: '#fff0c8',
     seaC: '#1a86a8', seaLine: '#7fd8e8', farC: '#7d93ac', midC: '#6b5f52', midLit: '#8c7b66',
-    ground: '#3f6b3a', ground2: '#365f32', road: '#4a4d52', road2: '#44474c',
+    ground: '#4a695b', ground2: '#425f52', road: '#4a4d52', road2: '#44474c',
     rumble: '#d8d8d8', rumble2: '#b03a3a', lane: '#eef2f5', center: '#e8c23a',
-    trees: ['pine', 'bush', 'rock'],
   },
   2: {
     name: '협곡', night: false, far: 'mesa', side: 'canyon', sea: false,
     sky0: '#2a5fa8', sky1: '#f0c48a', haze: '#e8c9a4', sun: '#ffe0a0',
     seaC: null, seaLine: null, farC: '#9b6a52', midC: '#8a4a34', midLit: '#b06a46',
-    ground: '#a06a3c', ground2: '#946034', road: '#50504e', road2: '#4a4a48',
+    ground: '#9c7656', ground2: '#8f6c4e', road: '#50504e', road2: '#4a4a48',
     rumble: '#e0d0b8', rumble2: '#a83828', lane: '#f0ead8', center: '#e8b83a',
-    trees: ['cactus', 'rock', 'bush'],
   },
   3: {
     name: '사막 고속도로', night: false, far: 'dune', side: 'dune', sea: false,
     sky0: '#3f8fd8', sky1: '#f6e2b0', haze: '#f2e0bc', sun: '#fff4d0',
     seaC: null, seaLine: null, farC: '#d8b478', midC: '#c8a468', midLit: '#e6c88c',
-    ground: '#dcbc7c', ground2: '#d0b070', road: '#56534e', road2: '#504d48',
+    ground: '#b49069', ground2: '#a8865f', road: '#56534e', road2: '#504d48',
     rumble: '#f0e4c8', rumble2: '#b06838', lane: '#faf2dc', center: '#f0c23a',
-    trees: ['cactus', 'rock', 'sign'],
   },
   4: {
     name: '설산 고개', night: false, far: 'peak', side: 'snow', sea: false,
     sky0: '#4a86c8', sky1: '#dceaf6', haze: '#e6f0f8', sun: '#ffffff',
     seaC: null, seaLine: null, farC: '#aac4dc', midC: '#8ea6c0', midLit: '#c8dcec',
-    ground: '#eaf2fa', ground2: '#dae6f2', road: '#5a5d62', road2: '#54575c',
+    ground: '#b3c1d0', ground2: '#a5b3c2', road: '#5a5d62', road2: '#54575c',
     rumble: '#ffffff', rumble2: '#c03a4a', lane: '#ffffff', center: '#e8c23a',
-    trees: ['snowpine', 'rock', 'pole'],
   },
   5: {
     name: '도시 야경', night: true, far: 'skyline', side: 'building', sea: false,
     sky0: '#0a0a24', sky1: '#3a2a5c', haze: '#2a2440', sun: '#ffd8a0',
     seaC: null, seaLine: null, farC: '#1a1a38', midC: '#241f42', midLit: '#3a3260',
-    ground: '#1c1c2c', ground2: '#181828', road: '#2e2e36', road2: '#2a2a32',
+    ground: '#222b36', ground2: '#1c2530', road: '#2e2e36', road2: '#2a2a32',
     rumble: '#d0d0e0', rumble2: '#8a3a6a', lane: '#e8e8f4', center: '#f0c23a',
-    trees: ['pole', 'building', 'sign'],
   },
 };
 
@@ -143,19 +138,12 @@ M.makeStage = function (no) {
   for (let s = cpEvery; s < total - LEN.SHORT; s += cpEvery) { segs[s].cp = true; checkpoints.push(s); }
 
   // ── 노변 스프라이트 ──
+  // 노변은 인공물만 둔다 — 실사 배경 위에 벡터 초목을 얹으면 화풍이 충돌한다.
+  // 규칙적으로 지나가는 가로등이 속도감을 만든다.
   const spriteFrom = 40;
-  for (let n = spriteFrom; n < total; n++) {
-    if (!rng.chance(0.16)) continue;
-    const side = rng.chance(0.5) ? 1 : -1;
-    segs[n].sprites.push({
-      type: rng.pick(theme.trees),
-      offset: side * rng.range(1.35, 3.4),
-      scale: rng.range(0.8, 1.5),
-    });
-  }
-  for (let n = spriteFrom; n < total; n += 28) {                 // 가로등·표지는 규칙적으로
-    segs[n].sprites.push({ type: 'lamp', offset: 1.22, scale: 1 });
-    if (n % 112 === 0) segs[n].sprites.push({ type: 'sign', offset: -1.3, scale: 1 });
+  for (let n = spriteFrom; n < total; n += 20) {
+    segs[n].sprites.push({ type: 'lamp', offset: 1.32, scale: 1 });
+    if (n % 100 === 0) segs[n].sprites.push({ type: 'sign', offset: -1.36, scale: 1 });
   }
 
   // ── 교통 (추월 대상) ──

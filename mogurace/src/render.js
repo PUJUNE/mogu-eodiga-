@@ -1,6 +1,7 @@
 // render.js — 2D 캔버스 유사3D 렌더 (아웃런 계열 세그먼트 투영)
-// 배경은 테마별로 오프스크린에 절차적으로 구워 시차 스크롤하고,
-// 도로는 원근 사다리꼴을 뒤에서 앞으로 쌓아 그린다.
+// 배경은 월드별 실사 사진을 지평선에 맞춰 좌우 반전 타일링으로 흘리고,
+// 도로는 원근 사다리꼴을 뒤에서 앞으로 쌓은 뒤 아스팔트 결을 덧입힌다.
+// 교통 차량은 다이캐스트 미니카 사진의 후방 프레임을 쓴다.
 const M = window.MRC;
 
 const FOV = 100;
@@ -10,6 +11,8 @@ const FOG_DENSITY = 4.2;
 // 스프라이트 크기는 투영된 도로 반폭 대비 비율로 잡는다 (해상도·거리에 자동 대응)
 const SPRITE_W = 0.62;                    // 노변 물체 폭
 const CAR_W = 0.56;                       // 교통 차량 폭 (도로 반폭의 56% ≈ 1.7차선 중 1차선)
+const CAR_MAX_W = 0.34;                   // 교통 차량 최대 화면 폭 비율
+const CAR_CULL_W = 0.62;                  // 이보다 커질 만큼 가까우면 그리지 않음 (옆을 스치는 중)
 const RAIL_X = 1.24;                      // 가드레일 위치 (갓길 줄무늬 1.14 바깥)
 
 const CAM_DEPTH = 1 / Math.tan((FOV / 2) * Math.PI / 180);
@@ -39,80 +42,6 @@ function poly(ctx, x1, y1, w1, x2, y2, w2, color) {
   ctx.moveTo(x1 - w1, y1); ctx.lineTo(x2 - w2, y2);
   ctx.lineTo(x2 + w2, y2); ctx.lineTo(x1 + w1, y1);
   ctx.closePath(); ctx.fill();
-}
-
-// ── 배경 굽기 (테마별 1회) ─────────────────────────────────────────────
-const BG_W = 2400;
-
-function bakeFar(theme, rng) {
-  const H = 300;
-  const c = mkCanvas(BG_W, H), g = c.getContext('2d');
-  const kind = theme.far;
-  g.fillStyle = theme.farC;
-  if (kind === 'city' || kind === 'skyline') {
-    // 원경 도시 실루엣 — 폭·높이가 제각각인 빌딩 띠
-    for (let x = 0; x < BG_W; ) {
-      const bw = rng.range(18, 62), bh = rng.range(60, H * 0.92);
-      g.fillStyle = theme.farC;
-      g.fillRect(x, H - bh, bw, bh);
-      if (kind === 'skyline') {                        // 야경: 창문 불빛
-        g.fillStyle = 'rgba(255,214,140,.55)';
-        for (let wy = H - bh + 8; wy < H - 6; wy += 11) {
-          for (let wx = x + 4; wx < x + bw - 5; wx += 8) if (rng.chance(0.36)) g.fillRect(wx, wy, 3, 5);
-        }
-      }
-      x += bw + rng.range(2, 12);
-    }
-  } else if (kind === 'peak') {
-    for (let i = 0; i < 26; i++) {                     // 설산 연봉
-      const px = rng.range(-100, BG_W + 100), pw = rng.range(160, 420), ph = rng.range(120, H);
-      g.fillStyle = theme.farC;
-      g.beginPath(); g.moveTo(px, H); g.lineTo(px + pw / 2, H - ph); g.lineTo(px + pw, H); g.closePath(); g.fill();
-      g.fillStyle = 'rgba(255,255,255,.85)';           // 만년설
-      g.beginPath(); g.moveTo(px + pw / 2 - pw * 0.16, H - ph * 0.66); g.lineTo(px + pw / 2, H - ph);
-      g.lineTo(px + pw / 2 + pw * 0.16, H - ph * 0.66); g.closePath(); g.fill();
-    }
-  } else {                                             // mesa · dune — 완만한 능선
-    g.beginPath(); g.moveTo(0, H);
-    for (let x = 0; x <= BG_W; x += 24) {
-      const y = H - (H * 0.34 + Math.sin(x / 190) * H * 0.2 + Math.sin(x / 61) * H * 0.1);
-      g.lineTo(x, y);
-    }
-    g.lineTo(BG_W, H); g.closePath(); g.fill();
-  }
-  return c;
-}
-
-function bakeMid(theme, rng) {
-  const H = 260;
-  const c = mkCanvas(BG_W, H), g = c.getContext('2d');
-  // 중경 절벽 — 능선을 그린 뒤 사면에 빛 받는 면을 얹어 애니 배경화의 면 분할을 낸다
-  // 능선이 군데군데 0까지 내려가 끊기게 한다 — 그 틈으로 바다와 원경 도시가 보인다
-  const ridge = [];
-  for (let x = 0; x <= BG_W; x += 16) {
-    const up = H * 0.18 + Math.sin(x / 140) * H * 0.4 + Math.sin(x / 47 + 2) * H * 0.2;
-    ridge.push(H - Math.max(0, up));
-  }
-  g.fillStyle = theme.midC;
-  g.beginPath(); g.moveTo(0, H);
-  ridge.forEach((y, i) => g.lineTo(i * 16, y));
-  g.lineTo(BG_W, H); g.closePath(); g.fill();
-
-  g.fillStyle = theme.midLit;
-  for (let i = 0; i < ridge.length - 1; i += 2) {
-    if (ridge[i + 1] > ridge[i]) continue;             // 오른쪽으로 오르는 사면만 채광
-    g.beginPath();
-    g.moveTo(i * 16, ridge[i]); g.lineTo((i + 2) * 16, ridge[i + 2] || ridge[i]);
-    g.lineTo((i + 2) * 16, H); g.lineTo(i * 16, H); g.closePath(); g.fill();
-  }
-  if (theme.side === 'building') {                     // 야경: 절벽 대신 건물 벽
-    g.fillStyle = 'rgba(255,208,130,.35)';
-    for (let x = 0; x < BG_W; x += 14) {
-      const top = ridge[Math.floor(x / 16)] || H * 0.5;
-      for (let y = top + 12; y < H - 8; y += 16) if (rng.chance(0.3)) g.fillRect(x + 3, y, 5, 7);
-    }
-  }
-  return c;
 }
 
 // ── 노변 스프라이트 굽기 ───────────────────────────────────────────────
@@ -181,41 +110,8 @@ function bakeSprite(type, theme) {
   return c;
 }
 
-// ── 교통 차량 굽기 (후방 뷰) ───────────────────────────────────────────
-const CAR_HUES = ['#c8443c', '#2f6fb8', '#e0a828', '#3f9a5c', '#8a4bb0', '#d8d2c4'];
-
-function bakeCar(type, hue, night) {
-  const W = 150, H = type === 'truck' ? 150 : type === 'van' ? 130 : 106;
-  const c = mkCanvas(W, H), g = c.getContext('2d');
-  const body = CAR_HUES[hue % CAR_HUES.length];
-  const bodyTop = type === 'truck' ? H * 0.08 : type === 'van' ? H * 0.12 : H * 0.26;
-
-  g.fillStyle = 'rgba(0,0,0,.28)';                     // 접지 그림자
-  g.beginPath(); g.ellipse(W / 2, H * 0.96, W * 0.44, H * 0.05, 0, 0, Math.PI * 2); g.fill();
-  g.fillStyle = '#22242a';                             // 타이어
-  g.fillRect(W * 0.08, H * 0.74, W * 0.14, H * 0.22);
-  g.fillRect(W * 0.78, H * 0.74, W * 0.14, H * 0.22);
-
-  g.fillStyle = body;                                  // 차체
-  g.fillRect(W * 0.12, bodyTop, W * 0.76, H * 0.68 - bodyTop + H * 0.18);
-  g.fillStyle = 'rgba(255,255,255,.14)';               // 상단 하이라이트
-  g.fillRect(W * 0.12, bodyTop, W * 0.76, H * 0.06);
-  g.fillStyle = night ? '#1a2030' : '#5b6f86';         // 뒷유리
-  g.fillRect(W * 0.2, bodyTop + H * 0.05, W * 0.6, H * 0.2);
-  g.fillStyle = 'rgba(255,255,255,.18)';
-  g.fillRect(W * 0.2, bodyTop + H * 0.05, W * 0.28, H * 0.2);
-
-  g.fillStyle = night ? '#ff5a4a' : '#c8382c';         // 미등
-  g.fillRect(W * 0.14, H * 0.62, W * 0.16, H * 0.09);
-  g.fillRect(W * 0.7, H * 0.62, W * 0.16, H * 0.09);
-  if (night) {
-    g.fillStyle = 'rgba(255,90,74,.35)';
-    g.fillRect(W * 0.1, H * 0.58, W * 0.24, H * 0.17);
-    g.fillRect(W * 0.66, H * 0.58, W * 0.24, H * 0.17);
-  }
-  g.fillStyle = '#2c2f36'; g.fillRect(W * 0.3, H * 0.82, W * 0.4, H * 0.07);   // 범퍼
-  return c;
-}
+// 교통 차량은 다이캐스트 미니카 사진(24방향 중 후방 3프레임)을 그대로 쓴다.
+const CAR_COLORS = ['red', 'white', 'orange', 'gray'];
 
 // ── 모구 레이서 굽기 (오픈탑 차체 + 모구 뒷모습 합성) ──────────────────
 // 모구를 먼저 그리고 차체를 그 위에 덮어, 하반신이 차체에 가려 '앉아 있게' 만든다.
@@ -268,7 +164,8 @@ function bakeMogu(moguImg) {
 // ── 렌더러 ─────────────────────────────────────────────────────────────
 M.Render = {
   canvas: null, ctx: null, w: 0, h: 0,
-  stage: null, bg: null, sprites: null, cars: null, mogu: null, moguImg: null,
+  stage: null, backdrop: null, sprites: null, carImgs: null, asphalt: null, asphaltPat: null,
+  mogu: null, moguImg: null,
   offFar: 0, offMid: 0, lastPos: 0, shake: 0,
 
   init(container) {
@@ -279,10 +176,22 @@ M.Render = {
     this.resize();
     window.addEventListener('resize', () => this.resize());
 
-    this.moguImg = new Image();
-    this.moguImg.onload = () => { this.mogu = bakeMogu(this.moguImg); };
-    this.moguImg.src = M.ASSETS.mogu;
+    const load = (src, cb) => { const im = new Image(); im.onload = () => cb(im); im.src = src; return im; };
+
+    this.moguImg = load(M.ASSETS.mogu, (im) => { this.mogu = bakeMogu(im); });
     this.mogu = bakeMogu(null);
+
+    // 실사 배경(월드별) · 다이캐스트 교통차(후방 3프레임) · 아스팔트 타일
+    this.bgImgs = {};
+    for (const k in M.ASSETS.bg) this.bgImgs[k] = load(M.ASSETS.bg[k], () => {});
+    this.carImgs = {};
+    for (const col in M.ASSETS.cars) {
+      this.carImgs[col] = {};
+      for (const tag in M.ASSETS.cars[col]) this.carImgs[col][tag] = load(M.ASSETS.cars[col][tag], () => {});
+    }
+    this.asphalt = load(M.ASSETS.asphalt, (im) => {
+      this.asphaltPat = this.ctx.createPattern(im, 'repeat');
+    });
   },
 
   resize() {
@@ -298,63 +207,39 @@ M.Render = {
   setStage(stage) {
     this.stage = stage;
     const theme = stage.theme;
-    const rng = M.makeRng(stage.world * 104729 + 7);
-    this.bg = { far: bakeFar(theme, rng), mid: bakeMid(theme, rng) };
+    this.backdrop = this.bgImgs[stage.world] || null;
     this.sprites = {};
-    for (const t of theme.trees.concat(['lamp', 'sign'])) if (!this.sprites[t]) this.sprites[t] = bakeSprite(t, theme);
-    this.cars = {};
-    for (const t of ['sedan', 'van', 'truck']) {
-      this.cars[t] = [];
-      for (let hue = 0; hue < CAR_HUES.length; hue++) this.cars[t].push(bakeCar(t, hue, theme.night));
-    }
+    for (const t of ['lamp', 'sign']) this.sprites[t] = bakeSprite(t, theme);
     this.offFar = 0; this.offMid = 0; this.lastPos = 0; this.shake = 0;
   },
 
-  // ── 배경 (하늘 + 원경 + 바다 + 중경) — 소실점(h/2)에 지평선을 맞춘다 ──
+  // ── 배경 — 월드별 실사 사진 한 장을 지평선(h/2)에 맞춰 좌우로 흘린다 ──
+  // 사진은 이어붙는 그림이 아니라서 좌우 반전 타일링으로 이음매를 없앤다.
   _background(theme, horizon) {
     const ctx = this.ctx, w = this.w, h = this.h;
-    const sky = ctx.createLinearGradient(0, 0, 0, horizon + 40);
-    sky.addColorStop(0, theme.sky0); sky.addColorStop(1, theme.sky1);
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, horizon + 42);
-
-    const sunX = w * 0.72, sunY = horizon - h * 0.24;   // 태양 + 대기광
-    const gl = ctx.createRadialGradient(sunX, sunY, 4, sunX, sunY, h * 0.42);
-    gl.addColorStop(0, theme.sun); gl.addColorStop(0.18, theme.sun + '00');
-    ctx.globalAlpha = theme.night ? 0.5 : 0.85;
-    ctx.fillStyle = gl; ctx.fillRect(0, 0, w, horizon + 40);
-    ctx.globalAlpha = 1;
-
-    const drawLayer = (img, off, baseY, scale) => {
-      const dw = img.width * scale, dh = img.height * scale;
-      let x = -((off * dw) % dw);
-      if (x > 0) x -= dw;
-      for (; x < w; x += dw) ctx.drawImage(img, x, baseY - dh, dw, dh);
-    };
-    const far = this.bg.far, mid = this.bg.mid;
-    // 해안 테마는 도시를 만 건너편에 세우고 그 앞을 바다 띠가 지난다
-    const seaH = theme.sea ? h * 0.075 : 0;
-    drawLayer(far, this.offFar, horizon + 2 - seaH, (h * 0.26) / far.height);
-    if (theme.sea) {
-      const seaTop = horizon - seaH;
-      const sg = ctx.createLinearGradient(0, seaTop, 0, horizon);
-      sg.addColorStop(0, theme.seaLine); sg.addColorStop(1, theme.seaC);
-      ctx.fillStyle = sg; ctx.fillRect(0, seaTop, w, seaH + 2);
-      ctx.fillStyle = 'rgba(255,255,255,.34)';
-      for (let i = 0; i < 30; i++) {
-        const wy = seaTop + 3 + ((i * 29) % (seaH - 5));
-        const wx = ((i * 211 + this.offFar * 1400) % (w + 200)) - 100;
-        ctx.fillRect(wx, wy, 26 + (i % 5) * 14, 2);
+    const img = this.backdrop;
+    if (!img || !img.width) {                            // 로딩 전에는 하늘색만
+      ctx.fillStyle = theme.sky1; ctx.fillRect(0, 0, w, horizon + 2);
+      return;
+    }
+    const dh = horizon;                                  // 화면 위쪽부터 지평선까지 채운다
+    const dw = img.width * (dh / img.height);
+    let x = -(((this.offFar * dw) % (dw * 2)) + dw * 2) % (dw * 2);
+    for (let i = 0; x < w; i++, x += dw) {
+      const flip = ((Math.round(x / dw) % 2) + 2) % 2 === 1;
+      if (flip) {
+        ctx.save();
+        ctx.translate(x + dw, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(img, 0, 0, dw, dh);
+        ctx.restore();
+      } else {
+        ctx.drawImage(img, x, 0, dw, dh);
       }
     }
-    ctx.fillStyle = theme.haze;                         // 원경 대기 원근
-    ctx.globalAlpha = 0.30;
-    ctx.fillRect(0, horizon - h * 0.26, w, h * 0.26 + 2);
-    ctx.globalAlpha = 1;
-    drawLayer(mid, this.offMid, horizon + 8, (h * 0.20) / mid.height);
-
-    ctx.fillStyle = theme.haze;                         // 지평선 헤이즈
-    ctx.globalAlpha = 0.5;
-    ctx.fillRect(0, horizon - 7, w, 18);
+    ctx.fillStyle = theme.haze;                          // 지평선 헤이즈로 노면과 이어준다
+    ctx.globalAlpha = 0.35;
+    ctx.fillRect(0, horizon - 8, w, 16);
     ctx.globalAlpha = 1;
   },
 
@@ -449,6 +334,30 @@ M.Render = {
       maxy = p2.y;
     }
 
+    // ── 아스팔트 결 — 도로 영역만 잘라내 실사 텍스처를 덧입힌다 ──
+    // 패턴은 원근을 따르지 않으므로, 가까울수록 진하고 멀수록 옅게 띠를 나눠 얹는다.
+    if (this.asphaltPat && drawn.length > 2) {
+      ctx.save();
+      ctx.beginPath();
+      const first = drawn[0].p1.screen;
+      ctx.moveTo(first.x - first.w, first.y);
+      for (let i = 0; i < drawn.length; i++) { const p = drawn[i].p1.screen; ctx.lineTo(p.x - p.w, p.y); }
+      for (let i = drawn.length - 1; i >= 0; i--) { const p = drawn[i].p1.screen; ctx.lineTo(p.x + p.w, p.y); }
+      ctx.closePath();
+      ctx.clip();
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.fillStyle = this.asphaltPat;
+      const top = h * 0.52, bands = 4;
+      for (let b = 0; b < bands; b++) {
+        const y0 = top + (h - top) * (b / bands), y1 = top + (h - top) * ((b + 1) / bands);
+        ctx.globalAlpha = 0.05 + b * 0.075;
+        ctx.fillRect(0, y0, w, y1 - y0 + 1);
+      }
+      ctx.restore();
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
     // ── 도로 위로 솟는 것들은 먼 것부터 별도 패스로 (도로 폴리곤이 덮어쓰지 않게) ──
     for (let i = drawn.length - 1; i >= 0; i--) {
       const seg = drawn[i], p1 = seg.p1.screen, p2 = seg.p2.screen;
@@ -487,8 +396,19 @@ M.Render = {
         const segRel = seg.p1.world.z - st.pos + (seg.looped ? -stage.length : 0);
         if (Math.abs(rel - segRel) > M.SEG_LEN / 2) continue;
         const p = seg.p1.screen;
-        const img = this.cars[c.type][c.hue % CAR_HUES.length];
-        const dw = p.w * CAR_W;
+        // 옆으로 벌어진 차일수록 살짝 돌아간 후방 프레임을 써서 시선 방향을 맞춘다
+        const lat = c.offset - st.playerX;
+        const tag = lat < -0.3 ? 'r' : lat > 0.3 ? 'l' : 'c';
+        const set = this.carImgs[CAR_COLORS[c.hue % CAR_COLORS.length]];
+        const img = (set && (set[tag] || set.c));
+        if (!img || !img.width) continue;
+        // 바로 옆을 스치는 차는 원본(200px)을 몇 배로 늘려야 해서 흐릿한 거대 컷아웃이 된다.
+        // 화면 폭의 절반으로 크기를 묶고, 그보다 더 가까워지면 아예 그리지 않는다.
+        let dw = p.w * CAR_W;
+        if (dw > w * CAR_MAX_W) {
+          if (dw > w * CAR_CULL_W) continue;
+          dw = w * CAR_MAX_W;
+        }
         const dh = dw * (img.height / img.width);
         ctx.globalAlpha = seg.fog;
         ctx.drawImage(img, p.x + p.w * c.offset - dw / 2, p.y - dh, dw, dh);

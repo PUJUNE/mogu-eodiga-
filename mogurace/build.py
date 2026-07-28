@@ -10,17 +10,33 @@ OUT = HERE.parent / "mogurace.html"
 html = (HERE / "index.html").read_text(encoding="utf-8")
 
 # 1) 에셋 → base64 데이터 URI
-def data_uri(p):
-    b = (HERE.parent / p).read_bytes()
-    return "data:image/png;base64," + base64.b64encode(b).decode()
+# index.html의 ASSETS 블록에 적힌 "assets/…" 경로를 전부 찾아 데이터 URI로 치환한다.
+# (파일이 늘어도 build.py를 고칠 필요가 없다)
+MIME = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
 
-assets_js = 'window.MRC = { ASSETS: { mogu: "%s" } };' % data_uri("mogurace/assets/mogu-race.png")
-html = re.sub(
-    r'<script>window\.MRC = \{ ASSETS: .*?\};</script>',
-    lambda m: "<script>" + assets_js + "</script>",
-    html,
-    flags=re.S,
-)
+
+def data_uri(rel):
+    p = HERE / rel
+    mime = MIME.get(p.suffix.lower())
+    if mime is None:
+        raise SystemExit("지원하지 않는 에셋 형식: %s" % rel)
+    return "data:%s;base64,%s" % (mime, base64.b64encode(p.read_bytes()).decode())
+
+
+def embed_assets(m):
+    block = m.group(0)
+    used = sorted(set(re.findall(r'"(assets/[^"]+)"', block)))
+    if not used:
+        raise SystemExit("ASSETS 블록에서 에셋 경로를 찾지 못했습니다")
+    for rel in used:
+        block = block.replace('"%s"' % rel, '"%s"' % data_uri(rel))
+    print("  에셋 %d개 내장" % len(used))
+    return block
+
+
+html, n = re.subn(r"<script>window\.MRC = \{ ASSETS:.*?\};</script>", embed_assets, html, flags=re.S)
+if n != 1:
+    raise SystemExit("ASSETS 스크립트 블록을 찾지 못했습니다")
 
 # 2) 모듈 스크립트 병합 (각 파일을 블록 스코프로 감싸 const 충돌 방지)
 order = ["rng.js", "levels.js", "logic.js", "render.js", "audio.js", "ui.js", "main.js"]
