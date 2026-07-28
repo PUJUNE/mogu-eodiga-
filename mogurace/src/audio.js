@@ -72,17 +72,17 @@ const A = {
     if (this.wind) { try { this.wind.stop(); } catch (e) {} this.wind = null; }
     this.engGain = this.windGain = this.engFilter = null;
   },
-  engineUpdate(speedPct, throttle) {
+  // 실제 기어의 rpm에서 음정을 만든다 — 변속하면 음이 뚝 떨어졌다 다시 차오른다
+  engineUpdate(rpm01, speedPct, throttle) {
     if (!this.ctx || !this.eng) return;
     const t = this.ctx.currentTime;
-    // 기어를 4단으로 나눠 속도가 오를 때마다 음정이 다시 낮아졌다 오르게 한다
-    const gear = Math.min(3, Math.floor(speedPct * 4));
-    const inGear = speedPct * 4 - gear;
-    this.eng.frequency.setTargetAtTime(52 + inGear * 96 + gear * 12, t, 0.05);
-    this.engFilter.frequency.setTargetAtTime(500 + speedPct * 2200, t, 0.08);
-    this.engGain.gain.setTargetAtTime(0.05 + throttle * 0.1 + speedPct * 0.05, t, 0.08);
+    const r = Math.max(0, Math.min(1.15, rpm01));
+    this.eng.frequency.setTargetAtTime(48 + r * 165, t, 0.04);
+    this.engFilter.frequency.setTargetAtTime(420 + r * 2400, t, 0.08);
+    this.engGain.gain.setTargetAtTime(0.05 + throttle * 0.1 + r * 0.05, t, 0.08);
     this.windGain.gain.setTargetAtTime(speedPct * speedPct * 0.14, t, 0.1);
   },
+  shift() { this.noise(0.06, 0.16, 1800, 1.6); this.tone(170, 0.07, 'square', 0.09, 110); },
 
   // ── 효과음 ──
   countdown(last) { this.tone(last ? 880 : 520, last ? 0.4 : 0.16, 'square', 0.2); },

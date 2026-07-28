@@ -81,6 +81,45 @@ section('브레이크 깊이 비례 · 데드존 관성 감속', () => {
   return `1초 감속 — 관성 ${k(coast.top)}→${k(coast.end)} · 얕게 →${k(shallow.end)} · 깊게 →${k(deep.end)} km/h`;
 });
 
+// ── 4b. 변속 — 오토 6단 · 스틱 수동 ──
+section('변속 (오토 6단 자동 · 스틱 수동 시프트)', () => {
+  const tops = M.Logic.GEAR_TOPS;
+  // 조향 없는 검증이므로 직선·무교통으로 격리 (커브에 밀려 노면을 벗어나면 속도 상한이 걸림)
+  const flat = (st) => { st.stage.segAt = () => ({ curve: 0 }); st.cars = []; return st; };
+  // 오토: 풀 스로틀로 달리면 6단까지 자동으로 올라간다
+  const a = flat(M.Logic.create(1));
+  for (let i = 0; i < 60 * 14; i++) M.Logic.step(a, DT, mouse(1, 0));
+  if (a.trans !== 'auto') bad('기본 변속이 오토가 아님');
+  if (a.gear !== 6) bad(`오토 14초 풀 스로틀인데 ${a.gear}단`);
+  if (!(a.rpm > 0 && a.rpm <= 1.15)) bad(`rpm 범위 이탈 ${a.rpm}`);
+  // 스틱: 변속하지 않으면 1단 상한에 묶인다
+  const s = flat(M.Logic.create(1, 'stick'));
+  const inp = mouse(1, 0);
+  for (let i = 0; i < 60 * 12; i++) M.Logic.step(s, DT, inp);
+  if (s.gear !== 1) bad(`스틱인데 기어가 저절로 ${s.gear}단으로 바뀜`);
+  if (s.speed > tops[0] * 1.02) bad(`1단 고정인데 상한(${(tops[0] * M.KMH).toFixed(0)}km/h)을 넘음`);
+  // 시프트 업 → 입력 소비 → 다시 가속
+  inp.shift = 1;
+  M.Logic.step(s, DT, inp);
+  if (s.gear !== 2) bad('시프트 업이 안 먹힘');
+  if (inp.shift !== 0) bad('시프트 입력이 원샷으로 소비되지 않음');
+  const v0 = s.speed;
+  for (let i = 0; i < 60 * 3; i++) M.Logic.step(s, DT, inp);
+  if (s.speed <= v0 * 1.15) bad(`2단으로 올려도 가속되지 않음 (${(v0 * M.KMH).toFixed(0)} → ${(s.speed * M.KMH).toFixed(0)})`);
+  // 과속 상태로 다운시프트 → 오버레브 (rpm > 1)
+  const o = flat(M.Logic.create(1, 'stick'));
+  o.phase = 'run'; o.gear = 6; o.speed = M.MAX_SPEED * 0.8;
+  const inp2 = mouse(1, 0);
+  inp2.shift = -1; M.Logic.step(o, DT, inp2);      // 6 → 5단 (top5 = 0.81, 0.8이라 안전)
+  inp2.shift = -1; M.Logic.step(o, DT, inp2);      // 5 → 4단 (top4 = 0.63 — 과속)
+  if (o.gear !== 4) bad(`연속 다운시프트 실패 (${o.gear}단)`);
+  if (o.rpm <= 1) bad(`과속 다운시프트인데 오버레브가 아님 (rpm ${o.rpm.toFixed(2)})`);
+  const vOver = o.speed;
+  for (let i = 0; i < 30; i++) M.Logic.step(o, DT, inp2);
+  if (o.speed >= vOver) bad('오버레브인데 엔진 브레이크가 안 걸림');
+  return `오토 14초 → 6단 ${(a.speed * M.KMH).toFixed(0)}km/h · 스틱 1단 상한 ${(tops[0] * M.KMH).toFixed(0)}km/h · 오버레브 감속 확인`;
+});
+
 // ── 5. 노면 이탈 감속 + 가드레일 ──
 section('노면 이탈 감속 + 가드레일', () => {
   const st = M.Logic.create(1);

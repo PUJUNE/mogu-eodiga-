@@ -38,6 +38,14 @@
     width:min(320px,56vw); height:5px; background:rgba(0,0,0,.45); border-radius:3px; overflow:hidden; }
   #hud-prog { height:100%; width:0%; background:linear-gradient(90deg,#7de08a,#ffd83d); }
 
+  #hud-drv { position:absolute; bottom:104px; right:18px; text-align:right; }
+  #hud-gear { font-size:min(30px,7vw); font-weight:900; color:#ffd83d; line-height:1.1;
+    text-shadow:0 2px 5px rgba(0,0,0,.6); }
+  #hud-rpm-bar { width:min(150px,30vw); height:10px; background:rgba(0,0,0,.45); border-radius:6px;
+    border:2px solid rgba(255,255,255,.5); overflow:hidden; margin-top:3px; }
+  #hud-rpm { height:100%; width:0%; background:#7de08a; }
+  #hud-rpm-lbl { font-size:10px; letter-spacing:2px; color:rgba(255,255,255,.7); margin-top:2px; }
+
   #hud-toast { position:absolute; top:30%; left:50%; transform:translateX(-50%);
     color:#fff; font-size:min(26px,6vw); font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
     opacity:0; transition:opacity .3s; white-space:nowrap; }
@@ -81,6 +89,10 @@
   .btn { padding:12px 34px; margin:6px; font-size:16px; font-weight:800; color:#fff; cursor:pointer;
     background:#d24a3c; border:2px solid rgba(255,255,255,.7); border-radius:12px; }
   .btn.sub-btn { background:#3a4a6a; }
+  #mode-row { display:flex; gap:8px; margin-bottom:10px; }
+  .mode-btn { padding:8px 24px; font-size:14px; font-weight:800; color:#9fb3cc; cursor:pointer;
+    background:#1c2740; border:2px solid rgba(255,255,255,.25); border-radius:10px; font-family:inherit; }
+  .mode-btn.sel { color:#fff; background:#2c4a6c; border-color:#7de08a; }
   .btn:active { transform:translateY(2px); }
   #credits { margin-top:16px; font-size:10px; line-height:1.7; color:rgba(255,255,255,.45);
     text-align:center; padding:0 16px; }
@@ -112,6 +124,8 @@
   .vbtn { position:absolute; display:none; align-items:center; justify-content:center; z-index:7;
     background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.6); color:#fff; font-weight:800; }
   #vbtn-pause { top:10px; left:10px; width:44px; height:44px; border-radius:10px; font-size:18px; }
+  #vbtn-up { top:34%; right:14px; width:60px; height:60px; border-radius:14px; font-size:20px; }
+  #vbtn-down { top:34%; right:14px; margin-top:70px; width:60px; height:60px; border-radius:14px; font-size:20px; }
   body.touch #app { cursor:none; }
 </style>
 </head>
@@ -126,6 +140,11 @@
       <div id="hud-time">0.0</div>
       <div id="hud-time-lbl">TIME</div>
       <div id="hud-cp"></div>
+    </div>
+    <div id="hud-drv">
+      <div id="hud-gear">1</div>
+      <div id="hud-rpm-bar"><div id="hud-rpm"></div></div>
+      <div id="hud-rpm-lbl">RPM</div>
     </div>
     <div id="hud-speed-wrap">
       <div id="hud-speed">0</div>
@@ -158,7 +177,12 @@
       기준점보다 <b>앞으로</b> — 엑셀 (멀수록 깊게)<br>
       기준점보다 <b>뒤로</b> — 브레이크 (멀수록 깊게)<br>
       기준점 <b>근처</b> — 페달 오프, 관성 주행<br>
-      <b>좌우</b> — 조향 &nbsp;·&nbsp; 마우스 <b>정지</b> — 그대로 유지
+      <b>좌우</b> — 조향 &nbsp;·&nbsp; 마우스 <b>정지</b> — 그대로 유지<br>
+      스틱 모드 변속 — <b>휠</b> 또는 <b>좌클릭 ▲ / 우클릭 ▼</b>
+    </div>
+    <div id="mode-row">
+      <button class="mode-btn" id="mode-auto">오토</button>
+      <button class="mode-btn" id="mode-stick">스틱 6단</button>
     </div>
     <button class="btn" id="btn-start">▶ 코스 선택</button>
     <button class="btn sub-btn" id="btn-series">모구 게임 시리즈</button>
@@ -188,6 +212,8 @@
   </div>
 
   <div class="vbtn" id="vbtn-pause">⏸</div>
+  <div class="vbtn" id="vbtn-up">▲</div>
+  <div class="vbtn" id="vbtn-down">▼</div>
 </div>
 
 <script>window.MRC = { ASSETS: {
@@ -437,12 +463,20 @@ const CAR_LEN = 260;                     // 차 길이(월드 단위) — 전후
 const HIT_COOL = 0.55;                   // 충돌 재판정 쿨다운 (초)
 const IDLE_CLOSE = 1.8;                  // 커서 이탈 시 엑셀이 닫히는 속도 (1/초)
 
+// ── 변속 (오토·스틱 공용 물리 — 오토는 변속만 자동) ──
+// 기어별 도달 상한과 견인 배수. 저단은 세게 당기고 일찍 한계가 온다.
+const GEAR_TOPS = [0.17, 0.31, 0.47, 0.63, 0.81, 1.0].map((f) => f * M.MAX_SPEED);
+const GEAR_PULL = [1.9, 1.55, 1.3, 1.12, 0.97, 0.85];
+const SHIFT_CUT = 0.16;                  // 변속 직후 토크 컷 (초) — 다운시프트는 절반
+const RPM_UP = 0.93, RPM_DOWN = 0.34;    // 오토 변속 임계 (히스테리시스)
+
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 M.Logic = {
   // 렌더·테스트가 같은 값을 쓰도록 공개한다 — 여기서 갈라지면 판정과 표시가 어긋난다
   CAR_HALF, PLAYER_HALF, CAR_LEN,
   RANGE_Y, BRAKE_Y, DEAD_Y, RANGE_X,
+  GEAR_TOPS,
 
   // 화면 좌표 → 조작량. 순수 함수라 테스트에서 경계값을 그대로 찍어볼 수 있다.
   // Y축: 데드존 위 = 엑셀 0→1, 데드존 안 = 둘 다 0(관성), 데드존 아래 = 브레이크 0→1.
@@ -457,13 +491,14 @@ M.Logic = {
     };
   },
 
-  create(no) {
+  create(no, trans = 'auto') {
     const stage = M.makeStage(no);
     return {
       stage, no, phase: 'ready',
       pos: 0, speed: 0, playerX: 0,
       time: stage.startTime, elapsed: 0,
       throttle: 0, steer: 0, brake: 0,
+      trans, gear: 1, rpm: 0, shiftT: 0,
       cpPassed: 0, nextCpAt: stage.checkpoints.length ? stage.checkpoints[0] : stage.total,
       cars: stage.cars.map((c) => Object.assign({}, c)),
       hitT: 0, railT: 0, offT: 0, stars: 0,
@@ -485,6 +520,7 @@ M.Logic = {
     }
 
     if (st.phase === 'ready') {
+      if (inp) inp.shift = 0;                                    // 출발 전 변속 입력 무시
       if (st.throttle > 0.02) { st.phase = 'run'; ev.push({ type: 'start' }); }
       return ev;
     }
@@ -496,13 +532,40 @@ M.Logic = {
     const seg = stg.segAt(st.pos);
     const speedPct = st.speed / M.MAX_SPEED;
 
+    // ── 변속·RPM ──
+    // rpm = 현재 기어 상한 대비 속도. 저단으로 과속 상태면 1을 넘는 오버레브.
+    if (st.shiftT > 0) st.shiftT -= dt;
+    if (st.trans === 'auto') {
+      if (st.shiftT <= 0) {
+        const r = st.speed / GEAR_TOPS[st.gear - 1];
+        if (r > RPM_UP && st.gear < 6) { st.gear++; st.shiftT = SHIFT_CUT; ev.push({ type: 'shift', gear: st.gear }); }
+        else if (r < RPM_DOWN && st.gear > 1) { st.gear--; st.shiftT = SHIFT_CUT * 0.5; }
+      }
+    } else if (inp && inp.shift) {
+      const g = st.gear + (inp.shift > 0 ? 1 : -1);
+      inp.shift = 0;                                             // 원샷 소비
+      if (g >= 1 && g <= 6) {
+        st.shiftT = SHIFT_CUT * (g > st.gear ? 1 : 0.5);
+        st.gear = g;
+        ev.push({ type: 'shift', gear: st.gear });
+      }
+    }
+    st.rpm = clamp(st.speed / GEAR_TOPS[st.gear - 1], 0, 1.15);
+
     // ── 종방향: 엑셀·브레이크·구름저항 ──
-    // 브레이크는 관성 감속(COAST)에서 시작해 깊이에 따라 풀 브레이크(BRAKING)로 보간한다.
-    // BRAKING×깊이로 하면 얕은 브레이크가 구름저항보다 약해서 페달을 밟았는데
-    // 더 늦게 서는 모순이 나고, 데드존 경계에서 감속이 불연속으로 튄다.
+    // 브레이크는 관성 감속(COAST)에서 시작해 깊이에 따라 풀 브레이크(BRAKING)로 보간한다
+    // (BRAKING×깊이로 하면 얕은 브레이크가 구름저항보다 약한 모순이 난다).
+    // 엔진 견인은 기어에 물려 있다 — 레드라인에서 토크 0, 고단 저회전에서는 약하게 붙는다.
     if (st.brake > 0) st.speed += (COAST + (BRAKING - COAST) * st.brake) * dt;
-    else if (st.throttle > 0) st.speed += ACCEL * st.throttle * dt;
-    else st.speed += COAST * dt;                                 // 데드존 — 관성 감속
+    else if (st.throttle > 0 && st.shiftT <= 0) {
+      let tq = 1;
+      if (st.rpm >= 1) tq = 0;                                   // 레드라인 리미터
+      else if (st.rpm > 0.9) tq = 0.4 + ((1 - st.rpm) / 0.1) * 0.6;   // 상단 테이퍼
+      else if (st.rpm < 0.15) tq = 0.35 + (st.rpm / 0.15) * 0.65;     // 저회전 럭
+      st.speed += ACCEL * GEAR_PULL[st.gear - 1] * tq * st.throttle * dt;
+      if (tq === 0) st.speed += COAST * 0.4 * dt;                // 리미터에 걸린 채 유지 방지
+    } else st.speed += COAST * dt;                               // 데드존·변속 토크 컷 — 관성 감속
+    if (st.rpm > 1.04) st.speed += COAST * 2.2 * dt;             // 오버레브 엔진 브레이크
 
     // ── 횡방향: 조향 + 커브 원심력 ──
     const dx = dt * 2 * speedPct;
@@ -1211,17 +1274,17 @@ const A = {
     if (this.wind) { try { this.wind.stop(); } catch (e) {} this.wind = null; }
     this.engGain = this.windGain = this.engFilter = null;
   },
-  engineUpdate(speedPct, throttle) {
+  // 실제 기어의 rpm에서 음정을 만든다 — 변속하면 음이 뚝 떨어졌다 다시 차오른다
+  engineUpdate(rpm01, speedPct, throttle) {
     if (!this.ctx || !this.eng) return;
     const t = this.ctx.currentTime;
-    // 기어를 4단으로 나눠 속도가 오를 때마다 음정이 다시 낮아졌다 오르게 한다
-    const gear = Math.min(3, Math.floor(speedPct * 4));
-    const inGear = speedPct * 4 - gear;
-    this.eng.frequency.setTargetAtTime(52 + inGear * 96 + gear * 12, t, 0.05);
-    this.engFilter.frequency.setTargetAtTime(500 + speedPct * 2200, t, 0.08);
-    this.engGain.gain.setTargetAtTime(0.05 + throttle * 0.1 + speedPct * 0.05, t, 0.08);
+    const r = Math.max(0, Math.min(1.15, rpm01));
+    this.eng.frequency.setTargetAtTime(48 + r * 165, t, 0.04);
+    this.engFilter.frequency.setTargetAtTime(420 + r * 2400, t, 0.08);
+    this.engGain.gain.setTargetAtTime(0.05 + throttle * 0.1 + r * 0.05, t, 0.08);
     this.windGain.gain.setTargetAtTime(speedPct * speedPct * 0.14, t, 0.1);
   },
+  shift() { this.noise(0.06, 0.16, 1800, 1.6); this.tone(170, 0.07, 'square', 0.09, 110); },
 
   // ── 효과음 ──
   countdown(last) { this.tone(last ? 880 : 520, last ? 0.4 : 0.16, 'square', 0.2); },
@@ -1356,11 +1419,12 @@ const $ = (id) => document.getElementById(id);
 let mode = 'title';                 // title | map | run | pause | result
 let st = null;
 
-const input = { active: false, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
+const input = { active: false, shift: 0, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
 let refSet = false;                 // 기준점이 잡히기 전에는 커서 움직임을 조작으로 읽지 않는다
 const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
 M.save.load();
+let trans = M.save.data.trans === 'stick' ? 'stick' : 'auto';   // 변속 모드 (타이틀에서 선택·저장)
 M.ui.init();
 M.Render.init($('app'));
 M.ui.show('title-screen');
@@ -1388,9 +1452,10 @@ function goMap() {
 }
 
 function startStage(no) {
-  st = M.Logic.create(no);
+  st = M.Logic.create(no, trans);
   mode = 'run';
-  input.active = false; refSet = false;
+  input.active = false; input.shift = 0; refSet = false;
+  $('hud-gear').style.display = trans === 'stick' ? '' : 'none';   // 오토는 RPM 창만
   M.ui.hideAll();
   $('hud').classList.remove('hidden');
   $('ready-overlay').classList.remove('hidden');
@@ -1416,6 +1481,7 @@ function handleEvents(evs) {
       case 'hit': M.audio.hit(); break;
       case 'rail': M.audio.rail(); M.ui.toast('가드레일!', 0.9); break;
       case 'offroad': M.audio.offroad(); break;
+      case 'shift': M.audio.shift(); break;
       case 'checkpoint':
         M.audio.checkpoint();
         M.ui.toast(`체크포인트 ${e.n} 통과  +${e.bonus}초`, 1.3);
@@ -1434,8 +1500,18 @@ app.addEventListener('pointerdown', (e) => {
   M.audio.resume();
   if (mode !== 'run' || !st) return;
   e.preventDefault();
-  if (st.phase === 'ready') setRef(e.clientX, e.clientY);              // 클릭한 자리가 기준점
+  if (st.phase === 'ready') { setRef(e.clientX, e.clientY); return; }  // 클릭한 자리가 기준점
+  if (st.trans === 'stick') {                                          // 좌클릭 ▲ / 우클릭 ▼
+    if (e.button === 0) input.shift = 1;
+    else if (e.button === 2) input.shift = -1;
+  }
 });
+app.addEventListener('wheel', (e) => {                                 // 휠로도 변속
+  if (mode === 'run' && st && st.trans === 'stick' && st.phase !== 'ready') {
+    e.preventDefault();
+    input.shift = e.deltaY < 0 ? 1 : -1;
+  }
+}, { passive: false });
 app.addEventListener('pointercancel', () => { input.active = false; });
 app.addEventListener('pointermove', (e) => {
   input.x = e.clientX; input.y = e.clientY;
@@ -1478,6 +1554,14 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+function syncModeBtns() {
+  $('mode-auto').classList.toggle('sel', trans === 'auto');
+  $('mode-stick').classList.toggle('sel', trans === 'stick');
+}
+syncModeBtns();
+$('mode-auto').onclick = () => { trans = 'auto'; M.save.data.trans = trans; M.save.store(); syncModeBtns(); };
+$('mode-stick').onclick = () => { trans = 'stick'; M.save.data.trans = trans; M.save.store(); syncModeBtns(); };
+
 $('btn-start').onclick = () => goMap();
 $('btn-series').onclick = () => {
   location.href = location.pathname.includes('/mogurace/') ? '../index.html' : 'index.html';
@@ -1487,6 +1571,12 @@ $('btn-map').onclick = () => goMap();
 $('btn-next').onclick = () => startStage(st.no + 1);
 $('btn-resume').onclick = () => { mode = 'run'; M.audio.engineOn(); M.ui.hideAll(); };
 $('btn-pmap').onclick = () => goMap();
+for (const [id, dir] of [['vbtn-up', 1], ['vbtn-down', -1]]) {
+  $(id).addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (mode === 'run' && st && st.trans === 'stick') input.shift = dir;
+  });
+}
 $('vbtn-pause').addEventListener('pointerdown', (e) => {
   e.preventDefault(); e.stopPropagation();
   if (mode === 'run') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); }
@@ -1500,6 +1590,7 @@ M._dbg = () => ({
   brake: st ? +st.brake.toFixed(2) : 0, playerX: st ? +st.playerX.toFixed(2) : 0,
   time: st ? +st.time.toFixed(1) : 0, cp: st ? st.cpPassed : 0,
   progress: st ? +(M.Logic.progress(st) * 100).toFixed(1) : 0,
+  gear: st ? st.gear : 0, rpm: st ? +st.rpm.toFixed(2) : 0, trans: st ? st.trans : null,
   stars: st ? st.stars : 0, refX: Math.round(input.refX), refY: Math.round(input.refY),
 });
 M._st = () => st;
@@ -1525,6 +1616,10 @@ function updateHud() {
     dot.style.left = input.x + 'px'; dot.style.top = input.y + 'px';
     dot.style.background = st.brake > 0 ? '#ff5a4a' : st.throttle > 0 ? '#7de08a' : '#ffd83d';
   }
+  const rpm = Math.min(1, st.rpm);
+  $('hud-rpm').style.width = (rpm * 100).toFixed(0) + '%';
+  $('hud-rpm').style.background = st.rpm > 0.9 ? '#ff5a4a' : '#7de08a';
+  if (st.trans === 'stick') $('hud-gear').textContent = st.gear;
   $('gauge-throttle').style.height = (st.throttle * 100).toFixed(0) + '%';
   $('gauge-brake').style.opacity = 0.18 + st.brake * 0.82;   // 깊이 비례
   $('gauge-steer-needle').style.left = (50 + st.steer * 46).toFixed(1) + '%';
@@ -1537,10 +1632,13 @@ function frame(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
   $('vbtn-pause').style.display = isTouch && mode === 'run' ? 'flex' : 'none';
+  const stickTouch = isTouch && mode === 'run' && st && st.trans === 'stick';
+  $('vbtn-up').style.display = stickTouch ? 'flex' : 'none';
+  $('vbtn-down').style.display = stickTouch ? 'flex' : 'none';
 
   if (mode === 'run' && st) {
     handleEvents(M.Logic.step(st, dt, input));
-    M.audio.engineUpdate(st.speed / M.MAX_SPEED, st.throttle);
+    M.audio.engineUpdate(st.rpm, st.speed / M.MAX_SPEED, st.throttle);
     updateHud();
     if (st.phase === 'finish' || st.phase === 'timeout') finishRun();
   }

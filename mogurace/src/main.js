@@ -6,11 +6,12 @@ const $ = (id) => document.getElementById(id);
 let mode = 'title';                 // title | map | run | pause | result
 let st = null;
 
-const input = { active: false, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
+const input = { active: false, shift: 0, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
 let refSet = false;                 // 기준점이 잡히기 전에는 커서 움직임을 조작으로 읽지 않는다
 const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
 M.save.load();
+let trans = M.save.data.trans === 'stick' ? 'stick' : 'auto';   // 변속 모드 (타이틀에서 선택·저장)
 M.ui.init();
 M.Render.init($('app'));
 M.ui.show('title-screen');
@@ -38,9 +39,10 @@ function goMap() {
 }
 
 function startStage(no) {
-  st = M.Logic.create(no);
+  st = M.Logic.create(no, trans);
   mode = 'run';
-  input.active = false; refSet = false;
+  input.active = false; input.shift = 0; refSet = false;
+  $('hud-gear').style.display = trans === 'stick' ? '' : 'none';   // 오토는 RPM 창만
   M.ui.hideAll();
   $('hud').classList.remove('hidden');
   $('ready-overlay').classList.remove('hidden');
@@ -66,6 +68,7 @@ function handleEvents(evs) {
       case 'hit': M.audio.hit(); break;
       case 'rail': M.audio.rail(); M.ui.toast('가드레일!', 0.9); break;
       case 'offroad': M.audio.offroad(); break;
+      case 'shift': M.audio.shift(); break;
       case 'checkpoint':
         M.audio.checkpoint();
         M.ui.toast(`체크포인트 ${e.n} 통과  +${e.bonus}초`, 1.3);
@@ -84,8 +87,18 @@ app.addEventListener('pointerdown', (e) => {
   M.audio.resume();
   if (mode !== 'run' || !st) return;
   e.preventDefault();
-  if (st.phase === 'ready') setRef(e.clientX, e.clientY);              // 클릭한 자리가 기준점
+  if (st.phase === 'ready') { setRef(e.clientX, e.clientY); return; }  // 클릭한 자리가 기준점
+  if (st.trans === 'stick') {                                          // 좌클릭 ▲ / 우클릭 ▼
+    if (e.button === 0) input.shift = 1;
+    else if (e.button === 2) input.shift = -1;
+  }
 });
+app.addEventListener('wheel', (e) => {                                 // 휠로도 변속
+  if (mode === 'run' && st && st.trans === 'stick' && st.phase !== 'ready') {
+    e.preventDefault();
+    input.shift = e.deltaY < 0 ? 1 : -1;
+  }
+}, { passive: false });
 app.addEventListener('pointercancel', () => { input.active = false; });
 app.addEventListener('pointermove', (e) => {
   input.x = e.clientX; input.y = e.clientY;
@@ -128,6 +141,14 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+function syncModeBtns() {
+  $('mode-auto').classList.toggle('sel', trans === 'auto');
+  $('mode-stick').classList.toggle('sel', trans === 'stick');
+}
+syncModeBtns();
+$('mode-auto').onclick = () => { trans = 'auto'; M.save.data.trans = trans; M.save.store(); syncModeBtns(); };
+$('mode-stick').onclick = () => { trans = 'stick'; M.save.data.trans = trans; M.save.store(); syncModeBtns(); };
+
 $('btn-start').onclick = () => goMap();
 $('btn-series').onclick = () => {
   location.href = location.pathname.includes('/mogurace/') ? '../index.html' : 'index.html';
@@ -137,6 +158,12 @@ $('btn-map').onclick = () => goMap();
 $('btn-next').onclick = () => startStage(st.no + 1);
 $('btn-resume').onclick = () => { mode = 'run'; M.audio.engineOn(); M.ui.hideAll(); };
 $('btn-pmap').onclick = () => goMap();
+for (const [id, dir] of [['vbtn-up', 1], ['vbtn-down', -1]]) {
+  $(id).addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (mode === 'run' && st && st.trans === 'stick') input.shift = dir;
+  });
+}
 $('vbtn-pause').addEventListener('pointerdown', (e) => {
   e.preventDefault(); e.stopPropagation();
   if (mode === 'run') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); }
@@ -150,6 +177,7 @@ M._dbg = () => ({
   brake: st ? +st.brake.toFixed(2) : 0, playerX: st ? +st.playerX.toFixed(2) : 0,
   time: st ? +st.time.toFixed(1) : 0, cp: st ? st.cpPassed : 0,
   progress: st ? +(M.Logic.progress(st) * 100).toFixed(1) : 0,
+  gear: st ? st.gear : 0, rpm: st ? +st.rpm.toFixed(2) : 0, trans: st ? st.trans : null,
   stars: st ? st.stars : 0, refX: Math.round(input.refX), refY: Math.round(input.refY),
 });
 M._st = () => st;
@@ -175,6 +203,10 @@ function updateHud() {
     dot.style.left = input.x + 'px'; dot.style.top = input.y + 'px';
     dot.style.background = st.brake > 0 ? '#ff5a4a' : st.throttle > 0 ? '#7de08a' : '#ffd83d';
   }
+  const rpm = Math.min(1, st.rpm);
+  $('hud-rpm').style.width = (rpm * 100).toFixed(0) + '%';
+  $('hud-rpm').style.background = st.rpm > 0.9 ? '#ff5a4a' : '#7de08a';
+  if (st.trans === 'stick') $('hud-gear').textContent = st.gear;
   $('gauge-throttle').style.height = (st.throttle * 100).toFixed(0) + '%';
   $('gauge-brake').style.opacity = 0.18 + st.brake * 0.82;   // 깊이 비례
   $('gauge-steer-needle').style.left = (50 + st.steer * 46).toFixed(1) + '%';
@@ -187,10 +219,13 @@ function frame(now) {
   const dt = Math.min(0.033, (now - last) / 1000);
   last = now;
   $('vbtn-pause').style.display = isTouch && mode === 'run' ? 'flex' : 'none';
+  const stickTouch = isTouch && mode === 'run' && st && st.trans === 'stick';
+  $('vbtn-up').style.display = stickTouch ? 'flex' : 'none';
+  $('vbtn-down').style.display = stickTouch ? 'flex' : 'none';
 
   if (mode === 'run' && st) {
     handleEvents(M.Logic.step(st, dt, input));
-    M.audio.engineUpdate(st.speed / M.MAX_SPEED, st.throttle);
+    M.audio.engineUpdate(st.rpm, st.speed / M.MAX_SPEED, st.throttle);
     updateHud();
     if (st.phase === 'finish' || st.phase === 'timeout') finishRun();
   }

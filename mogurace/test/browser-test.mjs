@@ -146,6 +146,10 @@ while (Date.now() - t0 < 22000) {
 ok(cp >= 1, '주행으로 체크포인트 통과', `CP ${cp}`);
 d = await page.evaluate(() => window.MRC._dbg());
 ok(d.progress > 3, '코스 진행률 증가', `${d.progress}%`);
+ok(d.trans === 'auto' && d.gear >= 3, '오토 모드 — 자동 변속으로 기어 상승', `${d.gear}단 rpm ${d.rpm}`);
+ok(await page.locator('#hud-rpm-bar').isVisible(), 'RPM 게이지 표시');
+ok(await page.evaluate(() => document.getElementById('hud-gear').style.display === 'none'),
+  '오토 모드 — 기어 숫자 숨김 (RPM 창만)');
 
 // ── HUD·렌더 ──
 ok((await page.locator('#hud-speed').textContent()) !== '0', 'HUD 속도계 갱신');
@@ -183,6 +187,33 @@ ok((await page.locator('#result-title').textContent()).includes('TIME OVER'), '�
 await page.screenshot({ path: join(shots, 'shot-result.png') });
 await page.click('#btn-map');
 ok(await page.locator('#map-screen').isVisible(), '결과 → 코스 목록 복귀');
+
+// ── 스틱 6단 모드 ──
+await page.keyboard.press('Escape');
+await page.click('#mode-stick');
+ok(await page.evaluate(() => document.getElementById('mode-stick').classList.contains('sel')),
+  '타이틀에서 스틱 모드 선택');
+await page.click('#btn-start');
+await page.locator('.stage-cell').first().click();
+await page.waitForTimeout(300);
+await page.mouse.move(REF_X, CLICK_Y);
+await page.mouse.down(); await page.mouse.up();
+await page.waitForTimeout(100);
+await page.mouse.move(REF_X, RY - H * 0.32, { steps: 4 });
+await page.waitForTimeout(2600);                       // 1단 상한까지 가속
+d = await page.evaluate(() => window.MRC._dbg());
+ok(d.trans === 'stick' && d.gear === 1, '스틱 모드 — 자동 변속 없음', `${d.gear}단 rpm ${d.rpm}`);
+ok(await page.evaluate(() => document.getElementById('hud-gear').style.display !== 'none'),
+  '스틱 모드 — 기어 숫자 표시');
+const v1 = d.kmh;
+await page.mouse.down(); await page.mouse.up();        // 좌클릭 = 시프트 업
+await page.waitForTimeout(1300);
+d = await page.evaluate(() => window.MRC._dbg());
+ok(d.gear === 2 && d.kmh > v1, '좌클릭 시프트 업 → 2단 가속', `${v1} → ${d.kmh} km/h`);
+await page.screenshot({ path: join(shots, 'shot-stick.png') });
+await page.evaluate(() => { window.MRC._st().time = 0.1; });   // 정리
+await page.waitForTimeout(700);
+await page.click('#btn-map');
 
 // ── 빌드본 (단일 html) + 터치 ──
 const tctx = await browser.newContext({

@@ -28,12 +28,20 @@ const CAR_LEN = 260;                     // 차 길이(월드 단위) — 전후
 const HIT_COOL = 0.55;                   // 충돌 재판정 쿨다운 (초)
 const IDLE_CLOSE = 1.8;                  // 커서 이탈 시 엑셀이 닫히는 속도 (1/초)
 
+// ── 변속 (오토·스틱 공용 물리 — 오토는 변속만 자동) ──
+// 기어별 도달 상한과 견인 배수. 저단은 세게 당기고 일찍 한계가 온다.
+const GEAR_TOPS = [0.17, 0.31, 0.47, 0.63, 0.81, 1.0].map((f) => f * M.MAX_SPEED);
+const GEAR_PULL = [1.9, 1.55, 1.3, 1.12, 0.97, 0.85];
+const SHIFT_CUT = 0.16;                  // 변속 직후 토크 컷 (초) — 다운시프트는 절반
+const RPM_UP = 0.93, RPM_DOWN = 0.34;    // 오토 변속 임계 (히스테리시스)
+
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 M.Logic = {
   // 렌더·테스트가 같은 값을 쓰도록 공개한다 — 여기서 갈라지면 판정과 표시가 어긋난다
   CAR_HALF, PLAYER_HALF, CAR_LEN,
   RANGE_Y, BRAKE_Y, DEAD_Y, RANGE_X,
+  GEAR_TOPS,
 
   // 화면 좌표 → 조작량. 순수 함수라 테스트에서 경계값을 그대로 찍어볼 수 있다.
   // Y축: 데드존 위 = 엑셀 0→1, 데드존 안 = 둘 다 0(관성), 데드존 아래 = 브레이크 0→1.
@@ -48,13 +56,14 @@ M.Logic = {
     };
   },
 
-  create(no) {
+  create(no, trans = 'auto') {
     const stage = M.makeStage(no);
     return {
       stage, no, phase: 'ready',
       pos: 0, speed: 0, playerX: 0,
       time: stage.startTime, elapsed: 0,
       throttle: 0, steer: 0, brake: 0,
+      trans, gear: 1, rpm: 0, shiftT: 0,
       cpPassed: 0, nextCpAt: stage.checkpoints.length ? stage.checkpoints[0] : stage.total,
       cars: stage.cars.map((c) => Object.assign({}, c)),
       hitT: 0, railT: 0, offT: 0, stars: 0,
@@ -76,6 +85,7 @@ M.Logic = {
     }
 
     if (st.phase === 'ready') {
+      if (inp) inp.shift = 0;                                    // 출발 전 변속 입력 무시
       if (st.throttle > 0.02) { st.phase = 'run'; ev.push({ type: 'start' }); }
       return ev;
     }
@@ -87,13 +97,40 @@ M.Logic = {
     const seg = stg.segAt(st.pos);
     const speedPct = st.speed / M.MAX_SPEED;
 
+    // ── 변속·RPM ──
+    // rpm = 현재 기어 상한 대비 속도. 저단으로 과속 상태면 1을 넘는 오버레브.
+    if (st.shiftT > 0) st.shiftT -= dt;
+    if (st.trans === 'auto') {
+      if (st.shiftT <= 0) {
+        const r = st.speed / GEAR_TOPS[st.gear - 1];
+        if (r > RPM_UP && st.gear < 6) { st.gear++; st.shiftT = SHIFT_CUT; ev.push({ type: 'shift', gear: st.gear }); }
+        else if (r < RPM_DOWN && st.gear > 1) { st.gear--; st.shiftT = SHIFT_CUT * 0.5; }
+      }
+    } else if (inp && inp.shift) {
+      const g = st.gear + (inp.shift > 0 ? 1 : -1);
+      inp.shift = 0;                                             // 원샷 소비
+      if (g >= 1 && g <= 6) {
+        st.shiftT = SHIFT_CUT * (g > st.gear ? 1 : 0.5);
+        st.gear = g;
+        ev.push({ type: 'shift', gear: st.gear });
+      }
+    }
+    st.rpm = clamp(st.speed / GEAR_TOPS[st.gear - 1], 0, 1.15);
+
     // ── 종방향: 엑셀·브레이크·구름저항 ──
-    // 브레이크는 관성 감속(COAST)에서 시작해 깊이에 따라 풀 브레이크(BRAKING)로 보간한다.
-    // BRAKING×깊이로 하면 얕은 브레이크가 구름저항보다 약해서 페달을 밟았는데
-    // 더 늦게 서는 모순이 나고, 데드존 경계에서 감속이 불연속으로 튄다.
+    // 브레이크는 관성 감속(COAST)에서 시작해 깊이에 따라 풀 브레이크(BRAKING)로 보간한다
+    // (BRAKING×깊이로 하면 얕은 브레이크가 구름저항보다 약한 모순이 난다).
+    // 엔진 견인은 기어에 물려 있다 — 레드라인에서 토크 0, 고단 저회전에서는 약하게 붙는다.
     if (st.brake > 0) st.speed += (COAST + (BRAKING - COAST) * st.brake) * dt;
-    else if (st.throttle > 0) st.speed += ACCEL * st.throttle * dt;
-    else st.speed += COAST * dt;                                 // 데드존 — 관성 감속
+    else if (st.throttle > 0 && st.shiftT <= 0) {
+      let tq = 1;
+      if (st.rpm >= 1) tq = 0;                                   // 레드라인 리미터
+      else if (st.rpm > 0.9) tq = 0.4 + ((1 - st.rpm) / 0.1) * 0.6;   // 상단 테이퍼
+      else if (st.rpm < 0.15) tq = 0.35 + (st.rpm / 0.15) * 0.65;     // 저회전 럭
+      st.speed += ACCEL * GEAR_PULL[st.gear - 1] * tq * st.throttle * dt;
+      if (tq === 0) st.speed += COAST * 0.4 * dt;                // 리미터에 걸린 채 유지 방지
+    } else st.speed += COAST * dt;                               // 데드존·변속 토크 컷 — 관성 감속
+    if (st.rpm > 1.04) st.speed += COAST * 2.2 * dt;             // 오버레브 엔진 브레이크
 
     // ── 횡방향: 조향 + 커브 원심력 ──
     const dx = dt * 2 * speedPct;

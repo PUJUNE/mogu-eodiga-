@@ -38,6 +38,14 @@
     width:min(320px,56vw); height:5px; background:rgba(0,0,0,.45); border-radius:3px; overflow:hidden; }
   #hud-prog { height:100%; width:0%; background:linear-gradient(90deg,#7de08a,#ffd83d); }
 
+  #hud-drv { position:absolute; bottom:104px; right:18px; text-align:right; }
+  #hud-gear { font-size:min(30px,7vw); font-weight:900; color:#ffd83d; line-height:1.1;
+    text-shadow:0 2px 5px rgba(0,0,0,.6); }
+  #hud-rpm-bar { width:min(150px,30vw); height:10px; background:rgba(0,0,0,.45); border-radius:6px;
+    border:2px solid rgba(255,255,255,.5); overflow:hidden; margin-top:3px; }
+  #hud-rpm { height:100%; width:0%; background:#7de08a; }
+  #hud-rpm-lbl { font-size:10px; letter-spacing:2px; color:rgba(255,255,255,.7); margin-top:2px; }
+
   #hud-toast { position:absolute; top:30%; left:50%; transform:translateX(-50%);
     color:#fff; font-size:min(26px,6vw); font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
     opacity:0; transition:opacity .3s; white-space:nowrap; }
@@ -81,6 +89,10 @@
   .btn { padding:12px 34px; margin:6px; font-size:16px; font-weight:800; color:#fff; cursor:pointer;
     background:#d24a3c; border:2px solid rgba(255,255,255,.7); border-radius:12px; }
   .btn.sub-btn { background:#3a4a6a; }
+  #mode-row { display:flex; gap:8px; margin-bottom:10px; }
+  .mode-btn { padding:8px 24px; font-size:14px; font-weight:800; color:#9fb3cc; cursor:pointer;
+    background:#1c2740; border:2px solid rgba(255,255,255,.25); border-radius:10px; font-family:inherit; }
+  .mode-btn.sel { color:#fff; background:#2c4a6c; border-color:#7de08a; }
   .btn:active { transform:translateY(2px); }
   #credits { margin-top:16px; font-size:10px; line-height:1.7; color:rgba(255,255,255,.45);
     text-align:center; padding:0 16px; }
@@ -112,6 +124,8 @@
   .vbtn { position:absolute; display:none; align-items:center; justify-content:center; z-index:7;
     background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.6); color:#fff; font-weight:800; }
   #vbtn-pause { top:10px; left:10px; width:44px; height:44px; border-radius:10px; font-size:18px; }
+  #vbtn-up { top:34%; right:14px; width:60px; height:60px; border-radius:14px; font-size:20px; }
+  #vbtn-down { top:34%; right:14px; margin-top:70px; width:60px; height:60px; border-radius:14px; font-size:20px; }
   body.touch #app { cursor:none; }
 </style>
 </head>
@@ -126,6 +140,11 @@
       <div id="hud-time">0.0</div>
       <div id="hud-time-lbl">TIME</div>
       <div id="hud-cp"></div>
+    </div>
+    <div id="hud-drv">
+      <div id="hud-gear">1</div>
+      <div id="hud-rpm-bar"><div id="hud-rpm"></div></div>
+      <div id="hud-rpm-lbl">RPM</div>
     </div>
     <div id="hud-speed-wrap">
       <div id="hud-speed">0</div>
@@ -158,7 +177,12 @@
       기준점보다 <b>앞으로</b> — 엑셀 (멀수록 깊게)<br>
       기준점보다 <b>뒤로</b> — 브레이크 (멀수록 깊게)<br>
       기준점 <b>근처</b> — 페달 오프, 관성 주행<br>
-      <b>좌우</b> — 조향 &nbsp;·&nbsp; 마우스 <b>정지</b> — 그대로 유지
+      <b>좌우</b> — 조향 &nbsp;·&nbsp; 마우스 <b>정지</b> — 그대로 유지<br>
+      스틱 모드 변속 — <b>휠</b> 또는 <b>좌클릭 ▲ / 우클릭 ▼</b>
+    </div>
+    <div id="mode-row">
+      <button class="mode-btn" id="mode-auto">오토</button>
+      <button class="mode-btn" id="mode-stick">스틱 6단</button>
     </div>
     <button class="btn" id="btn-start">▶ 코스 선택</button>
     <button class="btn sub-btn" id="btn-series">모구 게임 시리즈</button>
@@ -188,6 +212,8 @@
   </div>
 
   <div class="vbtn" id="vbtn-pause">⏸</div>
+  <div class="vbtn" id="vbtn-up">▲</div>
+  <div class="vbtn" id="vbtn-down">▼</div>
 </div>
 
 <script>window.MRC = { ASSETS: {
