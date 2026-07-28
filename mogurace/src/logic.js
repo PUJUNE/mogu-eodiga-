@@ -16,13 +16,19 @@ const OFFROAD_LIMIT = M.MAX_SPEED / 3.6; // 노면 이탈 시 유지 가능한 �
 const STEER = 1.25;                      // 조향 권한
 const CENT = 0.32;                       // 커브 원심력 계수
 const RAIL_X = 2.05;                     // 가드레일 위치 (도로 반폭 배수)
-const CAR_HALF = 0.30, PLAYER_HALF = 0.26;
+// 차폭은 도로 반폭(=1.0) 기준. 3차선이므로 차선 하나가 0.667.
+// 렌더는 이 값을 그대로 투영해 그리므로 "보이는 폭 = 부딪히는 폭"이 성립한다.
+const CAR_HALF = 0.19, PLAYER_HALF = 0.165;  // 차폭 0.38 / 0.33 ≈ 차선의 57% / 50%
+const CAR_LEN = 260;                     // 차 길이(월드 단위) — 전후 충돌 판정 폭
 const HIT_COOL = 0.55;                   // 충돌 재판정 쿨다운 (초)
 const IDLE_CLOSE = 1.8;                  // 커서 이탈 시 엑셀이 닫히는 속도 (1/초)
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 M.Logic = {
+  // 렌더가 같은 값으로 그리도록 공개한다 — 여기서 갈라지면 보이는 폭과 부딪히는 폭이 어긋난다
+  CAR_HALF, PLAYER_HALF, CAR_LEN,
+
   // 화면 좌표 → 조작량. 순수 함수라 테스트에서 경계값을 그대로 찍어볼 수 있다.
   readInput(inp) {
     const ry = Math.max(1, inp.h * RANGE_Y);
@@ -103,18 +109,29 @@ M.Logic = {
     st.speed = clamp(st.speed, 0, M.MAX_SPEED);
     if (st.speed > st.maxSpeed) st.maxSpeed = st.speed;
 
-    // ── 교통 차량 전진 + 충돌 ──
-    // 부딪히면 앞차를 밀어내는 대신 플레이어가 옆으로 스치며 빠진다.
-    // (차를 앞으로 옮기면 다음 프레임에 곧바로 다시 받아 무한 재충돌이 난다)
+    // ── 교통 차량 전진 ──
     this._updateCars(st, dt);
+
+    // ── 전진·체크포인트·종료 ──
+    const before = st.pos;
+    st.pos += st.speed * dt;
+
+    // ── 충돌 (전진 뒤에 스윕으로 판정) ──
+    // 고정 폭 창으로 보면 최고 속도에서 한 프레임에 200~400단위를 뛰므로 앞차를
+    // 통째로 지나쳐 버린다. 직전 위치와 현재 위치 사이를 훑어 통과 여부를 본다.
+    // 부딪히면 앞차를 밀어내는 대신 플레이어가 옆으로 스치며 빠진다
+    // (차를 앞으로 옮기면 다음 프레임에 곧바로 다시 받아 무한 재충돌이 난다).
     if (st.hitT <= 0) {
       const sep = CAR_HALF + PLAYER_HALF;
       for (const c of st.cars) {
-        const gap = c.z - st.pos;
-        if (gap < -M.SEG_LEN * 0.6 || gap > M.SEG_LEN * 1.2 || st.speed <= c.speed) continue;
         if (Math.abs(st.playerX - c.offset) >= sep) continue;
+        const relNow = c.z - st.pos, relBefore = c.z - before;
+        const inside = relNow < CAR_LEN && relNow > -CAR_LEN;          // 지금 겹쳐 있는가
+        const swept = relBefore > CAR_LEN && relNow <= CAR_LEN;        // 이번 프레임에 앞차를 파고들었는가
+        if (!inside && !swept) continue;
+        if (relNow >= relBefore) continue;                             // 멀어지는 중이면 무시
         st.speed = Math.min(st.speed, c.speed * 0.78);
-        const outL = c.offset - sep - 0.10, outR = c.offset + sep + 0.10;
+        const outL = c.offset - sep - 0.06, outR = c.offset + sep + 0.06;
         st.playerX = Math.abs(outL) < Math.abs(outR) ? outL : outR;   // 도로 안쪽으로 밀려남
         st.hitT = HIT_COOL;
         ev.push({ type: 'hit' });
@@ -123,9 +140,6 @@ M.Logic = {
     }
     if (st.hitT > 0) st.hitT -= dt;
 
-    // ── 전진·체크포인트·종료 ──
-    const before = st.pos;
-    st.pos += st.speed * dt;
     const segIdx = Math.floor(st.pos / M.SEG_LEN);
     while (st.cpPassed < stg.checkpoints.length && segIdx >= stg.checkpoints[st.cpPassed]) {
       st.cpPassed++;

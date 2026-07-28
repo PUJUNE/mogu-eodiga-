@@ -75,6 +75,42 @@ section('노면 이탈 감속 + 가드레일', () => {
   return `x=${st.playerX.toFixed(2)} · ${(onRoad * 3.6 / 1000).toFixed(0)} → ${(st.speed * 3.6 / 1000).toFixed(0)} km/h`;
 });
 
+// ── 5b. 충돌 판정 — 차폭·차선·터널링 ──
+section('충돌 판정 (차폭 · 차선 · 고속 터널링)', () => {
+  const { CAR_HALF, PLAYER_HALF, CAR_LEN } = M.Logic;
+  const sep = CAR_HALF + PLAYER_HALF;
+  const LANE = 2 / 3;                                    // 3차선이므로 차선 간격
+
+  // 차폭이 차선을 넘지 않아야 옆 차선 차와 스쳐도 부딪히지 않는다
+  if (sep >= LANE) bad(`차폭 합 ${sep.toFixed(2)}이 차선 간격 ${LANE.toFixed(2)} 이상 — 옆 차선도 충돌함`);
+
+  // 한 대만 남기고 원하는 자리에 놓아 판정을 본다
+  const place = (offset, z, speed) => {
+    const st = M.Logic.create(1);
+    st.phase = 'run';
+    st.cars = [{ offset, z, speed: 0, type: 'sedan', hue: 0, lane: 0 }];
+    st.speed = speed; st.playerX = 0; st.pos = 0;
+    return st;
+  };
+  const hits = (st, dt) => M.Logic.step(st, dt, mouse(1, 0)).some((e) => e.type === 'hit');
+
+  // 같은 차선 정면 → 충돌
+  if (!hits(place(0, CAR_LEN * 0.5, 3000), 1 / 60)) bad('같은 차선 앞차와 충돌하지 않음');
+  // 옆 차선(한 칸 옆) → 충돌 없음
+  if (hits(place(LANE, CAR_LEN * 0.5, 3000), 1 / 60)) bad('옆 차선 차와 충돌함 — 차폭 과대');
+  // 프레임 도약이 차 길이의 2배를 넘으면 앞차를 통째로 건너뛸 수 있다.
+  // main.js가 dt를 1/30로 묶어 실주행에서는 396단위(< 520)라 관통이 나지 않지만,
+  // logic은 임의 dt로 호출될 수 있으므로 스윕 판정이 이를 막는지 확인한다.
+  const bigDt = 0.1;
+  const jump = M.MAX_SPEED * bigDt;                      // 1200단위 — 차 길이(260)의 4배
+  if (jump <= CAR_LEN * 2) bad('도약 폭이 작아 스윕 판정을 시험하지 못함');
+  if (!hits(place(0, jump * 0.5, M.MAX_SPEED), bigDt)) bad(`한 프레임 ${jump.toFixed(0)}단위 도약에서 앞차를 통과해 버림`);
+  // 실주행 상한(1/30)에서는 애초에 관통 폭에 못 미쳐야 한다
+  const realJump = M.MAX_SPEED / 30;
+  if (realJump > CAR_LEN * 2) bad(`실주행 프레임 도약 ${realJump.toFixed(0)}단위가 관통 임계(${CAR_LEN * 2})를 넘음`);
+  return `차폭 합 ${sep.toFixed(2)} < 차선 ${LANE.toFixed(2)} · 실주행 도약 ${realJump.toFixed(0)} < 임계 ${CAR_LEN * 2} · 도약 ${jump}단위도 스윕이 감지`;
+});
+
 // ── 6. 전 코스 완주 가능 (숙련 봇) ──
 const times = [];
 section('전 코스 완주 가능 (숙련 봇)', () => {

@@ -10,7 +10,7 @@ const DRAW_DIST = 260;                    // 전방 렌더 세그먼트 수
 const FOG_DENSITY = 4.2;
 // 스프라이트 크기는 투영된 도로 반폭 대비 비율로 잡는다 (해상도·거리에 자동 대응)
 const SPRITE_W = 0.62;                    // 노변 물체 폭
-const CAR_W = 0.56;                       // 교통 차량 폭 (도로 반폭의 56% ≈ 1.7차선 중 1차선)
+// 차폭은 logic.js의 충돌 폭을 그대로 투영해 쓴다 (보이는 폭 = 부딪히는 폭)
 const CAR_MAX_W = 0.34;                   // 교통 차량 최대 화면 폭 비율
 const CAR_CULL_W = 0.62;                  // 이보다 커질 만큼 가까우면 그리지 않음 (옆을 스치는 중)
 const RAIL_X = 1.24;                      // 가드레일 위치 (갓길 줄무늬 1.14 바깥)
@@ -116,48 +116,60 @@ const CAR_COLORS = ['red', 'white', 'orange', 'gray'];
 // ── 모구 레이서 굽기 (오픈탑 차체 + 모구 뒷모습 합성) ──────────────────
 // 모구를 먼저 그리고 차체를 그 위에 덮어, 하반신이 차체에 가려 '앉아 있게' 만든다.
 function bakeMogu(moguImg) {
-  const W = 460, H = 330;
+  // 비례는 실제 차 뒷모습에 맞춘다 — 폭:높이 ≈ 1.15:1. 이전 1.4:1은 납작한 판처럼 보였다.
+  const W = 380, H = 330;
   const c = mkCanvas(W, H), g = c.getContext('2d');
+  const round = (x, y, w, h, r) => {
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r);
+    g.closePath(); g.fill();
+  };
 
-  g.fillStyle = 'rgba(0,0,0,.32)';                     // 접지 그림자
-  g.beginPath(); g.ellipse(W / 2, H * 0.96, W * 0.44, H * 0.045, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = 'rgba(0,0,0,.34)';                     // 접지 그림자
+  g.beginPath(); g.ellipse(W / 2, H * 0.965, W * 0.46, H * 0.04, 0, 0, Math.PI * 2); g.fill();
 
-  g.fillStyle = '#16171c';                             // 뒷바퀴 (차체보다 바깥으로 나오게)
-  g.fillRect(W * 0.02, H * 0.62, W * 0.17, H * 0.33);
-  g.fillRect(W * 0.81, H * 0.62, W * 0.17, H * 0.33);
-  g.fillStyle = '#4a4f58';
-  g.fillRect(W * 0.045, H * 0.71, W * 0.12, H * 0.13);
-  g.fillRect(W * 0.835, H * 0.71, W * 0.12, H * 0.13);
+  g.fillStyle = '#15161a';                             // 뒷바퀴 — 차체 밖으로 살짝만
+  round(W * 0.005, H * 0.60, W * 0.155, H * 0.35, W * 0.035);
+  round(W * 0.84, H * 0.60, W * 0.155, H * 0.35, W * 0.035);
+  g.fillStyle = '#40454e';                             // 휠
+  round(W * 0.03, H * 0.70, W * 0.105, H * 0.15, W * 0.02);
+  round(W * 0.865, H * 0.70, W * 0.105, H * 0.15, W * 0.02);
 
-  g.fillStyle = '#1e2027';                             // 좌석 등받이 (모구 뒤 배경)
-  g.beginPath(); g.ellipse(W / 2, H * 0.56, W * 0.17, H * 0.16, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#1c1e24';                             // 좌석 등받이 (모구 뒤 배경)
+  g.beginPath(); g.ellipse(W / 2, H * 0.52, W * 0.19, H * 0.17, 0, 0, Math.PI * 2); g.fill();
 
   if (moguImg && moguImg.width) {                      // 운전석의 모구 (뒷모습)
-    const mh = H * 0.72, mw = mh * (moguImg.width / moguImg.height);
-    g.drawImage(moguImg, W / 2 - mw / 2, H * 0.06, mw, mh);
+    const mh = H * 0.70, mw = mh * (moguImg.width / moguImg.height);
+    g.drawImage(moguImg, W / 2 - mw / 2, H * 0.02, mw, mh);
   }
 
-  g.fillStyle = '#c8402f';                             // 차체 — 모구 하반신을 덮어 앉은 자세를 만든다
+  // 차체 — 모구 하반신을 덮어 앉은 자세를 만든다. 아래로 갈수록 살짝 벌어지는 사다리꼴.
+  const grd = g.createLinearGradient(0, H * 0.52, 0, H * 0.95);
+  grd.addColorStop(0, '#e05a45'); grd.addColorStop(0.45, '#c8402f'); grd.addColorStop(1, '#8e2a1e');
+  g.fillStyle = grd;
   g.beginPath();
-  g.moveTo(W * 0.09, H * 0.94); g.lineTo(W * 0.17, H * 0.58);
-  g.lineTo(W * 0.83, H * 0.58); g.lineTo(W * 0.91, H * 0.94);
+  g.moveTo(W * 0.10, H * 0.95); g.lineTo(W * 0.185, H * 0.545);
+  g.lineTo(W * 0.815, H * 0.545); g.lineTo(W * 0.90, H * 0.95);
   g.closePath(); g.fill();
-  g.fillStyle = '#e8624c';                             // 상면 광택
-  g.fillRect(W * 0.175, H * 0.58, W * 0.65, H * 0.05);
-  g.fillStyle = 'rgba(0,0,0,.18)';                     // 하단 음영
-  g.fillRect(W * 0.11, H * 0.86, W * 0.78, H * 0.08);
 
-  g.fillStyle = '#2a2d34';                             // 사이드 포드
-  g.fillRect(W * 0.11, H * 0.66, W * 0.07, H * 0.2);
-  g.fillRect(W * 0.82, H * 0.66, W * 0.07, H * 0.2);
+  g.fillStyle = 'rgba(255,255,255,.30)';               // 상면 하이라이트
+  g.fillRect(W * 0.19, H * 0.545, W * 0.62, H * 0.035);
+  g.fillStyle = '#23262c';                             // 사이드 포드
+  round(W * 0.115, H * 0.66, W * 0.075, H * 0.22, W * 0.02);
+  round(W * 0.81, H * 0.66, W * 0.075, H * 0.22, W * 0.02);
 
-  g.fillStyle = '#24272e';                             // 리어윙 (가장 앞 = 화면 쪽)
-  g.fillRect(W * 0.2, H * 0.63, W * 0.04, H * 0.11);
-  g.fillRect(W * 0.76, H * 0.63, W * 0.04, H * 0.11);
-  g.fillRect(W * 0.12, H * 0.6, W * 0.76, H * 0.045);
-  g.fillStyle = '#ff5a4a';                             // 미등
-  g.fillRect(W * 0.22, H * 0.75, W * 0.11, H * 0.055);
-  g.fillRect(W * 0.67, H * 0.75, W * 0.11, H * 0.055);
+  g.fillStyle = '#1f2228';                             // 리어윙 (화면에 가장 가까운 요소)
+  g.fillRect(W * 0.225, H * 0.575, W * 0.035, H * 0.10);
+  g.fillRect(W * 0.74, H * 0.575, W * 0.035, H * 0.10);
+  round(W * 0.14, H * 0.545, W * 0.72, H * 0.045, H * 0.014);
+
+  g.fillStyle = '#ff5f4d';                             // 미등
+  round(W * 0.20, H * 0.755, W * 0.13, H * 0.055, H * 0.014);
+  round(W * 0.67, H * 0.755, W * 0.13, H * 0.055, H * 0.014);
+  g.fillStyle = '#2b2f36';                             // 디퓨저
+  round(W * 0.30, H * 0.875, W * 0.40, H * 0.06, H * 0.012);
   return c;
 }
 
@@ -404,7 +416,7 @@ M.Render = {
         if (!img || !img.width) continue;
         // 바로 옆을 스치는 차는 원본(200px)을 몇 배로 늘려야 해서 흐릿한 거대 컷아웃이 된다.
         // 화면 폭의 절반으로 크기를 묶고, 그보다 더 가까워지면 아예 그리지 않는다.
-        let dw = p.w * CAR_W;
+        let dw = p.w * M.Logic.CAR_HALF * 2;
         if (dw > w * CAR_MAX_W) {
           if (dw > w * CAR_CULL_W) continue;
           dw = w * CAR_MAX_W;
@@ -421,7 +433,11 @@ M.Render = {
     if (st.hitT > 0 || st.railT > 0) this.shake = 0.25;
     const bump = st.speed > 0 ? Math.sin(time * 22) * (st.speed / M.MAX_SPEED) * 3 : 0;
     const jolt = this.shake > 0 ? (Math.random() - 0.5) * 14 : 0;
-    const carW = w * 0.30, carH = carW * (this.mogu.height / this.mogu.width);
+    // 플레이어 차 폭도 충돌 폭에서 뽑는다. 플레이어 위치(카메라 앞 CAM_H)에서의
+    // 도로 반폭 = (ROAD_W / CAM_H) × w/2 이므로, 여기에 충돌 폭을 곱하면 화면 폭이 나온다.
+    const roadHalfAtPlayer = (M.ROAD_W / CAM_H) * (w / 2);
+    const carW = roadHalfAtPlayer * M.Logic.PLAYER_HALF * 2;
+    const carH = carW * (this.mogu.height / this.mogu.width);
     const cx = w / 2 + jolt, cy = h * 0.895 + bump + jolt * 0.4;
     ctx.save();
     ctx.translate(cx, cy);
