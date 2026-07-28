@@ -90,7 +90,7 @@ M.ui = {
     $('result-dist').textContent = done ? st.elapsed.toFixed(1) + ' 초' : (M.Logic.progress(st) * 100).toFixed(0) + ' %';
     $('result-stars').textContent = st.stars > 0 ? '★'.repeat(st.stars) + '☆'.repeat(3 - st.stars) : '';
     let html = done
-      ? `남은 시간 <b>${st.time.toFixed(1)}초</b> · 최고 속도 <b>${(st.maxSpeed * 3.6 / 1000).toFixed(0)} km/h</b>`
+      ? `남은 시간 <b>${st.time.toFixed(1)}초</b> · 최고 속도 <b>${(st.maxSpeed * M.KMH).toFixed(0)} km/h</b>`
       : `체크포인트 <b>${st.cpPassed}/${st.stage.checkpoints.length}</b> 통과 · 제한시간 소진`;
     if (isBest) html += '<br><b style="color:#7de08a">신기록!</b>';
     $('result-stats').innerHTML = html;

@@ -234,6 +234,9 @@ M.ROAD_W = 2000;        // 도로 반폭 (월드 단위)
 M.LANES = 3;
 M.RUMBLE_LEN = 3;       // 갓길 줄무늬 교대 주기 (세그먼트)
 M.MAX_SPEED = M.SEG_LEN * 60;   // 초당 60세그먼트 = 12000
+// 속도계 표시 전용 환산 — 월드 단위는 미터가 아니므로 물리와 무관하게 최고 속도를
+// 아케이드 레이서 감각의 300 km/h로 잡는다 (이전 3.6/1000 환산은 최고가 43으로 나왔음)
+M.KMH = 300 / M.MAX_SPEED;
 
 M.WORLDS = {
   1: {
@@ -1331,7 +1334,7 @@ M.ui = {
     $('result-dist').textContent = done ? st.elapsed.toFixed(1) + ' 초' : (M.Logic.progress(st) * 100).toFixed(0) + ' %';
     $('result-stars').textContent = st.stars > 0 ? '★'.repeat(st.stars) + '☆'.repeat(3 - st.stars) : '';
     let html = done
-      ? `남은 시간 <b>${st.time.toFixed(1)}초</b> · 최고 속도 <b>${(st.maxSpeed * 3.6 / 1000).toFixed(0)} km/h</b>`
+      ? `남은 시간 <b>${st.time.toFixed(1)}초</b> · 최고 속도 <b>${(st.maxSpeed * M.KMH).toFixed(0)} km/h</b>`
       : `체크포인트 <b>${st.cpPassed}/${st.stage.checkpoints.length}</b> 통과 · 제한시간 소진`;
     if (isBest) html += '<br><b style="color:#7de08a">신기록!</b>';
     $('result-stats').innerHTML = html;
@@ -1490,7 +1493,7 @@ $('vbtn-pause').addEventListener('pointerdown', (e) => {
 // ── 디버그 훅 (테스트 자동화용) ──
 M._dbg = () => ({
   mode, no: st ? st.no : 0, phase: st ? st.phase : null,
-  speed: st ? Math.round(st.speed) : 0, kmh: st ? Math.round(st.speed * 3.6 / 1000) : 0,
+  speed: st ? Math.round(st.speed) : 0, kmh: st ? Math.round(st.speed * M.KMH) : 0,
   throttle: st ? +st.throttle.toFixed(2) : 0, steer: st ? +st.steer.toFixed(2) : 0,
   brake: st ? +st.brake.toFixed(2) : 0, playerX: st ? +st.playerX.toFixed(2) : 0,
   time: st ? +st.time.toFixed(1) : 0, cp: st ? st.cpPassed : 0,
@@ -1503,7 +1506,7 @@ M._setRef = setRef;
 
 // ── HUD ────────────────────────────────────────────────────────────────
 function updateHud() {
-  const kmh = st.speed * 3.6 / 1000;
+  const kmh = st.speed * M.KMH;
   $('hud-speed').textContent = kmh.toFixed(0);
   $('hud-time').textContent = st.time.toFixed(1);
   $('hud-time').style.color = st.time < 5 ? '#ff7a6a' : '#fff';

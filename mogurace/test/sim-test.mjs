@@ -49,7 +49,7 @@ section('마우스 정지 시 엑셀·조향 유지', () => {
   for (let i = 0; i < 120; i++) M.Logic.step(st, DT, held);   // 커서 이동 없음
   if (!near(st.throttle, t1) || !near(st.steer, s1)) bad('정지 상태에서 입력이 유지되지 않음');
   if (st.speed <= 0) bad('엑셀 0.6에서 가속되지 않음');
-  return `엑셀 ${t1.toFixed(2)} 유지 · 속도 ${(st.speed * 3.6 / 1000).toFixed(0)} km/h`;
+  return `엑셀 ${t1.toFixed(2)} 유지 · 속도 ${(st.speed * M.KMH).toFixed(0)} km/h`;
 });
 
 // ── 3. 커서 이탈 시 엑셀만 서서히 닫힘 ──
@@ -77,7 +77,7 @@ section('브레이크 깊이 비례 · 데드존 관성 감속', () => {
   if (coast.end >= coast.top) bad('데드존 관성 주행인데 자연 감속하지 않음');
   if (shallow.end >= coast.end) bad(`얕은 브레이크(${(shallow.end / 1000).toFixed(1)})가 관성(${(coast.end / 1000).toFixed(1)})보다 덜 감속`);
   if (deep.end >= shallow.end) bad(`깊은 브레이크(${(deep.end / 1000).toFixed(1)})가 얕은(${(shallow.end / 1000).toFixed(1)})보다 덜 감속`);
-  const k = (v) => (v * 3.6 / 1000).toFixed(0);
+  const k = (v) => (v * M.KMH).toFixed(0);
   return `1초 감속 — 관성 ${k(coast.top)}→${k(coast.end)} · 얕게 →${k(shallow.end)} · 깊게 →${k(deep.end)} km/h`;
 });
 
@@ -90,7 +90,7 @@ section('노면 이탈 감속 + 가드레일', () => {
   if (Math.abs(st.playerX) <= 1) bad('조향을 끝까지 해도 도로를 못 벗어남');
   if (st.speed >= onRoad) bad('노면 이탈인데 감속하지 않음');
   if (Math.abs(st.playerX) > 2.1) bad('가드레일을 뚫고 나감');
-  return `x=${st.playerX.toFixed(2)} · ${(onRoad * 3.6 / 1000).toFixed(0)} → ${(st.speed * 3.6 / 1000).toFixed(0)} km/h`;
+  return `x=${st.playerX.toFixed(2)} · ${(onRoad * M.KMH).toFixed(0)} → ${(st.speed * M.KMH).toFixed(0)} km/h`;
 });
 
 // ── 5b. 충돌 판정 — 차폭·차선·터널링 ──

@@ -145,7 +145,7 @@ $('vbtn-pause').addEventListener('pointerdown', (e) => {
 // ── 디버그 훅 (테스트 자동화용) ──
 M._dbg = () => ({
   mode, no: st ? st.no : 0, phase: st ? st.phase : null,
-  speed: st ? Math.round(st.speed) : 0, kmh: st ? Math.round(st.speed * 3.6 / 1000) : 0,
+  speed: st ? Math.round(st.speed) : 0, kmh: st ? Math.round(st.speed * M.KMH) : 0,
   throttle: st ? +st.throttle.toFixed(2) : 0, steer: st ? +st.steer.toFixed(2) : 0,
   brake: st ? +st.brake.toFixed(2) : 0, playerX: st ? +st.playerX.toFixed(2) : 0,
   time: st ? +st.time.toFixed(1) : 0, cp: st ? st.cpPassed : 0,
@@ -158,7 +158,7 @@ M._setRef = setRef;
 
 // ── HUD ────────────────────────────────────────────────────────────────
 function updateHud() {
-  const kmh = st.speed * 3.6 / 1000;
+  const kmh = st.speed * M.KMH;
   $('hud-speed').textContent = kmh.toFixed(0);
   $('hud-time').textContent = st.time.toFixed(1);
   $('hud-time').style.color = st.time < 5 ? '#ff7a6a' : '#fff';
