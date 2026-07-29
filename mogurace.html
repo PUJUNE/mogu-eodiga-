@@ -692,14 +692,15 @@ function mkCanvas(w, h) {
   return c;
 }
 
+// 반올림 없이 서브픽셀 그대로 둔다 — 픽셀 스냅은 저속에서 도로 가장자리·차량을 떨리게 한다
 function project(p, camX, camY, camZ, w, h, roadW) {
   p.camera.x = (p.world.x || 0) - camX;
   p.camera.y = (p.world.y || 0) - camY;
   p.camera.z = (p.world.z || 0) - camZ;
   p.screen.scale = CAM_DEPTH / p.camera.z;
-  p.screen.x = Math.round(w / 2 + p.screen.scale * p.camera.x * w / 2);
-  p.screen.y = Math.round(h / 2 - p.screen.scale * p.camera.y * h / 2);
-  p.screen.w = Math.round(p.screen.scale * roadW * w / 2);
+  p.screen.x = w / 2 + p.screen.scale * p.camera.x * w / 2;
+  p.screen.y = h / 2 - p.screen.scale * p.camera.y * h / 2;
+  p.screen.w = p.screen.scale * roadW * w / 2;
 }
 
 function poly(ctx, x1, y1, w1, x2, y2, w2, color) {
@@ -1056,6 +1057,10 @@ M.Render = {
       project(seg.p2, st.playerX * roadW - x - dx, camY, zOff, w, h, roadW);
       x += dx; dx += seg.curve;
 
+      // 크레스트 클립선 — 이 세그먼트 위 스프라이트·차량은 이 y 아래로는 가려진다.
+      // 컬링돼도 기록해 둬야 언덕 너머 차가 프레임 단위로 사라지지 않는다.
+      seg.clip = maxy;
+
       if (seg.p1.camera.z <= CAM_DEPTH || seg.p2.screen.y >= seg.p1.screen.y || seg.p2.screen.y >= maxy) continue;
       const p1 = seg.p1.screen, p2 = seg.p2.screen;
       const alt = seg.color === 1;
@@ -1132,39 +1137,72 @@ M.Render = {
       ctx.globalAlpha = 1;
     }
 
-    // ── 스프라이트·차량: 먼 것부터 (앞이 뒤를 가리게) ──
-    for (let i = drawn.length - 1; i >= 0; i--) {
-      const seg = drawn[i], p = seg.p1.screen;
+    // ── 스프라이트·차량: 렌더 창 전체를 먼 것부터 (앞이 뒤를 가리게) ──
+    // 컬링된 세그먼트(크레스트 뒤·내리막 뒷면)도 건너뛰지 않고 클립선으로 잘라 그린다.
+    // 세그먼트가 컬링 목록에 들었다 빠졌다 할 때마다 차가 통째로 사라지면 깜빡임이 된다.
+    const drawClipped = (img, dxp, dyp, dw, dh, alpha, clip) => {
+      if (dyp >= clip || alpha <= 0) return;              // 전부 크레스트 뒤
+      ctx.globalAlpha = alpha;
+      if (dyp + dh > clip) {                              // 아랫부분만 가려짐 — 클립선까지만
+        ctx.save();
+        ctx.beginPath(); ctx.rect(0, 0, w, clip); ctx.clip();
+        ctx.drawImage(img, dxp, dyp, dw, dh);
+        ctx.restore();
+      } else {
+        ctx.drawImage(img, dxp, dyp, dw, dh);
+      }
+      ctx.globalAlpha = 1;
+    };
+
+    // 차량을 실제 z가 속한 세그먼트에 인덱스로 배정한다. 거리 비교 방식은 루프
+    // 구간에서 어긋나 차가 안 그려지는 프레임이 생겼다.
+    const carsAt = new Map();                             // 창 내 오프셋 n → 차량 목록
+    for (const c of st.cars) {
+      const ci = Math.floor(c.z / M.SEG_LEN) % stage.total;
+      const n = (ci - baseSeg.index + stage.total) % stage.total;
+      if (n >= DRAW_DIST) continue;
+      if (!carsAt.has(n)) carsAt.set(n, []);
+      carsAt.get(n).push(c);
+    }
+
+    for (let n = DRAW_DIST - 1; n >= 0; n--) {
+      const seg = segs[(baseSeg.index + n) % stage.total];
+      if (seg.p1.camera.z <= CAM_DEPTH) continue;         // 카메라 뒤·바로 옆 — 투영이 발산
+      const p = seg.p1.screen, clip = seg.clip;
+
       for (const sp of seg.sprites) {
         const img = this.sprites[sp.type];
         if (!img) continue;
         const dw = p.w * SPRITE_W * sp.scale;             // 도로 반폭 대비 크기
         const dh = dw * (img.height / img.width);
         const dxp = p.x + p.w * sp.offset - dw / 2;
-        ctx.globalAlpha = seg.fog;
-        ctx.drawImage(img, dxp, p.y - dh, dw, dh);
-        ctx.globalAlpha = 1;
+        drawClipped(img, dxp, p.y - dh, dw, dh, seg.fog, clip);
       }
-    }
-    for (let i = drawn.length - 1; i >= 0; i--) {
-      const seg = drawn[i];
-      for (const c of st.cars) {
-        const rel = c.z - (seg.looped ? st.pos - stage.length : st.pos);
-        const segRel = seg.p1.world.z - st.pos + (seg.looped ? -stage.length : 0);
-        if (Math.abs(rel - segRel) > M.SEG_LEN / 2) continue;
-        const p = seg.p1.screen;
+
+      const cars = carsAt.get(n);
+      if (!cars) continue;
+      if (cars.length > 1) cars.sort((a, b) => b.z - a.z);   // 같은 세그먼트 안에서도 먼 차부터
+      for (const c of cars) {
         const img = this.traffic[c.type][c.hue % TRAFFIC_HUES.length];
+        // 세그먼트 시작점에 스냅하지 않고 양 끝(p1·p2) 사이를 차의 실제 z로 보간한다.
+        // 스냅하면 경계를 넘을 때마다 화면에서 한 세그먼트씩 툭툭 튄다.
+        const pct = (c.z % M.SEG_LEN) / M.SEG_LEN;
+        const s2 = seg.p2.screen;
+        const rx = lerp(p.x, s2.x, pct);
+        const ry = lerp(p.y, s2.y, pct);
+        const rw = lerp(p.w, s2.w, pct);
         // 바로 옆을 스치는 차는 원본(200px)을 몇 배로 늘려야 해서 흐릿한 거대 컷아웃이 된다.
-        // 화면 폭의 절반으로 크기를 묶고, 그보다 더 가까워지면 아예 그리지 않는다.
-        let dw = p.w * M.Logic.CAR_HALF * 2;
+        // 화면 폭의 절반으로 크기를 묶고, 더 가까워지면 잘라내는 대신 서서히 지운다
+        // (즉시 소멸은 그 자체가 깜빡임으로 보인다).
+        let dw = rw * M.Logic.CAR_HALF * 2;
+        let fade = 1;
         if (dw > w * CAR_MAX_W) {
-          if (dw > w * CAR_CULL_W) continue;
+          fade = 1 - (dw - w * CAR_MAX_W) / (w * (CAR_CULL_W - CAR_MAX_W));
+          if (fade <= 0) continue;
           dw = w * CAR_MAX_W;
         }
         const dh = dw * (img.height / img.width);
-        ctx.globalAlpha = seg.fog;
-        ctx.drawImage(img, p.x + p.w * c.offset - dw / 2, p.y - dh, dw, dh);
-        ctx.globalAlpha = 1;
+        drawClipped(img, rx + rw * c.offset - dw / 2, ry - dh, dw, dh, seg.fog * fade, clip);
       }
     }
 
