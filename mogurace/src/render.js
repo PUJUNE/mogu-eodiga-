@@ -295,7 +295,7 @@ M.Render = {
   setStage(stage) {
     this.stage = stage;
     const theme = stage.theme;
-    this.backdrop = this.bgImgs[stage.world] || null;
+    this.backdrop = this.bgImgs[theme.bg || stage.world] || null;   // 테마 6+는 사진 재활용
     this.sprites = {};
     for (const t of ['lamp', 'sign']) this.sprites[t] = bakeSprite(t, theme);
     this.traffic = {};
@@ -329,6 +329,10 @@ M.Render = {
       } else {
         ctx.drawImage(img, x, 0, dw, dh);
       }
+    }
+    if (theme.tint) {                                    // 사진 재활용 테마의 색조 — 노을·새벽·눈보라
+      ctx.fillStyle = theme.tint;
+      ctx.fillRect(0, 0, w, horizon + 2);
     }
     ctx.fillStyle = theme.haze;                          // 지평선 헤이즈로 노면과 이어준다
     ctx.globalAlpha = 0.35;

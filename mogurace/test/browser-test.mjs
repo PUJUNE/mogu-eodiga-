@@ -57,9 +57,9 @@ await page.screenshot({ path: join(shots, 'shot-title.png') });
 // ── 코스 맵 ──
 await page.click('#btn-start');
 ok(await page.locator('#map-screen').isVisible(), '코스 맵 표시');
-ok(await page.locator('.stage-cell').count() === 30, '코스 30칸 생성',
+ok(await page.locator('.stage-cell').count() === 90, '코스 90칸 생성 (15테마 × 6)',
   `${await page.locator('.stage-cell').count()}칸`);
-ok(await page.locator('.stage-cell.locked').count() === 29, '미해금 코스 잠김');
+ok(await page.locator('.stage-cell.locked').count() === 89, '미해금 코스 잠김');
 await page.screenshot({ path: join(shots, 'shot-map.png') });
 
 // ── 코스 1 진입 → 기준점 설정 ──

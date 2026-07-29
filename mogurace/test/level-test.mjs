@@ -1,15 +1,15 @@
-// level-test.mjs — 코스 1~30 생성 검증 (node 단독)
+// level-test.mjs — 전 코스 생성 검증 (node 단독)
 import { M } from './shim.mjs';
 
 let fail = 0;
 const bad = (s, msg) => { console.log(`  ✗ S${s} ${msg}`); fail++; };
 
-if (M.START_TIME.length !== 30 || M.CP_BONUS.length !== 30) {
-  console.log('  ✗ 제한시간 표가 30스테이지를 덮지 않음'); fail++;
+if (M.START_TIME.length !== M.COURSES || M.CP_BONUS.length !== M.COURSES) {
+  console.log(`  ✗ 제한시간 표가 ${M.COURSES}스테이지를 덮지 않음`); fail++;
 }
 
 let prevTotal = 0;
-for (let s = 1; s <= 30; s++) {
+for (let s = 1; s <= M.COURSES; s++) {
   const stg = M.makeStage(s);
 
   // 길이·난이도 단조성
@@ -18,7 +18,8 @@ for (let s = 1; s <= 30; s++) {
   // 제한시간은 tune.mjs 실측으로 구운 표에서 온다 — 단조 곡선이 아니라 범위로 본다
   if (!(stg.cpBonus >= 15 && stg.cpBonus <= 32)) bad(s, `체크포인트 보너스 범위 이탈 ${stg.cpBonus}s`);
   if (!(stg.startTime >= 15 && stg.startTime <= 32)) bad(s, `출발 제한시간 범위 이탈 ${stg.startTime}s`);
-  if (stg.world !== Math.min(5, Math.ceil(s / 6))) bad(s, '월드 배정 오류');
+  if (stg.world !== Math.min(15, Math.ceil(s / 6))) bad(s, '월드 배정 오류');
+  if (!stg.theme || !stg.theme.name) bad(s, '테마 누락');
   if (s % 6 === 0 && !stg.rival) bad(s, '보스 구간에 라이벌 없음');
   if (s % 6 !== 0 && stg.boss) bad(s, '보스 플래그 오설정');
 

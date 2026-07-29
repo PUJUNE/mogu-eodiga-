@@ -184,22 +184,22 @@ section('교통 차량 차선 준수', () => {
 const times = [];
 section('전 코스 완주 가능 (숙련 봇)', () => {
   let noStar3 = 0;
-  for (let s = 1; s <= 30; s++) {
+  for (let s = 1; s <= M.COURSES; s++) {
     const { st, trace, timedOut } = runBot(s, 1.0);
     if (timedOut) { bad(`S${s} 봇 주행이 끝나지 않음(무한 루프 의심)`); continue; }
     if (st.phase !== 'finish') { bad(`S${s} 숙련 봇 완주 실패 (진행률 ${(M.Logic.progress(st) * 100).toFixed(0)}%)`); continue; }
     if (st.stars < 3) noStar3++;
     times.push({ s, t: st.elapsed, stars: st.stars, hits: trace.hits, rails: trace.rails, cps: trace.cps });
   }
-  if (times.length !== 30) return '';
-  if (noStar3 > 6) bad(`숙련 봇이 ★3을 못 받은 코스 ${noStar3}개 — 제한시간 과소`);
+  if (times.length !== M.COURSES) return '';
+  if (noStar3 > M.COURSES * 0.2) bad(`숙련 봇이 ★3을 못 받은 코스 ${noStar3}개 — 제한시간 과소`);
   const tt = times.map((x) => x.t);
   const lo = Math.min(...tt), hi = Math.max(...tt);
   if (lo < 40) bad(`최단 완주 ${lo.toFixed(0)}초 — 코스가 너무 짧음`);
   if (hi > 130) bad(`최장 완주 ${hi.toFixed(0)}초 — 코스가 너무 긺`);
   const avgHit = times.reduce((a, b) => a + b.hits, 0) / times.length;
   if (avgHit > 25) bad(`평균 충돌 ${avgHit.toFixed(1)}회 — 교통이 벽처럼 막고 있음`);
-  return `${times.length}/30 완주 · ${lo.toFixed(0)}~${hi.toFixed(0)}초 · ★3 ${times.length - noStar3}개 · 충돌 평균 ${avgHit.toFixed(1)}회`;
+  return `${times.length}/${M.COURSES} 완주 · ${lo.toFixed(0)}~${hi.toFixed(0)}초 · ★3 ${times.length - noStar3}개 · 충돌 평균 ${avgHit.toFixed(1)}회`;
 });
 for (const x of times) if (x.s % 6 === 0 || x.s === 1) {
   console.log(`  · S${String(x.s).padStart(2)} ${x.t.toFixed(1)}초 ★${x.stars} 체크포인트 ${x.cps} 충돌 ${x.hits} 레일 ${x.rails}`);
@@ -209,7 +209,7 @@ for (const x of times) if (x.s % 6 === 0 || x.s === 1) {
 section('난이도 상승이 실제로 작동', () => {
   let early = 0, late = 0;
   for (let s = 1; s <= 6; s++) if (runBot(s, 0.62).st.phase === 'finish') early++;
-  for (let s = 25; s <= 30; s++) if (runBot(s, 0.62).st.phase === 'finish') late++;
+  for (let s = M.COURSES - 5; s <= M.COURSES; s++) if (runBot(s, 0.62).st.phase === 'finish') late++;
   if (late >= early) bad(`난이도 무효 — 미숙 봇 완주 초반 ${early}/6, 후반 ${late}/6`);
   return `미숙 봇(62%) 완주 — 초반 ${early}/6 → 후반 ${late}/6`;
 });
@@ -229,7 +229,7 @@ section('체크포인트 통과 시 제한시간 연장', () => {
 
 // ── 9. 시간 초과 종료 ──
 section('제한시간 소진 시 주행 종료', () => {
-  const st = M.Logic.create(30);
+  const st = M.Logic.create(M.COURSES);
   let guard = 0;
   while (st.phase !== 'timeout' && st.phase !== 'finish' && guard++ < 60 * 400) {
     M.Logic.step(st, DT, mouse(0.05, 0));

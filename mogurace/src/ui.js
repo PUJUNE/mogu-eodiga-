@@ -12,7 +12,7 @@ M.save = {
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
   unlocked() {
     let max = 1;
-    for (let s = 1; s <= 30; s++) if (this.data.stars[s] > 0) max = Math.max(max, Math.min(30, s + 1));
+    for (let s = 1; s <= M.COURSES; s++) if (this.data.stars[s] > 0) max = Math.max(max, Math.min(M.COURSES, s + 1));
     return max;
   },
   record(no, stars, sec) {
@@ -38,7 +38,7 @@ M.ui = {
     const track = $('map-track');
     track.innerHTML = '';
     const unlocked = M.save.unlocked();
-    for (let w = 1; w <= 5; w++) {
+    for (let w = 1; w <= M.COURSES / 6; w++) {
       const head = document.createElement('div');
       head.className = 'map-world';
       head.textContent = `WORLD ${w} · ${M.WORLDS[w].name}`;
@@ -94,7 +94,7 @@ M.ui = {
       : `체크포인트 <b>${st.cpPassed}/${st.stage.checkpoints.length}</b> 통과 · 제한시간 소진`;
     if (isBest) html += '<br><b style="color:#7de08a">신기록!</b>';
     $('result-stats').innerHTML = html;
-    $('btn-next').style.display = st.stars > 0 && st.no < 30 ? '' : 'none';
+    $('btn-next').style.display = st.stars > 0 && st.no < M.COURSES ? '' : 'none';
     this.show('result-screen');
   },
 };
