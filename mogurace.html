@@ -301,6 +301,9 @@ M.MAX_SPEED = M.SEG_LEN * 90;   // 초당 90세그먼트 = 18000 (60은 속도�
 // 아케이드 레이서 감각의 450 km/h로 잡는다 (세그먼트 통과율 1.5배 상향과 함께 300→450)
 M.KMH = 450 / M.MAX_SPEED;
 
+M.COURSES = 90;         // 총 코스 수 — 테마(월드)당 6개 × 15테마
+// 테마 6~15는 배경 사진 5장을 재활용한다: bg = 쓸 사진 번호, tint = 사진 위에
+// 덮는 색조(rgba)로 노을·새벽·눈보라 같은 분위기를 만든다 (render._background).
 M.WORLDS = {
   1: {
     name: '해안 절벽', night: false, far: 'city', side: 'cliff', sea: true,
@@ -337,16 +340,98 @@ M.WORLDS = {
     ground: '#222b36', ground2: '#1c2530', road: '#2e2e36', road2: '#2a2a32',
     rumble: '#d0d0e0', rumble2: '#8a3a6a', lane: '#e8e8f4', center: '#f0c23a',
   },
+  6: {
+    name: '노을 해협', night: false, far: 'city', side: 'cliff', sea: true, bg: 1, tint: 'rgba(255,140,60,.28)',
+    sky0: '#7a3050', sky1: '#f6b06a', haze: '#f2c9a0', sun: '#ffd8a0',
+    seaC: '#8a5a68', seaLine: '#f0b088', farC: '#9a7080', midC: '#6b4a44', midLit: '#9a6a56',
+    ground: '#5a5648', ground2: '#524e42', road: '#4e4a4c', road2: '#484446',
+    rumble: '#e8d8c8', rumble2: '#b04838', lane: '#f5ead8', center: '#e8b83a',
+  },
+  7: {
+    name: '새벽 협곡', night: false, far: 'mesa', side: 'canyon', sea: false, bg: 2, tint: 'rgba(120,140,220,.30)',
+    sky0: '#3a4a7a', sky1: '#c8b8d8', haze: '#c0c2dc', sun: '#ffe8c0',
+    seaC: null, seaLine: null, farC: '#6a5a74', midC: '#5c4050', midLit: '#84606a',
+    ground: '#6a5a60', ground2: '#615258', road: '#48484e', road2: '#424248',
+    rumble: '#d8d0d8', rumble2: '#8a3a5a', lane: '#ece8f0', center: '#d8b03a',
+  },
+  8: {
+    name: '황혼 사막', night: false, far: 'dune', side: 'dune', sea: false, bg: 3, tint: 'rgba(150,80,180,.26)',
+    sky0: '#4a2a6a', sky1: '#d89ab8', haze: '#d8b0c8', sun: '#ffd0b0',
+    seaC: null, seaLine: null, farC: '#8a6a90', midC: '#7a5878', midLit: '#a87e9a',
+    ground: '#8a6a70', ground2: '#7e6066', road: '#4c484e', road2: '#464248',
+    rumble: '#e8d0d8', rumble2: '#983858', lane: '#f0e0e8', center: '#e0b03a',
+  },
+  9: {
+    name: '오로라 설원', night: true, far: 'peak', side: 'snow', sea: false, bg: 4, tint: 'rgba(24,44,90,.52)',
+    sky0: '#0a1428', sky1: '#1c3a54', haze: '#1e3448', sun: '#c8ffd8',
+    seaC: null, seaLine: null, farC: '#2a4458', midC: '#31506a', midLit: '#4a7a8c',
+    ground: '#3a4e62', ground2: '#344658', road: '#33363e', road2: '#2e3138',
+    rumble: '#b8c8d8', rumble2: '#3a8a6a', lane: '#d8ecf4', center: '#c8b03a',
+  },
+  10: {
+    name: '자정 도심', night: true, far: 'skyline', side: 'building', sea: false, bg: 5, tint: 'rgba(10,10,30,.35)',
+    sky0: '#05050f', sky1: '#1a1430', haze: '#151228', sun: '#ffd8a0',
+    seaC: null, seaLine: null, farC: '#100f22', midC: '#181430', midLit: '#282348',
+    ground: '#161c24', ground2: '#12181f', road: '#26262e', road2: '#22222a',
+    rumble: '#b8b8cc', rumble2: '#6a2a52', lane: '#d8d8ec', center: '#e0b83a',
+  },
+  11: {
+    name: '폭풍 해안', night: false, far: 'city', side: 'cliff', sea: true, bg: 1, tint: 'rgba(70,85,100,.42)',
+    sky0: '#4a5a68', sky1: '#8a9aa8', haze: '#93a2ae', sun: '#d8dce0',
+    seaC: '#3a5a66', seaLine: '#7a9aa6', farC: '#5e6c7a', midC: '#4e5560', midLit: '#6e7a86',
+    ground: '#3e5248', ground2: '#384a42', road: '#42454a', road2: '#3d4045',
+    rumble: '#c8ccd2', rumble2: '#8a4a42', lane: '#e2e8ee', center: '#c8a83a',
+  },
+  12: {
+    name: '붉은 바위 캐니언', night: false, far: 'mesa', side: 'canyon', sea: false, bg: 2, tint: 'rgba(200,70,30,.24)',
+    sky0: '#2a4a88', sky1: '#e8a878', haze: '#daa284', sun: '#ffe0a0',
+    seaC: null, seaLine: null, farC: '#a05a42', midC: '#963c26', midLit: '#c05e38',
+    ground: '#a06246', ground2: '#925a40', road: '#524e4a', road2: '#4c4844',
+    rumble: '#ecd4b8', rumble2: '#a82818', lane: '#f4e8d0', center: '#f0b83a',
+  },
+  13: {
+    name: '모래폭풍 사막', night: false, far: 'dune', side: 'dune', sea: false, bg: 3, tint: 'rgba(210,170,110,.45)',
+    sky0: '#a8823f', sky1: '#e0c088', haze: '#e2c896', sun: '#f2dca8',
+    seaC: null, seaLine: null, farC: '#c0a070', midC: '#b08e5e', midLit: '#d0b080',
+    ground: '#ab8a60', ground2: '#9e7f58', road: '#5b554c', road2: '#555046',
+    rumble: '#e8dcc0', rumble2: '#a86030', lane: '#f2ead0', center: '#e8b83a',
+  },
+  14: {
+    name: '눈보라 고개', night: false, far: 'peak', side: 'snow', sea: false, bg: 4, tint: 'rgba(230,240,250,.50)',
+    sky0: '#9ab0c4', sky1: '#e4eef6', haze: '#eef4fa', sun: '#ffffff',
+    seaC: null, seaLine: null, farC: '#b8c8da', midC: '#9cb2c6', midLit: '#d2e2ee',
+    ground: '#c2ceda', ground2: '#b4c2d0', road: '#61646a', road2: '#5b5e64',
+    rumble: '#ffffff', rumble2: '#b04a5a', lane: '#ffffff', center: '#d8b83a',
+  },
+  15: {
+    name: '네온 시티', night: true, far: 'skyline', side: 'building', sea: false, bg: 5, tint: 'rgba(160,30,140,.30)',
+    sky0: '#14061e', sky1: '#4a1a5c', haze: '#3a1a44', sun: '#ff9ad8',
+    seaC: null, seaLine: null, farC: '#251038', midC: '#321a4e', midLit: '#5c2a78',
+    ground: '#2a2238', ground2: '#241e30', road: '#302a3a', road2: '#2b2634',
+    rumble: '#e0c8e8', rumble2: '#c03a8a', lane: '#f0d8f8', center: '#f0c23a',
+  },
 };
 
-const RIVALS = { 6: '갈매기 배달차', 12: '협곡 폭주쥐', 18: '모래바람 트럭', 24: '설원 제설차', 30: '야경 킹쥐' };
+const RIVALS = {
+  6: '갈매기 배달차', 12: '협곡 폭주쥐', 18: '모래바람 트럭', 24: '설원 제설차', 30: '야경 킹쥐',
+  36: '노을 폭주갈매기', 42: '새벽 우편쥐', 48: '황혼 카라반', 54: '오로라 순록마차', 60: '자정 택배왕',
+  66: '천둥 견인차', 72: '바위 덤프쥐', 78: '모래폭풍 로드트레인', 84: '눈보라 제설왕', 90: '네온 그랑프리 킹쥐',
+};
 
 // 제한시간 — 숙련 봇 주행의 실제 구간 소요 × 여유율(55%→25%)로 구워낸 표.
 // (재생성 방법: test/tune.mjs — 물리·트랙 상수를 바꾸면 반드시 다시 구워야 함)
-M.START_TIME = [23, 19, 20.5, 20.5, 21.5, 21.5, 21, 21, 18.5, 18, 24.5, 18, 22, 18, 19.5,
-  21, 19.5, 17, 22, 23, 17, 16.5, 21, 19.5, 18, 25.5, 18, 21, 17, 19.5];
-M.CP_BONUS = [17.5, 20.5, 19, 19.5, 19.5, 18, 17.5, 19, 18, 19, 22, 19.5, 21.5, 23.5, 19,
-  22, 20, 23, 21.5, 19, 20, 23.5, 19.5, 17.5, 20, 20, 22.5, 20, 22.5, 19];
+M.START_TIME = [20, 17, 18, 18.5, 20, 20, 19.5, 19.5, 18, 18, 22.5, 18, 21.5, 18, 19,
+  21, 19.5, 18.5, 19.5, 20, 16.5, 16.5, 19, 18.5, 16.5, 22, 16.5, 20, 17, 17.5,
+  19, 17, 21.5, 17, 21, 17.5, 17.5, 20, 23, 18, 21.5, 17.5, 16.5, 16, 19,
+  21.5, 16, 16, 19, 19.5, 19.5, 21.5, 18.5, 17, 18.5, 19, 16, 16, 17, 21,
+  20.5, 21, 22.5, 17, 21, 16.5, 23.5, 15, 15, 15.5, 16, 15, 19.5, 16, 19.5,
+  19, 16.5, 20, 20, 16, 16, 22, 21, 24, 21.5, 16.5, 15.5, 19.5, 17.5, 20.5];
+M.CP_BONUS = [15, 16.5, 16.5, 19, 16, 17, 16, 18, 16.5, 19.5, 20.5, 17.5, 21, 18, 20,
+  20.5, 19.5, 20.5, 17.5, 15, 18, 19.5, 18.5, 15.5, 20.5, 17.5, 16.5, 17, 20.5, 17.5,
+  18.5, 18.5, 17.5, 18.5, 17, 21.5, 19.5, 18, 20.5, 20, 18.5, 21.5, 19, 18, 15.5,
+  20, 16, 16.5, 18.5, 20, 17, 19.5, 18, 20, 21, 21.5, 16.5, 20, 17, 21.5,
+  20, 17, 21.5, 19.5, 19, 20, 22.5, 17.5, 17, 19, 17, 21, 16.5, 21.5, 16.5,
+  20, 18, 18.5, 22.5, 21.5, 18, 18.5, 18.5, 23, 22, 21.5, 22, 17.5, 22.5, 23.5];
 
 // ── 트랙 조각 규격 ──
 const LEN = { SHORT: 60, MEDIUM: 130, LONG: 240 };
@@ -357,21 +442,24 @@ const HILL = { LOW: 24, MEDIUM: 48, HIGH: 82 };
 
 M.makeStage = function (no) {
   const rng = M.makeRng(no * 7919 + 131);
-  const world = Math.min(5, Math.ceil(no / 6));
+  const world = Math.min(15, Math.ceil(no / 6));
   const theme = M.WORLDS[world];
   const boss = no % 6 === 0;
 
   // ── 난이도 프로파일 ──
   // 코스 길이·체크포인트 간격·교통 대수는 MAX_SPEED 1.5배 상향과 함께 1.5배로 늘려
   // 레이스 소요 시간·체크포인트 시간 간격(약 10초)·단위 길이당 교통 밀도를 유지한다.
-  const segsTarget = Math.round(3750 + (no - 1) * 112.5);       // 코스 길이 (세그먼트)
-  const curviness = 1 + (no - 1) * 0.017;                       // 커브 곡률 배수
-  const hilliness = 1 + (no - 1) * 0.048;                       // 언덕 기복 배수
+  // 난이도 곡선은 종전 1→30 범위(길이 ~7000세그 · 곡률 ×1.49 · 기복 ×2.4)를 1→90에
+  // 걸쳐 완만하게 편 것 — 기울기를 그대로 두면 후반 곡률이 주행 가능 한계(아래
+  // CURVE 주석의 한계 속도 30%)를 넘어 코스가 물리적으로 깨진다.
+  const segsTarget = Math.round(3750 + (no - 1) * 36.5);        // 코스 길이 (세그먼트)
+  const curviness = 1 + (no - 1) * 0.0055;                      // 커브 곡률 배수
+  const hilliness = 1 + (no - 1) * 0.0157;                      // 언덕 기복 배수
   const cpEvery = 900;                                          // 체크포인트 간격 (세그먼트)
   const cpBonus = M.CP_BONUS[no - 1];
   const startTime = M.START_TIME[no - 1];
   // 코스가 길어지는 만큼 대수도 늘리되, 단위 길이당 밀도가 3배씩 뛰지 않게 완만히
-  const trafficN = Math.round((15 + (no - 1) * 1.125) * (boss ? 1.35 : 1));
+  const trafficN = Math.round((15 + (no - 1) * 0.367) * (boss ? 1.35 : 1));
 
   // ── 도로 세그먼트 조립 ──
   const segs = [];
@@ -429,8 +517,12 @@ M.makeStage = function (no) {
   const total = segs.length;
 
   // ── 체크포인트 ──
+  // 코스 전체에 균등 배치한다. 앞에서부터 cpEvery 간격으로 깔면 코스 길이에 따라
+  // 마지막 체크포인트→결승 구간이 간격 상한을 넘는 코스가 생긴다.
   const checkpoints = [];
-  for (let s = cpEvery; s < total - LEN.SHORT; s += cpEvery) { segs[s].cp = true; checkpoints.push(s); }
+  const cpN = Math.ceil(total / cpEvery) - 1;
+  const cpGap = Math.floor(total / (cpN + 1));
+  for (let i = 1; i <= cpN; i++) { segs[i * cpGap].cp = true; checkpoints.push(i * cpGap); }
 
   // ── 노변 스프라이트 ──
   // 노변은 인공물만 둔다 — 실사 배경 위에 벡터 초목을 얹으면 화풍이 충돌한다.
@@ -1005,7 +1097,7 @@ M.Render = {
   setStage(stage) {
     this.stage = stage;
     const theme = stage.theme;
-    this.backdrop = this.bgImgs[stage.world] || null;
+    this.backdrop = this.bgImgs[theme.bg || stage.world] || null;   // 테마 6+는 사진 재활용
     this.sprites = {};
     for (const t of ['lamp', 'sign']) this.sprites[t] = bakeSprite(t, theme);
     this.traffic = {};
@@ -1039,6 +1131,10 @@ M.Render = {
       } else {
         ctx.drawImage(img, x, 0, dw, dh);
       }
+    }
+    if (theme.tint) {                                    // 사진 재활용 테마의 색조 — 노을·새벽·눈보라
+      ctx.fillStyle = theme.tint;
+      ctx.fillRect(0, 0, w, horizon + 2);
     }
     ctx.fillStyle = theme.haze;                          // 지평선 헤이즈로 노면과 이어준다
     ctx.globalAlpha = 0.35;
@@ -1403,7 +1499,7 @@ M.save = {
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
   unlocked() {
     let max = 1;
-    for (let s = 1; s <= 30; s++) if (this.data.stars[s] > 0) max = Math.max(max, Math.min(30, s + 1));
+    for (let s = 1; s <= M.COURSES; s++) if (this.data.stars[s] > 0) max = Math.max(max, Math.min(M.COURSES, s + 1));
     return max;
   },
   record(no, stars, sec) {
@@ -1429,7 +1525,7 @@ M.ui = {
     const track = $('map-track');
     track.innerHTML = '';
     const unlocked = M.save.unlocked();
-    for (let w = 1; w <= 5; w++) {
+    for (let w = 1; w <= M.COURSES / 6; w++) {
       const head = document.createElement('div');
       head.className = 'map-world';
       head.textContent = `WORLD ${w} · ${M.WORLDS[w].name}`;
@@ -1485,7 +1581,7 @@ M.ui = {
       : `체크포인트 <b>${st.cpPassed}/${st.stage.checkpoints.length}</b> 통과 · 제한시간 소진`;
     if (isBest) html += '<br><b style="color:#7de08a">신기록!</b>';
     $('result-stats').innerHTML = html;
-    $('btn-next').style.display = st.stars > 0 && st.no < 30 ? '' : 'none';
+    $('btn-next').style.display = st.stars > 0 && st.no < M.COURSES ? '' : 'none';
     this.show('result-screen');
   },
 };
@@ -1624,7 +1720,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key;
   if (mode === 'title') { if (k === 'Enter') goMap(); }
   else if (mode === 'map') {
-    if (k === 'Enter') startStage(Math.min(M.save.unlocked(), 30));
+    if (k === 'Enter') startStage(Math.min(M.save.unlocked(), M.COURSES));
     if (k === 'Escape') { mode = 'title'; M.ui.show('title-screen'); }
   } else if (mode === 'run') {
     if (k === 'Escape') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); }
@@ -1639,7 +1735,7 @@ window.addEventListener('keydown', (e) => {
     if (k === 'r' || k === 'R') startStage(st.no);
     if (k === 'm' || k === 'M') goMap();
   } else if (mode === 'result') {
-    if (k === 'Enter') { if (st.stars > 0 && st.no < 30) startStage(st.no + 1); else startStage(st.no); }
+    if (k === 'Enter') { if (st.stars > 0 && st.no < M.COURSES) startStage(st.no + 1); else startStage(st.no); }
     if (k === 'm' || k === 'M') goMap();
   }
 });

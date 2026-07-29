@@ -129,7 +129,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key;
   if (mode === 'title') { if (k === 'Enter') goMap(); }
   else if (mode === 'map') {
-    if (k === 'Enter') startStage(Math.min(M.save.unlocked(), 30));
+    if (k === 'Enter') startStage(Math.min(M.save.unlocked(), M.COURSES));
     if (k === 'Escape') { mode = 'title'; M.ui.show('title-screen'); }
   } else if (mode === 'run') {
     if (k === 'Escape') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); }
@@ -144,7 +144,7 @@ window.addEventListener('keydown', (e) => {
     if (k === 'r' || k === 'R') startStage(st.no);
     if (k === 'm' || k === 'M') goMap();
   } else if (mode === 'result') {
-    if (k === 'Enter') { if (st.stars > 0 && st.no < 30) startStage(st.no + 1); else startStage(st.no); }
+    if (k === 'Enter') { if (st.stars > 0 && st.no < M.COURSES) startStage(st.no + 1); else startStage(st.no); }
     if (k === 'm' || k === 'M') goMap();
   }
 });

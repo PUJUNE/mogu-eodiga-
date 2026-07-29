@@ -21,11 +21,11 @@ function measure(no) {
 
 const startT = [], bonusT = [];
 console.log('스테이지  완주    출발구간  최장구간  → 출발제한  체크포인트보너스');
-for (let no = 1; no <= 30; no++) {
+for (let no = 1; no <= M.COURSES; no++) {
   const r = measure(no);
   if (!r.ok) { console.log(`S${no} 측정 실패`); process.exit(1); }
-  // 여유율: 초반은 넉넉하게, 후반으로 갈수록 조인다
-  const margin = 1.55 - (no - 1) * 0.0105;
+  // 여유율: 초반은 넉넉하게(55%), 후반으로 갈수록 조인다(90코스에서 25%)
+  const margin = 1.55 - (no - 1) * 0.0034;
   const first = r.marks[0];
   const worstGap = Math.max(...r.marks.slice(1));
   const start = Math.round(first * margin * 2) / 2;
