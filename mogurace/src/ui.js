@@ -22,6 +22,18 @@ M.save = {
     this.store();
     return false;
   },
+  // 외부 세이브와 병합: 코스별 높은 별점·빠른 기록만 취한다 (모구 어디가 문법)
+  merge(ext) {
+    let gained = 0;
+    for (let s = 1; s <= M.COURSES; s++) {
+      const a = this.data.stars[s] || 0, b = (ext.stars && ext.stars[s]) || 0;
+      if (b > a) { this.data.stars[s] = b; gained++; }
+      const bt = (ext.best && ext.best[s]) || null;
+      if (bt && (!this.data.best[s] || bt < this.data.best[s])) this.data.best[s] = bt;
+    }
+    this.store();
+    return gained;
+  },
 };
 
 M.ui = {
@@ -29,7 +41,47 @@ M.ui = {
   onStageClick: null,
   toastTimer: null,
 
-  init() { $('title-icon').src = M.ASSETS.mogu; },
+  init() {
+    $('title-icon').src = M.ASSETS.mogu;
+
+    // ── 세이브 내보내기 / 불러오기 (모구 어디가 문법) ──
+    const msg = (t) => {
+      $('save-msg').textContent = t;
+      clearTimeout(this._saveMsgTimer);
+      this._saveMsgTimer = setTimeout(() => { $('save-msg').textContent = ''; }, 4000);
+    };
+    $('btn-save-export').addEventListener('click', () => {
+      const cleared = Object.values(M.save.data.stars).filter((v) => v > 0).length;
+      const blob = new Blob([JSON.stringify(M.save.data, null, 1)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      const d = new Date();
+      const ymd = `${String(d.getFullYear()).slice(2)}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+      a.download = `모구레이스_세이브_${ymd}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+      msg(`내보냄 (클리어 ${cleared}개) — 받은 파일을 안전한 곳에 두세요`);
+    });
+    $('btn-save-import').addEventListener('click', () => $('save-file-input').click());
+    $('save-file-input').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      e.target.value = '';
+      if (!f) return;
+      const rd = new FileReader();
+      rd.onload = () => {
+        try {
+          const ext = JSON.parse(rd.result);
+          if (!ext || typeof ext.stars !== 'object') throw new Error('format');
+          const gained = M.save.merge(ext);
+          if (!$('map-screen').classList.contains('hidden')) this.buildMap();
+          msg(gained > 0 ? `불러옴 — 코스 ${gained}개 진행이 갱신됨` : '불러옴 — 이미 최신 진행입니다');
+        } catch (err) {
+          msg('세이브 파일이 아닙니다');
+        }
+      };
+      rd.readAsText(f);
+    });
+  },
 
   show(id) { for (const s of this.screens) $(s).classList.toggle('hidden', s !== id); },
   hideAll() { for (const s of this.screens) $(s).classList.add('hidden'); },
@@ -69,7 +121,8 @@ M.ui = {
 
   hudRun(st) {
     const stg = st.stage;
-    $('hud-stage').textContent = `COURSE ${st.no} · ${stg.theme.name}${stg.rival ? ' · 👑 ' + stg.rival : ''}`;
+    $('hud-stage').textContent = `COURSE ${st.no} · ${stg.theme.name}${stg.rival ? ' · 👑 ' + stg.rival : ''}` +
+      (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '');
     const best = M.save.data.best[st.no];
     $('hud-target').textContent = `체크포인트 ${stg.checkpoints.length}곳 · 통과 시 +${stg.cpBonus}초` +
       (best ? ` · 최고 ${best.toFixed(1)}초` : '');

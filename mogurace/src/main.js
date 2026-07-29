@@ -12,6 +12,7 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 
 M.save.load();
 let trans = M.save.data.trans === 'stick' ? 'stick' : 'auto';   // 변속 모드 (타이틀에서 선택·저장)
+if (M.DIFF_ORDER.includes(M.save.data.diff)) M.diff = M.save.data.diff;   // 난이도 (타이틀에서 선택·저장)
 M.ui.init();
 M.Render.init($('app'));
 M.ui.show('title-screen');
@@ -157,6 +158,14 @@ syncModeBtns();
 $('mode-auto').onclick = () => { trans = 'auto'; M.save.data.trans = trans; M.save.store(); syncModeBtns(); };
 $('mode-stick').onclick = () => { trans = 'stick'; M.save.data.trans = trans; M.save.store(); syncModeBtns(); };
 
+function syncDiffBtns() {
+  for (const b of document.querySelectorAll('.diff-btn')) b.classList.toggle('sel', b.dataset.diff === M.diff);
+}
+syncDiffBtns();
+for (const b of document.querySelectorAll('.diff-btn')) {
+  b.onclick = () => { M.diff = b.dataset.diff; M.save.data.diff = M.diff; M.save.store(); syncDiffBtns(); };
+}
+
 $('btn-start').onclick = () => goMap();
 $('btn-series').onclick = () => {
   location.href = location.pathname.includes('/mogurace/') ? '../index.html' : 'index.html';
@@ -192,7 +201,7 @@ M._dbg = () => ({
   brake: st ? +st.brake.toFixed(2) : 0, playerX: st ? +st.playerX.toFixed(2) : 0,
   time: st ? +st.time.toFixed(1) : 0, cp: st ? st.cpPassed : 0,
   progress: st ? +(M.Logic.progress(st) * 100).toFixed(1) : 0,
-  gear: st ? st.gear : 0, rpm: st ? +st.rpm.toFixed(2) : 0, trans: st ? st.trans : null,
+  gear: st ? st.gear : 0, rpm: st ? +st.rpm.toFixed(2) : 0, trans: st ? st.trans : null, diff: M.diff,
   stars: st ? st.stars : 0, refX: Math.round(input.refX), refY: Math.round(input.refY),
 });
 M._st = () => st;

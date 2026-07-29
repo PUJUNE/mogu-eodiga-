@@ -237,6 +237,42 @@ await page.evaluate(() => { window.MRC._st().time = 0.1; });   // 정리
 await page.waitForTimeout(700);
 await page.click('#btn-map');
 
+// ── 난이도 모드 ──
+await page.keyboard.press('Escape');                   // 코스 맵 → 타이틀
+const normalTime = await page.evaluate(() => window.MRC.START_TIME[0]);
+await page.click('[data-diff="hard"]');
+ok(await page.evaluate(() => window.MRC.diff === 'hard' && window.MRC.save.data.diff === 'hard'),
+  '타이틀에서 난이도 하드 선택·저장');
+await page.click('#btn-start');
+await page.locator('.stage-cell').first().click();
+await page.waitForTimeout(300);
+const hd = await page.evaluate(() => ({ time: window.MRC._st().time, cars: window.MRC._st().cars.length }));
+ok(hd.time < normalTime, '하드 — 제한시간 감소 적용', `${normalTime} → ${hd.time}초`);
+ok(await page.evaluate(() => window.MRC._st().cars.length === window.MRC._st().stage.trafficN),
+  '하드 — 교통량 배율 적용', `차량 ${hd.cars}대`);
+ok((await page.locator('#hud-stage').textContent()).includes('하드'), 'HUD에 난이도 표기');
+await page.keyboard.press('Escape');                   // 주행 → 일시정지
+await page.keyboard.press('m');                        // 일시정지 → 코스 맵
+await page.keyboard.press('Escape');                   // 코스 맵 → 타이틀
+await page.click('[data-diff="normal"]');              // 원복
+
+// ── 세이브 내보내기 / 불러오기 ──
+await page.click('#btn-save-export');
+ok((await page.locator('#save-msg').textContent()).includes('내보냄'), '세이브 내보내기 실행');
+await page.setInputFiles('#save-file-input', {
+  name: 'save.json', mimeType: 'application/json',
+  buffer: Buffer.from(JSON.stringify({ stars: { 1: 3, 2: 2 }, best: { 1: 45.5 } })),
+});
+await page.waitForTimeout(250);
+ok((await page.locator('#save-msg').textContent()).includes('불러옴'), '세이브 불러오기 병합');
+ok(await page.evaluate(() => window.MRC.save.unlocked() >= 3 && window.MRC.save.data.stars[1] === 3),
+  '불러온 진행으로 별점·해금 갱신', `해금 ${await page.evaluate(() => window.MRC.save.unlocked())}코스`);
+await page.setInputFiles('#save-file-input', {
+  name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"foo":1}'),
+});
+await page.waitForTimeout(250);
+ok((await page.locator('#save-msg').textContent()).includes('아닙니다'), '형식이 아닌 파일 거부');
+
 // ── 빌드본 (단일 html) + 터치 ──
 const tctx = await browser.newContext({
   viewport: { width: 412, height: 880 }, hasTouch: true, isMobile: true,
