@@ -120,6 +120,27 @@
   #result-stars { font-size:min(30px,7vw); color:#ffd83d; letter-spacing:4px; margin:4px 0 8px; }
   #result-stats { font-size:min(14px,3.4vw); color:#cfe0f4; line-height:1.8; text-align:center; margin-bottom:14px; }
 
+  /* ── 스틱 H패턴 기어 셀렉터 (화면 좌측) ── */
+  /* 실차 6단 게이트처럼 세로 슬롯 3개를 가로 게이트로 이은 H-H 모양.
+     클릭 외에 Q A W S E D 키가 각각 1~6단 직결이라 키 힌트를 함께 새긴다. */
+  #gear-panel { position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    display:none; z-index:7; pointer-events:auto;
+    background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.5); border-radius:14px;
+    padding:12px 14px; }
+  #gear-gate { position:relative; display:flex; gap:14px; }
+  #gear-gate::before { content:''; position:absolute; top:50%; left:10px; right:10px; height:6px;
+    margin-top:-3px; background:rgba(255,255,255,.22); border-radius:3px; }
+  .gear-col { position:relative; display:flex; flex-direction:column; gap:26px; }
+  .gear-col::before { content:''; position:absolute; top:10px; bottom:10px; left:50%; width:6px;
+    margin-left:-3px; background:rgba(255,255,255,.22); border-radius:3px; }
+  .gear-cell { position:relative; width:46px; height:46px; border-radius:10px; cursor:pointer;
+    background:#1c2740; border:2px solid rgba(255,255,255,.45); color:#fff;
+    font-weight:900; font-size:17px; line-height:1.05; font-family:inherit; padding:2px 0 0; }
+  .gear-cell small { display:block; font-size:9px; font-weight:800; letter-spacing:1px; color:#9fb3cc; }
+  .gear-cell.cur { background:#c8402f; border-color:#ffd83d; }
+  .gear-cell.cur small { color:#ffe6a8; }
+  .gear-cell:active { transform:translateY(1px); }
+
   /* ── 터치 버튼 ── */
   .vbtn { position:absolute; display:none; align-items:center; justify-content:center; z-index:7;
     background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.6); color:#fff; font-weight:800; }
@@ -158,6 +179,22 @@
     <div id="ref-cross" class="hidden"></div>
     <div id="cursor-dot" class="hidden"></div>
     <div id="hud-toast"></div>
+    <div id="gear-panel">
+      <div id="gear-gate">
+        <div class="gear-col">
+          <button class="gear-cell" data-gear="1">1<small>Q</small></button>
+          <button class="gear-cell" data-gear="2">2<small>A</small></button>
+        </div>
+        <div class="gear-col">
+          <button class="gear-cell" data-gear="3">3<small>W</small></button>
+          <button class="gear-cell" data-gear="4">4<small>S</small></button>
+        </div>
+        <div class="gear-col">
+          <button class="gear-cell" data-gear="5">5<small>E</small></button>
+          <button class="gear-cell" data-gear="6">6<small>D</small></button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="ready-overlay" class="hidden">
@@ -178,7 +215,7 @@
       기준점보다 <b>뒤로</b> — 브레이크 (멀수록 깊게)<br>
       기준점 <b>근처</b> — 페달 오프, 관성 주행<br>
       <b>좌우</b> — 조향 &nbsp;·&nbsp; 마우스 <b>정지</b> — 그대로 유지<br>
-      스틱 모드 변속 — <b>휠</b> 또는 <b>좌클릭 ▲ / 우클릭 ▼</b>
+      스틱 모드 변속 — <b>휠</b>·<b>좌클릭 ▲ / 우클릭 ▼</b> 또는 <b>Q A W S E D</b> = 1~6단 직결
     </div>
     <div id="mode-row">
       <button class="mode-btn" id="mode-auto">오토</button>

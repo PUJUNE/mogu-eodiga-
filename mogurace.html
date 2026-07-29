@@ -120,6 +120,27 @@
   #result-stars { font-size:min(30px,7vw); color:#ffd83d; letter-spacing:4px; margin:4px 0 8px; }
   #result-stats { font-size:min(14px,3.4vw); color:#cfe0f4; line-height:1.8; text-align:center; margin-bottom:14px; }
 
+  /* ── 스틱 H패턴 기어 셀렉터 (화면 좌측) ── */
+  /* 실차 6단 게이트처럼 세로 슬롯 3개를 가로 게이트로 이은 H-H 모양.
+     클릭 외에 Q A W S E D 키가 각각 1~6단 직결이라 키 힌트를 함께 새긴다. */
+  #gear-panel { position:absolute; left:14px; top:50%; transform:translateY(-50%);
+    display:none; z-index:7; pointer-events:auto;
+    background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.5); border-radius:14px;
+    padding:12px 14px; }
+  #gear-gate { position:relative; display:flex; gap:14px; }
+  #gear-gate::before { content:''; position:absolute; top:50%; left:10px; right:10px; height:6px;
+    margin-top:-3px; background:rgba(255,255,255,.22); border-radius:3px; }
+  .gear-col { position:relative; display:flex; flex-direction:column; gap:26px; }
+  .gear-col::before { content:''; position:absolute; top:10px; bottom:10px; left:50%; width:6px;
+    margin-left:-3px; background:rgba(255,255,255,.22); border-radius:3px; }
+  .gear-cell { position:relative; width:46px; height:46px; border-radius:10px; cursor:pointer;
+    background:#1c2740; border:2px solid rgba(255,255,255,.45); color:#fff;
+    font-weight:900; font-size:17px; line-height:1.05; font-family:inherit; padding:2px 0 0; }
+  .gear-cell small { display:block; font-size:9px; font-weight:800; letter-spacing:1px; color:#9fb3cc; }
+  .gear-cell.cur { background:#c8402f; border-color:#ffd83d; }
+  .gear-cell.cur small { color:#ffe6a8; }
+  .gear-cell:active { transform:translateY(1px); }
+
   /* ── 터치 버튼 ── */
   .vbtn { position:absolute; display:none; align-items:center; justify-content:center; z-index:7;
     background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.6); color:#fff; font-weight:800; }
@@ -158,6 +179,22 @@
     <div id="ref-cross" class="hidden"></div>
     <div id="cursor-dot" class="hidden"></div>
     <div id="hud-toast"></div>
+    <div id="gear-panel">
+      <div id="gear-gate">
+        <div class="gear-col">
+          <button class="gear-cell" data-gear="1">1<small>Q</small></button>
+          <button class="gear-cell" data-gear="2">2<small>A</small></button>
+        </div>
+        <div class="gear-col">
+          <button class="gear-cell" data-gear="3">3<small>W</small></button>
+          <button class="gear-cell" data-gear="4">4<small>S</small></button>
+        </div>
+        <div class="gear-col">
+          <button class="gear-cell" data-gear="5">5<small>E</small></button>
+          <button class="gear-cell" data-gear="6">6<small>D</small></button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div id="ready-overlay" class="hidden">
@@ -178,7 +215,7 @@
       기준점보다 <b>뒤로</b> — 브레이크 (멀수록 깊게)<br>
       기준점 <b>근처</b> — 페달 오프, 관성 주행<br>
       <b>좌우</b> — 조향 &nbsp;·&nbsp; 마우스 <b>정지</b> — 그대로 유지<br>
-      스틱 모드 변속 — <b>휠</b> 또는 <b>좌클릭 ▲ / 우클릭 ▼</b>
+      스틱 모드 변속 — <b>휠</b>·<b>좌클릭 ▲ / 우클릭 ▼</b> 또는 <b>Q A W S E D</b> = 1~6단 직결
     </div>
     <div id="mode-row">
       <button class="mode-btn" id="mode-auto">오토</button>
@@ -259,10 +296,10 @@ M.SEG_LEN = 200;        // 세그먼트 1개의 z 길이 (월드 단위)
 M.ROAD_W = 2000;        // 도로 반폭 (월드 단위)
 M.LANES = 3;
 M.RUMBLE_LEN = 3;       // 갓길 줄무늬 교대 주기 (세그먼트)
-M.MAX_SPEED = M.SEG_LEN * 60;   // 초당 60세그먼트 = 12000
+M.MAX_SPEED = M.SEG_LEN * 90;   // 초당 90세그먼트 = 18000 (60은 속도감이 밋밋해 1.5배로 상향)
 // 속도계 표시 전용 환산 — 월드 단위는 미터가 아니므로 물리와 무관하게 최고 속도를
-// 아케이드 레이서 감각의 300 km/h로 잡는다 (이전 3.6/1000 환산은 최고가 43으로 나왔음)
-M.KMH = 300 / M.MAX_SPEED;
+// 아케이드 레이서 감각의 450 km/h로 잡는다 (세그먼트 통과율 1.5배 상향과 함께 300→450)
+M.KMH = 450 / M.MAX_SPEED;
 
 M.WORLDS = {
   1: {
@@ -306,10 +343,10 @@ const RIVALS = { 6: '갈매기 배달차', 12: '협곡 폭주쥐', 18: '모래�
 
 // 제한시간 — 숙련 봇 주행의 실제 구간 소요 × 여유율(55%→25%)로 구워낸 표.
 // (재생성 방법: test/tune.mjs — 물리·트랙 상수를 바꾸면 반드시 다시 구워야 함)
-M.START_TIME = [22, 19, 19, 21.5, 22.5, 22, 18.5, 18.5, 18, 18, 23.5, 17.5, 23.5, 18, 20.5,
-  23, 20.5, 17, 24, 26, 16.5, 16.5, 17.5, 17, 18.5, 25.5, 18, 24, 18, 18];
-M.CP_BONUS = [18.5, 19.5, 20.5, 19.5, 24, 19, 20, 20, 18, 19.5, 22.5, 20.5, 21.5, 18.5, 20.5,
-  21, 23, 21, 22, 19, 22.5, 23.5, 22.5, 20, 23, 23, 23, 21.5, 24.5, 23];
+M.START_TIME = [23, 19, 20.5, 20.5, 21.5, 21.5, 21, 21, 18.5, 18, 24.5, 18, 22, 18, 19.5,
+  21, 19.5, 17, 22, 23, 17, 16.5, 21, 19.5, 18, 25.5, 18, 21, 17, 19.5];
+M.CP_BONUS = [17.5, 20.5, 19, 19.5, 19.5, 18, 17.5, 19, 18, 19, 22, 19.5, 21.5, 23.5, 19,
+  22, 20, 23, 21.5, 19, 20, 23.5, 19.5, 17.5, 20, 20, 22.5, 20, 22.5, 19];
 
 // ── 트랙 조각 규격 ──
 const LEN = { SHORT: 60, MEDIUM: 130, LONG: 240 };
@@ -325,14 +362,16 @@ M.makeStage = function (no) {
   const boss = no % 6 === 0;
 
   // ── 난이도 프로파일 ──
-  const segsTarget = Math.round(2500 + (no - 1) * 75);          // 코스 길이 (세그먼트)
+  // 코스 길이·체크포인트 간격·교통 대수는 MAX_SPEED 1.5배 상향과 함께 1.5배로 늘려
+  // 레이스 소요 시간·체크포인트 시간 간격(약 10초)·단위 길이당 교통 밀도를 유지한다.
+  const segsTarget = Math.round(3750 + (no - 1) * 112.5);       // 코스 길이 (세그먼트)
   const curviness = 1 + (no - 1) * 0.017;                       // 커브 곡률 배수
   const hilliness = 1 + (no - 1) * 0.048;                       // 언덕 기복 배수
-  const cpEvery = 600;                                          // 체크포인트 간격 (세그먼트)
+  const cpEvery = 900;                                          // 체크포인트 간격 (세그먼트)
   const cpBonus = M.CP_BONUS[no - 1];
   const startTime = M.START_TIME[no - 1];
   // 코스가 길어지는 만큼 대수도 늘리되, 단위 길이당 밀도가 3배씩 뛰지 않게 완만히
-  const trafficN = Math.round((10 + (no - 1) * 0.75) * (boss ? 1.35 : 1));
+  const trafficN = Math.round((15 + (no - 1) * 1.125) * (boss ? 1.35 : 1));
 
   // ── 도로 세그먼트 조립 ──
   const segs = [];
@@ -460,6 +499,9 @@ const RAIL_X = 2.05;                     // 가드레일 위치 (도로 반폭 �
 // 렌더는 이 값을 그대로 투영해 그리므로 "보이는 폭 = 부딪히는 폭"이 성립한다.
 const CAR_HALF = 0.19, PLAYER_HALF = 0.165;  // 차폭 0.38 / 0.33 ≈ 차선의 57% / 50%
 const CAR_LEN = 260;                     // 차 길이(월드 단위) — 전후 충돌 판정 폭
+// 실주행 프레임 dt 상한 — 한 프레임 이동(MAX_SPEED × dt)이 관통 임계(CAR_LEN×2)를
+// 넘지 않도록 물리와 묶는다. 18000 × 1/36 = 500 < 520. (main.js와 테스트가 공유)
+const DT_CAP = 1 / 36;
 const HIT_COOL = 0.55;                   // 충돌 재판정 쿨다운 (초)
 const IDLE_CLOSE = 1.8;                  // 커서 이탈 시 엑셀이 닫히는 속도 (1/초)
 
@@ -474,7 +516,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 M.Logic = {
   // 렌더·테스트가 같은 값을 쓰도록 공개한다 — 여기서 갈라지면 판정과 표시가 어긋난다
-  CAR_HALF, PLAYER_HALF, CAR_LEN,
+  CAR_HALF, PLAYER_HALF, CAR_LEN, DT_CAP,
   RANGE_Y, BRAKE_Y, DEAD_Y, RANGE_X,
   GEAR_TOPS,
 
@@ -520,7 +562,7 @@ M.Logic = {
     }
 
     if (st.phase === 'ready') {
-      if (inp) inp.shift = 0;                                    // 출발 전 변속 입력 무시
+      if (inp) { inp.shift = 0; inp.gearTo = 0; }                // 출발 전 변속 입력 무시
       if (st.throttle > 0.02) { st.phase = 'run'; ev.push({ type: 'start' }); }
       return ev;
     }
@@ -541,10 +583,12 @@ M.Logic = {
         if (r > RPM_UP && st.gear < 6) { st.gear++; st.shiftT = SHIFT_CUT; ev.push({ type: 'shift', gear: st.gear }); }
         else if (r < RPM_DOWN && st.gear > 1) { st.gear--; st.shiftT = SHIFT_CUT * 0.5; }
       }
-    } else if (inp && inp.shift) {
-      const g = st.gear + (inp.shift > 0 ? 1 : -1);
-      inp.shift = 0;                                             // 원샷 소비
-      if (g >= 1 && g <= 6) {
+    } else if (inp && (inp.shift || inp.gearTo)) {
+      // 순차(휠·클릭 ±1)와 직결(H패턴 버튼·QAWSED 키, 원하는 단으로 바로) 둘 다 지원.
+      // 직결은 단을 건너뛸 수 있다 — 급다운시프트의 오버레브 엔진 브레이크는 rpm 물리가 처리.
+      const g = inp.gearTo ? inp.gearTo : st.gear + (inp.shift > 0 ? 1 : -1);
+      inp.shift = 0; inp.gearTo = 0;                             // 원샷 소비
+      if (g >= 1 && g <= 6 && g !== st.gear) {
         st.shiftT = SHIFT_CUT * (g > st.gear ? 1 : 0.5);
         st.gear = g;
         ev.push({ type: 'shift', gear: st.gear });
@@ -1457,7 +1501,7 @@ const $ = (id) => document.getElementById(id);
 let mode = 'title';                 // title | map | run | pause | result
 let st = null;
 
-const input = { active: false, shift: 0, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
+const input = { active: false, shift: 0, gearTo: 0, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
 let refSet = false;                 // 기준점이 잡히기 전에는 커서 움직임을 조작으로 읽지 않는다
 const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
@@ -1534,7 +1578,7 @@ const app = $('app');
 app.addEventListener('contextmenu', (e) => e.preventDefault());
 
 app.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('.btn, .vbtn, .stage-cell')) return;
+  if (e.target.closest('.btn, .vbtn, .stage-cell, .gear-cell')) return;
   M.audio.resume();
   if (mode !== 'run' || !st) return;
   e.preventDefault();
@@ -1552,6 +1596,9 @@ app.addEventListener('wheel', (e) => {                                 // 휠로
 }, { passive: false });
 app.addEventListener('pointercancel', () => { input.active = false; });
 app.addEventListener('pointermove', (e) => {
+  // 기어 패널 위에서는 커서 위치를 조작으로 읽지 않는다 — 변속하러 손을 뻗는 동안
+  // 좌측 끝 좌표가 풀 카운터 조향으로 들어가면 차가 튕겨나간다. 마지막 입력 유지.
+  if (e.target.closest('#gear-panel')) return;
   input.x = e.clientX; input.y = e.clientY;
   // 기준점만 잡혀 있으면 다시 활성화한다 — 터치는 손을 뗄 때마다 비활성화되므로
   // phase로 막으면 기준점 설정 직후의 드래그를 놓친다
@@ -1582,6 +1629,11 @@ window.addEventListener('keydown', (e) => {
   } else if (mode === 'run') {
     if (k === 'Escape') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); }
     if (k === 'r' || k === 'R') startStage(st.no);
+    // Q A W S E D = 1~6단 직결 (H패턴 열 순서). e.code라 한글 자판에서도 동작.
+    if (st && st.trans === 'stick') {
+      const g = { KeyQ: 1, KeyA: 2, KeyW: 3, KeyS: 4, KeyE: 5, KeyD: 6 }[e.code];
+      if (g) input.gearTo = g;
+    }
   } else if (mode === 'pause') {
     if (k === 'Enter' || k === 'Escape') { mode = 'run'; M.audio.engineOn(); M.ui.hideAll(); }
     if (k === 'r' || k === 'R') startStage(st.no);
@@ -1619,6 +1671,13 @@ $('vbtn-pause').addEventListener('pointerdown', (e) => {
   e.preventDefault(); e.stopPropagation();
   if (mode === 'run') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); }
 });
+const gearCells = [...document.querySelectorAll('.gear-cell')];
+for (const el of gearCells) {
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (mode === 'run' && st && st.trans === 'stick') input.gearTo = +el.dataset.gear;
+  });
+}
 
 // ── 디버그 훅 (테스트 자동화용) ──
 M._dbg = () => ({
@@ -1657,7 +1716,10 @@ function updateHud() {
   const rpm = Math.min(1, st.rpm);
   $('hud-rpm').style.width = (rpm * 100).toFixed(0) + '%';
   $('hud-rpm').style.background = st.rpm > 0.9 ? '#ff5a4a' : '#7de08a';
-  if (st.trans === 'stick') $('hud-gear').textContent = st.gear;
+  if (st.trans === 'stick') {
+    $('hud-gear').textContent = st.gear;
+    for (const el of gearCells) el.classList.toggle('cur', +el.dataset.gear === st.gear);
+  }
   $('gauge-throttle').style.height = (st.throttle * 100).toFixed(0) + '%';
   $('gauge-brake').style.opacity = 0.18 + st.brake * 0.82;   // 깊이 비례
   $('gauge-steer-needle').style.left = (50 + st.steer * 46).toFixed(1) + '%';
@@ -1667,12 +1729,13 @@ function updateHud() {
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.033, (now - last) / 1000);
+  const dt = Math.min(M.Logic.DT_CAP, (now - last) / 1000);   // 상한은 관통 임계와 물려 있다
   last = now;
   $('vbtn-pause').style.display = isTouch && mode === 'run' ? 'flex' : 'none';
   const stickTouch = isTouch && mode === 'run' && st && st.trans === 'stick';
   $('vbtn-up').style.display = stickTouch ? 'flex' : 'none';
   $('vbtn-down').style.display = stickTouch ? 'flex' : 'none';
+  $('gear-panel').style.display = mode === 'run' && st && st.trans === 'stick' ? 'block' : 'none';
 
   if (mode === 'run' && st) {
     handleEvents(M.Logic.step(st, dt, input));

@@ -25,6 +25,9 @@ const RAIL_X = 2.05;                     // 가드레일 위치 (도로 반폭 �
 // 렌더는 이 값을 그대로 투영해 그리므로 "보이는 폭 = 부딪히는 폭"이 성립한다.
 const CAR_HALF = 0.19, PLAYER_HALF = 0.165;  // 차폭 0.38 / 0.33 ≈ 차선의 57% / 50%
 const CAR_LEN = 260;                     // 차 길이(월드 단위) — 전후 충돌 판정 폭
+// 실주행 프레임 dt 상한 — 한 프레임 이동(MAX_SPEED × dt)이 관통 임계(CAR_LEN×2)를
+// 넘지 않도록 물리와 묶는다. 18000 × 1/36 = 500 < 520. (main.js와 테스트가 공유)
+const DT_CAP = 1 / 36;
 const HIT_COOL = 0.55;                   // 충돌 재판정 쿨다운 (초)
 const IDLE_CLOSE = 1.8;                  // 커서 이탈 시 엑셀이 닫히는 속도 (1/초)
 
@@ -39,7 +42,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 M.Logic = {
   // 렌더·테스트가 같은 값을 쓰도록 공개한다 — 여기서 갈라지면 판정과 표시가 어긋난다
-  CAR_HALF, PLAYER_HALF, CAR_LEN,
+  CAR_HALF, PLAYER_HALF, CAR_LEN, DT_CAP,
   RANGE_Y, BRAKE_Y, DEAD_Y, RANGE_X,
   GEAR_TOPS,
 
@@ -85,7 +88,7 @@ M.Logic = {
     }
 
     if (st.phase === 'ready') {
-      if (inp) inp.shift = 0;                                    // 출발 전 변속 입력 무시
+      if (inp) { inp.shift = 0; inp.gearTo = 0; }                // 출발 전 변속 입력 무시
       if (st.throttle > 0.02) { st.phase = 'run'; ev.push({ type: 'start' }); }
       return ev;
     }
@@ -106,10 +109,12 @@ M.Logic = {
         if (r > RPM_UP && st.gear < 6) { st.gear++; st.shiftT = SHIFT_CUT; ev.push({ type: 'shift', gear: st.gear }); }
         else if (r < RPM_DOWN && st.gear > 1) { st.gear--; st.shiftT = SHIFT_CUT * 0.5; }
       }
-    } else if (inp && inp.shift) {
-      const g = st.gear + (inp.shift > 0 ? 1 : -1);
-      inp.shift = 0;                                             // 원샷 소비
-      if (g >= 1 && g <= 6) {
+    } else if (inp && (inp.shift || inp.gearTo)) {
+      // 순차(휠·클릭 ±1)와 직결(H패턴 버튼·QAWSED 키, 원하는 단으로 바로) 둘 다 지원.
+      // 직결은 단을 건너뛸 수 있다 — 급다운시프트의 오버레브 엔진 브레이크는 rpm 물리가 처리.
+      const g = inp.gearTo ? inp.gearTo : st.gear + (inp.shift > 0 ? 1 : -1);
+      inp.shift = 0; inp.gearTo = 0;                             // 원샷 소비
+      if (g >= 1 && g <= 6 && g !== st.gear) {
         st.shiftT = SHIFT_CUT * (g > st.gear ? 1 : 0.5);
         st.gear = g;
         ev.push({ type: 'shift', gear: st.gear });
