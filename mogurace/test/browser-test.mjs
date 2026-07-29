@@ -210,6 +210,28 @@ await page.mouse.down(); await page.mouse.up();        // 좌클릭 = 시프트 
 await page.waitForTimeout(1300);
 d = await page.evaluate(() => window.MRC._dbg());
 ok(d.gear === 2 && d.kmh > v1, '좌클릭 시프트 업 → 2단 가속', `${v1} → ${d.kmh} km/h`);
+
+// ── H패턴 기어 셀렉터 + QAWSED 직결 변속 ──
+ok(await page.locator('#gear-panel').isVisible(), '스틱 모드 — H패턴 기어 패널 표시');
+ok(await page.evaluate(() => document.querySelector('.gear-cell[data-gear="2"]').classList.contains('cur')),
+  'H패턴 — 현재 단(2단) 하이라이트');
+await page.keyboard.press('KeyW');                     // W = 3단 직결
+await page.waitForTimeout(250);
+d = await page.evaluate(() => window.MRC._dbg());
+ok(d.gear === 3, 'W 키 → 3단 직결 변속', `${d.gear}단`);
+await page.keyboard.press('KeyD');                     // D = 6단 (단 건너뛰기)
+await page.waitForTimeout(250);
+d = await page.evaluate(() => window.MRC._dbg());
+ok(d.gear === 6, 'D 키 → 6단 직결 (단 건너뛰기)', `${d.gear}단`);
+await page.locator('.gear-cell[data-gear="4"]').click();   // 버튼 클릭 = 4단
+await page.waitForTimeout(250);
+d = await page.evaluate(() => window.MRC._dbg());
+ok(d.gear === 4, 'H패턴 버튼 클릭 → 4단', `${d.gear}단`);
+const steerHold = d.steer;
+await page.mouse.move(30, Math.round(H * 0.5));        // 커서가 패널 위 — 조작 좌표로 안 읽혀야
+await page.waitForTimeout(250);
+d = await page.evaluate(() => window.MRC._dbg());
+ok(d.steer === steerHold, '기어 패널 위 커서 — 조향 유지', `steer ${d.steer}`);
 await page.screenshot({ path: join(shots, 'shot-stick.png') });
 await page.evaluate(() => { window.MRC._st().time = 0.1; });   // 정리
 await page.waitForTimeout(700);

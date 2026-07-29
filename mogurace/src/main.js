@@ -6,7 +6,7 @@ const $ = (id) => document.getElementById(id);
 let mode = 'title';                 // title | map | run | pause | result
 let st = null;
 
-const input = { active: false, shift: 0, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
+const input = { active: false, shift: 0, gearTo: 0, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
 let refSet = false;                 // 기준점이 잡히기 전에는 커서 움직임을 조작으로 읽지 않는다
 const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
@@ -83,7 +83,7 @@ const app = $('app');
 app.addEventListener('contextmenu', (e) => e.preventDefault());
 
 app.addEventListener('pointerdown', (e) => {
-  if (e.target.closest('.btn, .vbtn, .stage-cell')) return;
+  if (e.target.closest('.btn, .vbtn, .stage-cell, .gear-cell')) return;
   M.audio.resume();
   if (mode !== 'run' || !st) return;
   e.preventDefault();
@@ -101,6 +101,9 @@ app.addEventListener('wheel', (e) => {                                 // 휠로
 }, { passive: false });
 app.addEventListener('pointercancel', () => { input.active = false; });
 app.addEventListener('pointermove', (e) => {
+  // 기어 패널 위에서는 커서 위치를 조작으로 읽지 않는다 — 변속하러 손을 뻗는 동안
+  // 좌측 끝 좌표가 풀 카운터 조향으로 들어가면 차가 튕겨나간다. 마지막 입력 유지.
+  if (e.target.closest('#gear-panel')) return;
   input.x = e.clientX; input.y = e.clientY;
   // 기준점만 잡혀 있으면 다시 활성화한다 — 터치는 손을 뗄 때마다 비활성화되므로
   // phase로 막으면 기준점 설정 직후의 드래그를 놓친다
@@ -131,6 +134,11 @@ window.addEventListener('keydown', (e) => {
   } else if (mode === 'run') {
     if (k === 'Escape') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); }
     if (k === 'r' || k === 'R') startStage(st.no);
+    // Q A W S E D = 1~6단 직결 (H패턴 열 순서). e.code라 한글 자판에서도 동작.
+    if (st && st.trans === 'stick') {
+      const g = { KeyQ: 1, KeyA: 2, KeyW: 3, KeyS: 4, KeyE: 5, KeyD: 6 }[e.code];
+      if (g) input.gearTo = g;
+    }
   } else if (mode === 'pause') {
     if (k === 'Enter' || k === 'Escape') { mode = 'run'; M.audio.engineOn(); M.ui.hideAll(); }
     if (k === 'r' || k === 'R') startStage(st.no);
@@ -168,6 +176,13 @@ $('vbtn-pause').addEventListener('pointerdown', (e) => {
   e.preventDefault(); e.stopPropagation();
   if (mode === 'run') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); }
 });
+const gearCells = [...document.querySelectorAll('.gear-cell')];
+for (const el of gearCells) {
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); e.stopPropagation();
+    if (mode === 'run' && st && st.trans === 'stick') input.gearTo = +el.dataset.gear;
+  });
+}
 
 // ── 디버그 훅 (테스트 자동화용) ──
 M._dbg = () => ({
@@ -206,7 +221,10 @@ function updateHud() {
   const rpm = Math.min(1, st.rpm);
   $('hud-rpm').style.width = (rpm * 100).toFixed(0) + '%';
   $('hud-rpm').style.background = st.rpm > 0.9 ? '#ff5a4a' : '#7de08a';
-  if (st.trans === 'stick') $('hud-gear').textContent = st.gear;
+  if (st.trans === 'stick') {
+    $('hud-gear').textContent = st.gear;
+    for (const el of gearCells) el.classList.toggle('cur', +el.dataset.gear === st.gear);
+  }
   $('gauge-throttle').style.height = (st.throttle * 100).toFixed(0) + '%';
   $('gauge-brake').style.opacity = 0.18 + st.brake * 0.82;   // 깊이 비례
   $('gauge-steer-needle').style.left = (50 + st.steer * 46).toFixed(1) + '%';
@@ -216,12 +234,13 @@ function updateHud() {
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(0.033, (now - last) / 1000);
+  const dt = Math.min(M.Logic.DT_CAP, (now - last) / 1000);   // 상한은 관통 임계와 물려 있다
   last = now;
   $('vbtn-pause').style.display = isTouch && mode === 'run' ? 'flex' : 'none';
   const stickTouch = isTouch && mode === 'run' && st && st.trans === 'stick';
   $('vbtn-up').style.display = stickTouch ? 'flex' : 'none';
   $('vbtn-down').style.display = stickTouch ? 'flex' : 'none';
+  $('gear-panel').style.display = mode === 'run' && st && st.trans === 'stick' ? 'block' : 'none';
 
   if (mode === 'run' && st) {
     handleEvents(M.Logic.step(st, dt, input));

@@ -156,14 +156,14 @@ section('충돌 판정 (차폭 · 차선 · 고속 터널링)', () => {
   // 옆 차선(한 칸 옆) → 충돌 없음
   if (hits(place(LANE, CAR_LEN * 0.5, 3000), 1 / 60)) bad('옆 차선 차와 충돌함 — 차폭 과대');
   // 프레임 도약이 차 길이의 2배를 넘으면 앞차를 통째로 건너뛸 수 있다.
-  // main.js가 dt를 1/30로 묶어 실주행에서는 396단위(< 520)라 관통이 나지 않지만,
+  // main.js가 dt를 M.Logic.DT_CAP으로 묶어 실주행에서는 관통 폭에 못 미치지만,
   // logic은 임의 dt로 호출될 수 있으므로 스윕 판정이 이를 막는지 확인한다.
   const bigDt = 0.1;
-  const jump = M.MAX_SPEED * bigDt;                      // 1200단위 — 차 길이(260)의 4배
+  const jump = M.MAX_SPEED * bigDt;                      // 1800단위 — 차 길이(260)의 6배 이상
   if (jump <= CAR_LEN * 2) bad('도약 폭이 작아 스윕 판정을 시험하지 못함');
   if (!hits(place(0, jump * 0.5, M.MAX_SPEED), bigDt)) bad(`한 프레임 ${jump.toFixed(0)}단위 도약에서 앞차를 통과해 버림`);
-  // 실주행 상한(1/30)에서는 애초에 관통 폭에 못 미쳐야 한다
-  const realJump = M.MAX_SPEED / 30;
+  // 실주행 상한(main.js가 쓰는 DT_CAP)에서는 애초에 관통 폭에 못 미쳐야 한다
+  const realJump = M.MAX_SPEED * M.Logic.DT_CAP;
   if (realJump > CAR_LEN * 2) bad(`실주행 프레임 도약 ${realJump.toFixed(0)}단위가 관통 임계(${CAR_LEN * 2})를 넘음`);
   return `차폭 합 ${sep.toFixed(2)} < 차선 ${LANE.toFixed(2)} · 실주행 도약 ${realJump.toFixed(0)} < 임계 ${CAR_LEN * 2} · 도약 ${jump}단위도 스윕이 감지`;
 });
@@ -219,6 +219,7 @@ section('체크포인트 통과 시 제한시간 연장', () => {
   const st = M.Logic.create(1);
   let got = null;
   for (let i = 0; i < 60 * 200 && !got; i++) {
+    st.time = 1e9;                                   // 조향 없는 직진이라 제한시간은 무력화 (tune.mjs와 동일)
     for (const e of M.Logic.step(st, DT, mouse(1, 0))) if (e.type === 'checkpoint') got = e;
   }
   if (!got) { bad('체크포인트를 통과하지 못함'); return ''; }
