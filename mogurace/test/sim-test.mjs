@@ -214,6 +214,30 @@ section('난이도 상승이 실제로 작동', () => {
   return `미숙 봇(62%) 완주 — 초반 ${early}/6 → 후반 ${late}/6`;
 });
 
+// ── 7b. 난이도 모드 — 노브가 실제로 적용되고, 어느 난이도든 완주 가능해야 한다 ──
+section('난이도 모드 (이지/하드/크레이지)', () => {
+  const sample = [1, 45, 90];
+  const base = {};
+  for (const s of sample) base[s] = M.makeStage(s);
+  const out = [];
+  for (const d of ['easy', 'hard', 'crazy']) {
+    M.diff = d;
+    const D = M.DIFFS[d];
+    for (const s of sample) {
+      const stg = M.makeStage(s);
+      if (d === 'easy' && !(stg.startTime > base[s].startTime && stg.cars.length < base[s].cars.length))
+        bad(`이지 S${s} 노브 미적용 (시간 ${stg.startTime} 차량 ${stg.cars.length})`);
+      if (d !== 'easy' && !(stg.startTime < base[s].startTime && stg.cars.length > base[s].cars.length))
+        bad(`${D.name} S${s} 노브 미적용 (시간 ${stg.startTime} 차량 ${stg.cars.length})`);
+      const { st, timedOut } = runBot(s, 1.0);
+      if (timedOut || st.phase !== 'finish') bad(`${D.name} S${s} 숙련 봇 완주 실패`);
+      else out.push(`${D.name} S${s}★${st.stars}`);
+    }
+  }
+  M.diff = 'normal';                                   // 이후 테스트는 노말 기준
+  return out.join(' · ');
+});
+
 // ── 8. 체크포인트 시간 연장 ──
 section('체크포인트 통과 시 제한시간 연장', () => {
   const st = M.Logic.create(1);

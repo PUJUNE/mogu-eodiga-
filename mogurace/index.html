@@ -82,7 +82,7 @@
   .logo { font-size:min(46px,10vw); font-weight:900; letter-spacing:-1px; color:#ffd83d;
     text-shadow:0 4px 10px rgba(0,0,0,.6); }
   .sub { font-size:13px; letter-spacing:4px; color:rgba(255,255,255,.6); margin-top:4px; }
-  #title-icon { width:min(150px,34vw); margin:18px 0 10px; filter:drop-shadow(0 6px 14px rgba(0,0,0,.6)); }
+  #title-icon { width:min(112px,28vw); margin:10px 0 8px; filter:drop-shadow(0 6px 14px rgba(0,0,0,.6)); }
   #title-hint { font-size:min(14px,3.4vw); color:#cfe0f4; line-height:1.8; text-align:center; margin-bottom:16px; }
   .ctl-table { font-size:min(13px,3.2vw); color:#b8cbe4; line-height:1.9; margin-bottom:18px; text-align:left; }
   .ctl-table b { color:#ffd83d; }
@@ -90,6 +90,17 @@
     background:#d24a3c; border:2px solid rgba(255,255,255,.7); border-radius:12px; }
   .btn.sub-btn { background:#3a4a6a; }
   #mode-row { display:flex; gap:8px; margin-bottom:10px; }
+  #diff-row { display:flex; gap:8px; margin-bottom:10px; }
+  .diff-btn { padding:8px 18px; font-size:13px; font-weight:800; color:#9fb3cc; cursor:pointer;
+    background:#3d4a5c; border:2px solid rgba(255,255,255,.35); border-radius:10px; }
+  .diff-btn.sel { background:#3aa84f; border-color:#ffd83d; color:#fff; outline:2px solid rgba(255,216,61,.5); }
+  .diff-btn.crazy.sel { background:#c8385a; }
+  #save-row { display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap; justify-content:center; }
+  .save-btn { padding:7px 14px; font-size:12px; font-weight:800; color:#cfe0f2; cursor:pointer;
+    background:#2c3a52; border:2px solid rgba(255,255,255,.3); border-radius:10px; }
+  #save-msg { color:#ffd83d; font-weight:700; font-size:12px; min-height:1em; }
+  /* 타이틀 내용이 화면보다 길면 잘라내지 않고 스크롤 (safe center — 짧으면 중앙 유지) */
+  #title-screen { overflow-y:auto; justify-content:safe center; padding:16px 0; }
   .mode-btn { padding:8px 24px; font-size:14px; font-weight:800; color:#9fb3cc; cursor:pointer;
     background:#1c2740; border:2px solid rgba(255,255,255,.25); border-radius:10px; font-family:inherit; }
   .mode-btn.sel { color:#fff; background:#2c4a6c; border-color:#7de08a; }
@@ -221,8 +232,20 @@
       <button class="mode-btn" id="mode-auto">오토</button>
       <button class="mode-btn" id="mode-stick">스틱 6단</button>
     </div>
+    <div id="diff-row">
+      <button class="diff-btn" data-diff="easy">이지</button>
+      <button class="diff-btn" data-diff="normal">노말</button>
+      <button class="diff-btn" data-diff="hard">하드</button>
+      <button class="diff-btn crazy" data-diff="crazy">크레이지</button>
+    </div>
     <button class="btn" id="btn-start">▶ 코스 선택</button>
     <button class="btn sub-btn" id="btn-series">모구 게임 시리즈</button>
+    <div id="save-row">
+      <button class="save-btn" id="btn-save-export">💾 세이브 내보내기</button>
+      <button class="save-btn" id="btn-save-import">📂 세이브 불러오기</button>
+      <input type="file" id="save-file-input" accept=".json,application/json" style="display:none">
+      <span id="save-msg"></span>
+    </div>
     <div id="credits">노면 텍스처 "City Road Voxel Tileset" by davididev · CC BY 3.0<br>
       배경 사진 위키미디어 공용 (퍼블릭 도메인 / CC0)</div>
   </div>

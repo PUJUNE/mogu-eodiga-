@@ -12,6 +12,19 @@ M.MAX_SPEED = M.SEG_LEN * 90;   // 초당 90세그먼트 = 18000 (60은 속도�
 M.KMH = 450 / M.MAX_SPEED;
 
 M.COURSES = 90;         // 총 코스 수 — 테마(월드)당 6개 × 15테마
+
+// ── 난이도 모드 (모구 어디가 문법) ──
+// 트랙 형상·차량 물리는 그대로 두고 제한시간과 교통량만 조절한다 — 형상을 건드리면
+// 실측으로 구운 제한시간 표가 어긋난다. timeMul은 표(여유율 25~55%)에 곱해지므로
+// 크레이지(0.85)도 후반 코스에서 산술상 완주 가능선(봇 실측 × 1.06)을 지킨다.
+M.DIFF_ORDER = ['easy', 'normal', 'hard', 'crazy'];
+M.DIFFS = {
+  easy:   { name: '이지',     timeMul: 1.3,  trafficMul: 0.6 },
+  normal: { name: '노말',     timeMul: 1.0,  trafficMul: 1.0 },
+  hard:   { name: '하드',     timeMul: 0.92, trafficMul: 1.3 },
+  crazy:  { name: '크레이지', timeMul: 0.85, trafficMul: 1.7 },
+};
+M.diff = 'normal';
 // 테마 6~15는 배경 사진 5장을 재활용한다: bg = 쓸 사진 번호, tint = 사진 위에
 // 덮는 색조(rgba)로 노을·새벽·눈보라 같은 분위기를 만든다 (render._background).
 M.WORLDS = {
@@ -155,6 +168,7 @@ M.makeStage = function (no) {
   const world = Math.min(15, Math.ceil(no / 6));
   const theme = M.WORLDS[world];
   const boss = no % 6 === 0;
+  const D = M.DIFFS[M.diff] || M.DIFFS.normal;
 
   // ── 난이도 프로파일 ──
   // 코스 길이·체크포인트 간격·교통 대수는 MAX_SPEED 1.5배 상향과 함께 1.5배로 늘려
@@ -166,10 +180,10 @@ M.makeStage = function (no) {
   const curviness = 1 + (no - 1) * 0.0055;                      // 커브 곡률 배수
   const hilliness = 1 + (no - 1) * 0.0157;                      // 언덕 기복 배수
   const cpEvery = 900;                                          // 체크포인트 간격 (세그먼트)
-  const cpBonus = M.CP_BONUS[no - 1];
-  const startTime = M.START_TIME[no - 1];
+  const cpBonus = Math.round(M.CP_BONUS[no - 1] * D.timeMul * 2) / 2;
+  const startTime = Math.round(M.START_TIME[no - 1] * D.timeMul * 2) / 2;
   // 코스가 길어지는 만큼 대수도 늘리되, 단위 길이당 밀도가 3배씩 뛰지 않게 완만히
-  const trafficN = Math.round((15 + (no - 1) * 0.367) * (boss ? 1.35 : 1));
+  const trafficN = Math.round((15 + (no - 1) * 0.367) * (boss ? 1.35 : 1) * D.trafficMul);
 
   // ── 도로 세그먼트 조립 ──
   const segs = [];
