@@ -20,7 +20,9 @@
 - 순수 로직 테스트(level-test.mjs 등)는 `shim.mjs`로 window 셔임 후 Node에서 실행 — import 없는 순수 모듈(rng/difficulty/levels/logic)만 로드 가능.
 
 ## 게임별 전역 네임스페이스 (window.XXX)
-game(어디가)=MOGU, mogubble=MGB, mogubrick=MBK, mogudiver=MDV, mogudragon=MDG, mogufortress=MFT, mogukingdom=MKR, moguman=MGM, mogumarble=MBL, mogumuscle=MMS, mogunamgeuk=MNG, mogusamguk=MSG, moguski=MSJ, mogusolo=MSL, moguvolley=MGV, motris=MTR, supermogu=SMG
+game(어디가)=MOGU, mogubble=MGB, mogubrick=MBK, mogudiver=MDV, mogudragon=MDG, mogufortress=MFT, mogukingdom=MKR, moguman=MGM, mogumarble=MBL, mogumuscle=MMS, mogunamgeuk=MNG, mogunocountry?, mogurace=MRC, mogupark=MPK, mogusamguk=MSG, moguski=MSJ, mogusolo=MSL, moguvolley=MGV, motris=MTR, supermogu=SMG
+
+- mogupark(모구의 주차, 포트 8766): 마우스 전용(모구레이스 앵커 문법). 기준점 클릭 즉시 phase=run(타이머 시작), 기어는 N 시작 — 휠 위/좌클릭=D, `_startStage(n)`으로 판 직행. 성공 주입: `_st()`로 `car.x/z/h`를 `stage.target`에 맞추고 v=0, gear='N' → 1초 뒤 parked → 1.1초 뒤 자동 리플레이(mode=replay) → 끝나면 result. 리플레이가 짧으면 순식간에 result까지 가므로 Enter 스킵 전에 mode를 폴링할 것. 루트에 node_modules 심링크(→game/node_modules)가 있어야 ESM이 playwright-core를 찾는다.
 
 ## 디버그 훅 · 상태 주입
 - 모든 게임이 `window.<NS>._dbg()`(상태 요약)를 노출하고, 대부분 `_st()`(내부 상태 객체 직접 접근)도 있다.

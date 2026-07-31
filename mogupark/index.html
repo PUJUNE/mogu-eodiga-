@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구의 주차</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#000;
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  #app { position:relative; width:100%; height:100%; cursor:crosshair; }
+  canvas { display:block; }
+
+  /* ── 주행 HUD ── */
+  #hud { position:absolute; inset:0; pointer-events:none; z-index:5; }
+  #hud-stage { position:absolute; top:10px; left:50%; transform:translateX(-50%);
+    color:#fff; font-size:15px; font-weight:800; text-shadow:0 2px 3px rgba(0,0,0,.6); white-space:nowrap; }
+  #hud-target { position:absolute; top:30px; left:50%; transform:translateX(-50%);
+    color:#d8e4f5; font-size:12px; font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,.6); white-space:nowrap; }
+
+  #hud-time-wrap { position:absolute; top:12px; right:16px; text-align:right; }
+  #hud-time { color:#fff; font-size:min(46px,10vw); font-weight:900; line-height:1;
+    text-shadow:0 3px 6px rgba(0,0,0,.6); font-variant-numeric:tabular-nums; }
+  #hud-time-lbl { color:rgba(255,255,255,.75); font-size:11px; font-weight:800; letter-spacing:2px; }
+
+  #hud-speed-wrap { position:absolute; bottom:14px; right:18px; text-align:right; }
+  #hud-speed { color:#fff; font-size:min(40px,9vw); font-weight:900; line-height:1;
+    text-shadow:0 3px 6px rgba(0,0,0,.6); font-variant-numeric:tabular-nums; }
+  #hud-speed-lbl { color:rgba(255,255,255,.75); font-size:12px; font-weight:800; letter-spacing:2px; }
+
+  #hud-look { position:absolute; top:52px; left:50%; transform:translateX(-50%);
+    color:rgba(255,255,255,.55); font-size:11px; font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,.6); }
+
+  #hud-toast { position:absolute; top:34%; left:50%; transform:translateX(-50%);
+    color:#fff; font-size:min(26px,6vw); font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
+    opacity:0; transition:opacity .3s; white-space:nowrap; }
+
+  /* ── 조작 표시 (기준점 · 커서 · 게이지) ── */
+  #ref-cross { position:absolute; width:34px; height:34px; margin:-17px 0 0 -17px; pointer-events:none; }
+  #ref-cross::before, #ref-cross::after { content:''; position:absolute; background:rgba(255,216,61,.9); }
+  #ref-cross::before { left:50%; top:0; width:2px; height:100%; margin-left:-1px; }
+  #ref-cross::after { top:50%; left:0; height:2px; width:100%; margin-top:-1px; }
+  #cursor-dot { position:absolute; width:14px; height:14px; margin:-7px 0 0 -7px; border-radius:50%;
+    background:#7de08a; border:2px solid rgba(0,0,0,.5); pointer-events:none; }
+
+  #gauges { position:absolute; left:16px; bottom:16px; display:flex; align-items:flex-end; gap:10px; }
+  #gauge-col { width:16px; height:120px; background:rgba(0,0,0,.45); border-radius:8px;
+    border:2px solid rgba(255,255,255,.5); overflow:hidden; display:flex; align-items:flex-end; }
+  #gauge-throttle { width:100%; height:0%; background:linear-gradient(0deg,#7de08a,#ffd83d); }
+  #gauge-brake { width:16px; height:16px; border-radius:50%; background:#ff5a4a; opacity:.18;
+    border:2px solid rgba(255,255,255,.5); }
+
+  /* ── 기어 셀렉터 (R N D) — 우측, 오토 셀렉터 게이트 모양 ── */
+  #gear-panel { position:absolute; right:14px; top:50%; transform:translateY(-50%);
+    display:none; z-index:7; pointer-events:auto;
+    background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.5); border-radius:14px;
+    padding:10px 10px; }
+  .gearp-cell { position:relative; display:block; width:52px; height:46px; border-radius:10px; cursor:pointer;
+    background:#1c2740; border:2px solid rgba(255,255,255,.45); color:#fff; margin:6px 0;
+    font-weight:900; font-size:17px; line-height:1.05; font-family:inherit; padding:2px 0 0; }
+  .gearp-cell small { display:block; font-size:9px; font-weight:800; letter-spacing:1px; color:#9fb3cc; }
+  .gearp-cell.cur { background:#c8402f; border-color:#ffd83d; }
+  .gearp-cell.cur small { color:#ffe6a8; }
+  .gearp-cell:active { transform:translateY(1px); }
+  #gear-hint { color:rgba(255,255,255,.6); font-size:9px; text-align:center; margin-top:4px; letter-spacing:1px; }
+
+  /* ── 준비 안내 ── */
+  #ready-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    z-index:6; pointer-events:none; }
+  #ready-box { background:rgba(10,14,24,.72); border:2px solid rgba(255,255,255,.5); border-radius:14px;
+    padding:18px 26px; text-align:center; color:#fff; }
+  #ready-title { font-size:min(24px,5.5vw); font-weight:900; color:#ffd83d; margin-bottom:8px; }
+  #ready-hint { font-size:min(15px,3.6vw); line-height:1.7; color:#e2eaf6; }
+
+  /* ── 공통 화면 ── */
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10;
+    background:radial-gradient(circle at 50% 35%, #1c2a44 0%, #0a0f1c 75%); color:#fff; }
+  .hidden { display:none !important; }
+  .logo { font-size:min(46px,10vw); font-weight:900; letter-spacing:-1px; color:#ffd83d;
+    text-shadow:0 4px 10px rgba(0,0,0,.6); }
+  .sub { font-size:13px; letter-spacing:4px; color:rgba(255,255,255,.6); margin-top:4px; }
+  #title-icon { width:min(112px,28vw); margin:10px 0 8px; filter:drop-shadow(0 6px 14px rgba(0,0,0,.6)); }
+  #title-hint { font-size:min(14px,3.4vw); color:#cfe0f4; line-height:1.8; text-align:center; margin-bottom:16px; }
+  .ctl-table { font-size:min(13px,3.2vw); color:#b8cbe4; line-height:1.9; margin-bottom:18px; text-align:left; }
+  .ctl-table b { color:#ffd83d; }
+  .btn { padding:12px 34px; margin:6px; font-size:16px; font-weight:800; color:#fff; cursor:pointer;
+    background:#2a7c4f; border:2px solid rgba(255,255,255,.7); border-radius:12px; }
+  .btn.sub-btn { background:#3a4a6a; }
+  #diff-row { display:flex; gap:8px; margin-bottom:10px; }
+  .diff-btn { padding:8px 18px; font-size:13px; font-weight:800; color:#9fb3cc; cursor:pointer;
+    background:#3d4a5c; border:2px solid rgba(255,255,255,.35); border-radius:10px; }
+  .diff-btn.sel { background:#3aa84f; border-color:#ffd83d; color:#fff; outline:2px solid rgba(255,216,61,.5); }
+  .diff-btn.crazy.sel { background:#c8385a; }
+  #save-row { display:flex; gap:8px; align-items:center; margin-top:12px; flex-wrap:wrap; justify-content:center; }
+  .save-btn { padding:7px 14px; font-size:12px; font-weight:800; color:#cfe0f2; cursor:pointer;
+    background:#2c3a52; border:2px solid rgba(255,255,255,.3); border-radius:10px; }
+  #save-msg { color:#ffd83d; font-weight:700; font-size:12px; min-height:1em; }
+  #title-screen { overflow-y:auto; justify-content:safe center; padding:16px 0; }
+  .btn:active { transform:translateY(2px); }
+  #credits { margin-top:16px; font-size:10px; line-height:1.7; color:rgba(255,255,255,.45);
+    text-align:center; padding:0 16px; }
+
+  /* ── 주차장 맵 ── */
+  #map-screen { justify-content:flex-start; padding-top:14px; }
+  .map-title { font-size:min(26px,6vw); font-weight:900; color:#ffd83d; margin-bottom:8px; }
+  #map-scroll { width:100%; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 10px 10px; }
+  #map-track { max-width:640px; margin:0 auto; }
+  .map-world { font-size:13px; font-weight:800; color:#8fb0d8; letter-spacing:1px; margin:14px 0 6px; }
+  .map-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+  .stage-cell { position:relative; padding:9px 2px 7px; background:#22304c; color:#fff; cursor:pointer;
+    border:2px solid rgba(255,255,255,.28); border-radius:10px; font-family:inherit; }
+  .stage-cell b { display:block; font-size:17px; font-weight:900; }
+  .stage-cell .stars { display:block; font-size:10px; color:#ffd83d; margin-top:2px; }
+  .stage-cell .stars.dim { color:rgba(255,255,255,.4); }
+  .stage-cell .best { display:block; font-size:9px; color:#7de08a; }
+  .stage-cell .crown { position:absolute; top:2px; right:4px; font-size:11px; }
+  .stage-cell.cleared { background:#2c4a6c; border-color:#7de08a; }
+  .stage-cell.locked { background:#161d2c; color:rgba(255,255,255,.3); cursor:default; }
+
+  /* ── 결과 ── */
+  #result-screen { background:rgba(8,12,22,.78); }
+  #result-title { font-size:min(32px,7vw); font-weight:900; margin-bottom:6px; }
+  #result-dist { font-size:min(50px,11vw); font-weight:900; color:#fff; }
+  #result-stars { font-size:min(30px,7vw); color:#ffd83d; letter-spacing:4px; margin:4px 0 8px; }
+  #result-stats { font-size:min(14px,3.4vw); color:#cfe0f4; line-height:1.8; text-align:center; margin-bottom:14px; }
+
+  /* ── 터치 버튼 ── */
+  .vbtn { position:absolute; display:none; align-items:center; justify-content:center; z-index:7;
+    background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.6); color:#fff; font-weight:800; }
+  #vbtn-pause { top:10px; left:10px; width:44px; height:44px; border-radius:10px; font-size:18px; }
+  #vbtn-look-l { top:26%; left:10px; width:56px; height:64px; border-radius:14px; font-size:22px; }
+  #vbtn-look-r { top:26%; right:80px; width:56px; height:64px; border-radius:14px; font-size:22px; }
+  body.touch #app { cursor:none; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="hud" class="hidden">
+    <div id="hud-stage"></div>
+    <div id="hud-target"></div>
+    <div id="hud-look">◀ ▶ 고개 돌리기 · 휠/클릭 = 기어 · 미러로 후방 확인</div>
+    <div id="hud-time-wrap">
+      <div id="hud-time">0.0</div>
+      <div id="hud-time-lbl">TIME</div>
+    </div>
+    <div id="hud-speed-wrap">
+      <div id="hud-speed">0</div>
+      <div id="hud-speed-lbl">KM/H</div>
+    </div>
+    <div id="gauges">
+      <div id="gauge-col"><div id="gauge-throttle"></div></div>
+      <div id="gauge-brake"></div>
+    </div>
+    <div id="ref-cross" class="hidden"></div>
+    <div id="cursor-dot" class="hidden"></div>
+    <div id="hud-toast"></div>
+    <div id="gear-panel">
+      <button class="gearp-cell" data-gear="R">R<small>S · 후진</small></button>
+      <button class="gearp-cell" data-gear="N">N<small>X · 중립</small></button>
+      <button class="gearp-cell" data-gear="D">D<small>W · 전진</small></button>
+      <div id="gear-hint">휠/클릭</div>
+    </div>
+  </div>
+
+  <div id="ready-overlay" class="hidden">
+    <div id="ready-box">
+      <div id="ready-title">기준점을 정하세요</div>
+      <div id="ready-hint">화면 아래쪽을 <b>클릭</b>하면 그 자리가 기준점<br>
+        <b>휠 위/좌클릭 = D(전진)</b> · 휠 아래/우클릭 = R(후진)<br>
+        페달을 안 밟아도 크리프로 슬금슬금 — <b>뒤로 당기면 브레이크</b><br>
+        <b>← →</b> 고개를 돌려 미러와 옆을 확인하세요</div>
+    </div>
+  </div>
+
+  <div id="title-screen" class="screen">
+    <div class="logo">모구의 주차</div>
+    <div class="sub">MOGU PARKING</div>
+    <img id="title-icon" alt="모구">
+    <div id="title-hint">차 안의 시야로 미러만 보고 주차 — 후방카메라는 없다</div>
+    <div class="ctl-table">
+      기준점보다 <b>앞으로</b> — 엑셀 · <b>뒤로</b> — 브레이크<br>
+      기준점 <b>근처</b> — 페달 오프, 크리프로 슬금슬금<br>
+      <b>좌우</b> — 핸들 (풀 록까지 실제로 돌아간다)<br>
+      <b>휠·좌/우클릭</b> — 기어 R ↔ N ↔ D &nbsp;(<b>W S X</b> 직결)<br>
+      <b>← →</b> — 고개 돌려 옆·뒤 확인 &nbsp;·&nbsp; <b>R</b> — 재시작<br>
+      주차 후 <b>탑다운 리플레이</b>로 내 궤적 복기
+    </div>
+    <div id="diff-row">
+      <button class="diff-btn" data-diff="easy">이지</button>
+      <button class="diff-btn" data-diff="normal">노말</button>
+      <button class="diff-btn" data-diff="hard">하드</button>
+      <button class="diff-btn crazy" data-diff="crazy">크레이지</button>
+    </div>
+    <button class="btn" id="btn-start">▶ 주차장 선택</button>
+    <button class="btn sub-btn" id="btn-series">모구 게임 시리즈</button>
+    <div id="save-row">
+      <button class="save-btn" id="btn-save-export">💾 세이브 내보내기</button>
+      <button class="save-btn" id="btn-save-import">📂 세이브 불러오기</button>
+      <input type="file" id="save-file-input" accept=".json,application/json" style="display:none">
+      <span id="save-msg"></span>
+    </div>
+    <div id="credits">노면 텍스처 "City Road Voxel Tileset" by davididev · CC BY 3.0<br>
+      배경 사진 위키미디어 공용 (퍼블릭 도메인 / CC0)</div>
+  </div>
+
+  <div id="map-screen" class="screen hidden">
+    <div class="map-title">주차장 선택</div>
+    <div id="map-scroll"><div id="map-track"></div></div>
+  </div>
+
+  <div id="result-screen" class="screen hidden">
+    <div id="result-title"></div>
+    <div id="result-dist"></div>
+    <div id="result-stars"></div>
+    <div id="result-stats"></div>
+    <button class="btn" id="btn-next">▶ 다음 주차장</button>
+    <button class="btn sub-btn" id="btn-retry">↻ 다시 주차</button>
+    <button class="btn sub-btn" id="btn-map">주차장 목록</button>
+  </div>
+
+  <div id="pause-screen" class="screen hidden">
+    <div class="logo">일시정지</div>
+    <button class="btn" id="btn-resume">▶ 계속</button>
+    <button class="btn sub-btn" id="btn-pmap">주차장 목록</button>
+  </div>
+
+  <div class="vbtn" id="vbtn-pause">⏸</div>
+  <div class="vbtn" id="vbtn-look-l">◀</div>
+  <div class="vbtn" id="vbtn-look-r">▶</div>
+</div>
+
+<script>window.MPK = { ASSETS: {
+  mogu: "assets/mogu-race.png",
+  asphalt: "assets/asphalt.png",
+  bg: { 1: "assets/bg-w1.jpg", 2: "assets/bg-w2.jpg", 3: "assets/bg-w3.jpg", 5: "assets/bg-w5.jpg" }
+} };</script>
+<script type="module" src="src/rng.js"></script>
+<script type="module" src="src/levels.js"></script>
+<script type="module" src="src/logic.js"></script>
+<script type="module" src="src/render.js"></script>
+<script type="module" src="src/audio.js"></script>
+<script type="module" src="src/ui.js"></script>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

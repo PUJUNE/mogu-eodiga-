@@ -1,0 +1,36 @@
+모구의 주차 — 외부 그래픽 에셋 출처와 라이선스
+================================================
+
+이 게임의 에셋은 전부 모구레이스(mogurace/assets)에서 재사용한 것입니다.
+아래 중 CC-BY 항목은 표기가 의무이고, 퍼블릭 도메인·CC0 항목은 표기 의무가 없으나
+출처를 남깁니다. (상세 가공 내역은 mogurace/CREDITS.txt 참조)
+
+
+[표기 의무 있음 — CC BY]
+
+1. 노면 아스팔트 결 (assets/asphalt.png) — 탑다운 리플레이 노면 패턴
+   "City Road Voxel Tileset", by davididev.
+   Published at OpenGameArt under license CC-BY 3.0.
+   https://opengameart.org/content/city-road-voxel-tileset
+
+
+[표기 의무 없음 — 퍼블릭 도메인 / CC0, 출처만 기록]
+
+2. 배경 사진 (assets/bg-w1/2/3/5.jpg) — 모두 위키미디어 공용
+   W1 운전연습장(해안)  "The Sea Cliff Bridge. NSW Aust." (CC0)
+                        https://commons.wikimedia.org/wiki/File:The_Sea_Cliff_Bridge._NSW_Aust._(21016079739).jpg
+   W2 마트(사막 도로변) "#TravelTuesday with My Public Lands" (Public domain, US BLM)
+                        https://commons.wikimedia.org/wiki/File:-TravelTuesday_with_My_Public_Lands_(24715787636).jpg
+   W3 골목(도시 야경)   "Night city traffic" (CC0, Unsplash)
+                        https://commons.wikimedia.org/wiki/File:Night_city_traffic_(Unsplash).jpg
+   W5 복합 시험장(협곡) "#TravelTuesday with My Public Lands" (Public domain, US BLM)
+                        https://commons.wikimedia.org/wiki/File:-TravelTuesday_with_My_Public_Lands_(24446459920).jpg
+   (W4 지하주차장은 사진 없이 천장·형광등을 직접 그림)
+
+
+[자체 제작]
+
+3. 모구 스프라이트 (assets/mogu-race.png) — 모구 사진 컷아웃, 모구 게임 시리즈 자체 자산.
+   타이틀 아이콘 · 룸미러 참(charm) · 탑다운 리플레이의 차 지붕 위 모구로 사용.
+4. 주차장(칸 도색·연석·기둥·벽)·주차 차량·콕핏(대시보드·필러·핸들·미러 하우징)
+   — 캔버스로 직접 그림.
