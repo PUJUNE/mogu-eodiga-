@@ -5,7 +5,7 @@ const M = window.MDD;
 // 화면 상수 (logic·render 공유) — 세로형 캔버스
 M.W = 360; M.H = 560;
 M.GROUND = 522;                  // 모구가 서는 바닥 y (발끝)
-M.PW = 17; M.PH = 52;            // 모구 히트박스 반폭 · 키 (스프라이트보다 좁게 — 스칠 땐 살려 준다)
+M.PW = 15; M.PH = 74;            // 모구 히트박스 반폭 · 키 (스프라이트 몸통 폭에 맞춤 — 스칠 땐 살려 준다)
 M.PSPD = 250;                    // 모구 이동 속도 (px/s)
 
 M.CLEAR_TIME = 300;              // 원작과 동일한 5분 생존 클리어
@@ -58,7 +58,7 @@ M.makeWave = function (no, diff) {
   const D = M.DIFFS[diff || M.diff] || M.DIFFS.normal;
   return {
     no: w,
-    rate: +((1.5 + (w - 1) * 0.82) * D.rateMul).toFixed(3),   // 초당 똥 생성 수
+    rate: +((1.25 + (w - 1) * 0.68) * D.rateMul).toFixed(3),   // 초당 똥 생성 수
     fallV: +((168 + (w - 1) * 12) * D.speedMul).toFixed(2),  // 기본 낙하 속도 (px/s)
     // 종류 가중치: 초반엔 보통 똥만, 웨이브가 오르면 작고 빠른 똥 + 큰 똥이 섞인다
     weights: {
