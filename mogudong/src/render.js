@@ -64,11 +64,11 @@ M.Render = {
   drawMogu(c, st, t) {
     const p = st.p;
     const dying = st.phase === 'over';
-    const h = 80, a = this.body ? this.body.width / this.body.height : 0.41;
+    const h = 86, a = this.body ? this.body.width / this.body.height : 0.41;
     const w = h * a;                              // 스키점프 스프라이트는 길쭉한 뒷모습 (약 0.41)
     // 그림자
     c.fillStyle = 'rgba(0,0,0,.22)';
-    c.beginPath(); c.ellipse(p.x, M.GROUND + 3, Math.max(14, w * 0.62), 5, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(p.x, M.GROUND + 2, Math.max(14, w * 0.58), 5.5, 0, 0, Math.PI * 2); c.fill();
 
     c.save();
     c.translate(p.x, M.GROUND);
@@ -81,11 +81,13 @@ M.Render = {
       c.rotate((p.vx || 0) * 0.0006);             // 달리는 방향으로 살짝 기울기
     }
     c.scale(p.dir >= 0 ? -1 : 1, 1);              // 뒷모습이라 좌우 반전은 몸을 트는 정도의 의미
-    if (this.body) c.drawImage(this.body, -w / 2, -h, w, h);
-    else { c.fillStyle = '#e0d4c4'; c.fillRect(-w / 2, -h, w, h); }
+    // 꼬리 끝이 아니라 꼬리 시작점(엉덩이, 이미지 높이의 58% 지점)이 접지되게 내려 그린다
+    // — 꼬리는 그림자 아래 바닥으로 늘어짐 (남극 대모험과 같은 접지 문법)
+    if (this.body) c.drawImage(this.body, -w / 2, -h * M.FOOT, w, h);
+    else { c.fillStyle = '#e0d4c4'; c.fillRect(-w / 2, -h * M.FOOT, w, h * M.FOOT); }
     if (dying) {                                  // 뒷모습이라 눈이 안 보인다 — 머리 위 어질어질 별
       c.strokeStyle = '#ffd83d'; c.lineWidth = 2.2; c.lineCap = 'round';
-      const ey = -h * 0.98;
+      const ey = -h * M.FOOT - 6;
       for (let i = 0; i < 3; i++) {
         const ang = st.endT * 5 + (i * Math.PI * 2) / 3;
         c.beginPath();

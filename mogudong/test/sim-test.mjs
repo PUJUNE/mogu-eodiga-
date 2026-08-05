@@ -175,7 +175,7 @@ function botRun(diff, seed) {
 }
 
 // 봇은 1스텝 그리디라 사람보다 약하다 — 절대 수치가 아니라 난이도 간 상대 비교용
-const TRIALS = 8;
+const TRIALS = 14;
 const survive = {};
 for (const d of M.DIFF_ORDER) {
   let sum = 0, cleared = 0, dodged = 0;
