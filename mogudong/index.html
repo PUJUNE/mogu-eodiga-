@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구 똥피하기</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0c1018;
+    font-family:'Malgun Gothic','맑은 고딕',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  #app { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  #stage-wrap { position:relative; touch-action:none; }
+  canvas { display:block; background:#000; }
+
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10; }
+  .hidden { display:none !important; }
+
+  #hud { position:absolute; inset:0; pointer-events:none; z-index:5; }
+  #hud-toast { position:absolute; top:24%; left:50%; transform:translateX(-50%);
+    color:#fff; font-size:18px; font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.75);
+    opacity:0; transition:opacity .3s; white-space:nowrap; }
+
+  /* ── 타이틀 ── */
+  #title-screen { background:linear-gradient(#9fd8f5 0%, #e2f4fc 58%, #6aa84f 59%, #3f6b2c 100%); }
+  #title-screen .logo { font-size:min(50px, 11vw); font-weight:900; color:#fff; white-space:nowrap;
+    text-shadow:0 5px 0 #7a4a1e, 0 9px 18px rgba(0,0,0,.4); letter-spacing:min(5px, 1.2vw); }
+  #title-screen .sub { margin-top:6px; font-size:16px; color:#6b4118; font-weight:800; }
+  #title-icon { width:96px; height:auto; margin:12px 0 2px; animation:bob 1.5s ease-in-out infinite;
+    filter:drop-shadow(0 8px 10px rgba(0,0,0,.4)); }
+  #title-poops { font-size:26px; letter-spacing:14px; margin-top:2px; animation:drop 1.9s ease-in infinite; }
+  @keyframes bob { 0%,100%{transform:translateY(0) rotate(-5deg)} 50%{transform:translateY(-14px) rotate(5deg)} }
+  @keyframes drop { 0%{transform:translateY(-18px); opacity:.2} 70%{opacity:1} 100%{transform:translateY(10px); opacity:.15} }
+  #title-hi { margin-top:8px; color:#5a3410; font-size:14px; font-weight:800; min-height:19px; text-align:center; }
+  #title-hint { margin-top:12px; color:rgba(255,255,255,.95); font-size:13px; text-align:center; line-height:1.6;
+    padding:0 14px; text-shadow:0 1px 3px rgba(0,0,0,.6); }
+
+  .menu-buttons { display:flex; gap:10px; margin-top:14px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
+  .btn { pointer-events:auto; padding:12px 24px; font-size:16px; font-weight:800; color:#fff;
+    background:#8a5522; border:3px solid rgba(255,255,255,.8); border-radius:12px; cursor:pointer;
+    box-shadow:0 4px 8px rgba(0,0,0,.4); font-family:inherit; }
+  .btn.primary { background:#3aa84f; }
+  .btn.series { padding:9px 18px; font-size:13px; background:#5e370f; }
+  .diff-btn { padding:8px 13px; font-size:13px; background:#6b4118; border-color:rgba(255,255,255,.35); }
+  .diff-btn.selected { background:#3aa84f; border-color:#ffd83d; outline:2px solid rgba(255,216,61,.5); }
+  .diff-btn.crazy.selected { background:#c8385a; }
+
+  /* ── 클리어 / 일시정지 / 게임오버 / 엔딩 ── */
+  #win-screen { background:rgba(30,20,8,.88); z-index:20; }
+  #win-screen .big { font-size:min(44px, 10vw); font-weight:900; color:#ffd83d; white-space:nowrap; }
+  #win-screen .trophy { font-size:52px; margin-bottom:4px; }
+  #win-stats { margin-top:10px; color:#f5e8d2; font-size:16px; line-height:1.8; text-align:center; }
+  #pause-screen { background:rgba(0,0,0,.6); z-index:20; }
+  #pause-screen .big, #over-screen .big, #ending-screen .big {
+    font-size:min(40px, 9.5vw); font-weight:900; color:#fff; white-space:nowrap; }
+  #over-screen { background:rgba(0,0,0,.85); z-index:20; }
+  #over-screen .big { color:#ff5252; letter-spacing:4px; }
+  #over-rank { margin-top:8px; font-size:19px; font-weight:900; color:#ffd83d; }
+  #over-count { font-size:58px; font-weight:900; color:#fff; margin-top:2px; text-shadow:0 4px 10px rgba(0,0,0,.8); }
+  #over-stats { margin-top:6px; font-size:15px; color:#e8dccc; line-height:1.7; text-align:center; padding:0 14px; }
+  #over-screen .hint { margin-top:8px; font-size:13px; color:#ffd83d; font-weight:700; }
+  #ending-screen { background:linear-gradient(#241c30 0%, #6b4118 62%, #140c08 100%); z-index:20; }
+  #ending-screen .big { color:#ffd83d; }
+  #ending-screen .msg { margin-top:14px; color:#f2e4d0; font-size:15px; line-height:1.8; text-align:center; padding:0 16px; }
+
+  /* ── 터치 가상 패드 ── */
+  #vpad { position:fixed; inset:0; pointer-events:none; z-index:8; display:none; }
+  body.touch #vpad.on { display:block; }
+  .vbtn { position:absolute; pointer-events:auto; width:82px; height:82px; border-radius:50%;
+    background:rgba(255,255,255,.15); border:2px solid rgba(255,255,255,.5);
+    color:rgba(255,255,255,.92); font-size:28px; font-weight:800;
+    display:flex; align-items:center; justify-content:center;
+    touch-action:none; user-select:none; text-shadow:0 2px 3px rgba(0,0,0,.5); }
+  .vbtn.pressed { background:rgba(255,255,255,.38); border-color:#ffd83d; }
+  #vbtn-left  { left:calc(16px + env(safe-area-inset-left)); bottom:calc(24px + env(safe-area-inset-bottom)); }
+  #vbtn-right { right:calc(16px + env(safe-area-inset-right)); bottom:calc(24px + env(safe-area-inset-bottom)); }
+  #vbtn-pause { right:calc(12px + env(safe-area-inset-right)); top:calc(10px + env(safe-area-inset-top));
+    width:44px; height:44px; font-size:17px; border-radius:12px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage-wrap">
+    <canvas id="game" width="360" height="560"></canvas>
+    <div id="hud" class="hidden"><div id="hud-toast"></div></div>
+  </div>
+
+  <div id="title-screen" class="screen">
+    <div class="logo">모구 똥피하기</div>
+    <div class="sub">~ 하늘에서 똥이 내려와 ~</div>
+    <div id="title-poops">💩　💩　💩</div>
+    <img id="title-icon" alt="모구">
+    <div id="title-hi"></div>
+    <div class="menu-buttons">
+      <button class="btn diff-btn" data-diff="easy">이지</button>
+      <button class="btn diff-btn" data-diff="normal">노말</button>
+      <button class="btn diff-btn" data-diff="hard">하드</button>
+      <button class="btn diff-btn crazy" data-diff="crazy">크레이지</button>
+    </div>
+    <div class="menu-buttons"><button class="btn primary" id="btn-start">시작하기 (Space)</button></div>
+    <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
+    <div id="title-hint">←→ 이동 · Space 시작/일시정지 · R 재시작<br>5분(5:00)을 버티면 CLEAR! 한 번이라도 맞으면 끝</div>
+  </div>
+
+  <div id="win-screen" class="screen hidden">
+    <div class="trophy">👑💩</div>
+    <div class="big">CLEAR!!</div>
+    <div id="win-stats"></div>
+    <div class="menu-buttons">
+      <button class="btn" id="btn-retry">다시 도전</button>
+      <button class="btn" id="btn-win-title">타이틀로</button>
+      <button class="btn primary" id="btn-next">다음 난이도 →</button>
+    </div>
+  </div>
+
+  <div id="pause-screen" class="screen hidden">
+    <div class="big">일시정지</div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-resume">계속</button>
+      <button class="btn" id="btn-restart">재시작</button>
+      <button class="btn" id="btn-title">타이틀로</button>
+    </div>
+  </div>
+
+  <div id="over-screen" class="screen hidden">
+    <div class="big">GAME OVER</div>
+    <div id="over-rank"></div>
+    <div id="over-count">0:00.0</div>
+    <div id="over-stats"></div>
+    <div class="hint">Enter 또는 Space = 재도전</div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-over-retry">다시 도전</button>
+      <button class="btn" id="btn-over-title">타이틀로</button>
+    </div>
+  </div>
+
+  <div id="ending-screen" class="screen hidden">
+    <div class="big">👑 똥 마스터 모구</div>
+    <div class="msg">크레이지 난이도 5분 완주!<br>하늘이 무너져도 모구는 피한다 💩🐱</div>
+    <div class="menu-buttons"><button class="btn primary" id="btn-end-title">타이틀로</button></div>
+  </div>
+
+  <div id="vpad">
+    <div class="vbtn" id="vbtn-left">◀</div>
+    <div class="vbtn" id="vbtn-right">▶</div>
+    <div class="vbtn" id="vbtn-pause">⏸</div>
+  </div>
+</div>
+
+<script>window.MDD = { ASSETS: { mogu: "../game/assets/mogu-icon.png", body: "../game/assets/mogu-upright.png" } };</script>
+<script src="src/rng.js"></script>
+<script src="src/levels.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/render.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
