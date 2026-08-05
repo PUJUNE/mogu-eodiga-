@@ -19,11 +19,21 @@
     box-shadow:0 4px 12px rgba(255,0,51,.35); transition:transform .12s, background .12s; }
   .yt-link:hover, .yt-link:active { transform:translateY(-2px) scale(1.03); background:#e60000; }
   .yt-link .yt-ico { font-size:18px; }
-  #hero-photo { display:block; width:min(300px, 74vw); height:auto; margin:0 0 22px;
-    border-radius:18px; border:4px solid rgba(255,255,255,.88);
-    box-shadow:0 12px 28px rgba(0,0,0,.55); transform:rotate(-2deg); }
-  .hero-cap { margin:-8px 0 18px; font-size:13px; font-weight:800; color:#ffd83d;
+  /* ── 오늘의 모구 사진 덱(겹쳐 쌓인 카드) ── */
+  #mogu-stack { position:relative; width:min(300px, 74vw); aspect-ratio:4 / 5; margin:0 0 14px;
+    touch-action:pan-y; outline:none; -webkit-user-select:none; user-select:none; }
+  #mogu-stack:focus-visible { box-shadow:0 0 0 3px rgba(255,216,61,.6); border-radius:22px; }
+  .mogu-card { position:absolute; inset:0; box-sizing:border-box; overflow:hidden;
+    border-radius:18px; border:4px solid rgba(255,255,255,.88); background:#20293f;
+    box-shadow:0 12px 28px rgba(0,0,0,.55); will-change:transform;
+    transition:transform .34s cubic-bezier(.22,.7,.3,1), opacity .34s ease; }
+  .mogu-card img { display:block; width:100%; height:100%; object-fit:cover; pointer-events:none; }
+  .mogu-card.is-top { cursor:grab; }
+  .mogu-card.is-top:active { cursor:grabbing; }
+  .mogu-card.no-anim { transition:none; }
+  .hero-cap { margin:0 0 5px; font-size:13px; font-weight:800; color:#ffd83d;
     text-shadow:0 2px 4px rgba(0,0,0,.5); }
+  .hero-hint { margin:0 0 18px; font-size:11px; font-weight:700; color:rgba(255,255,255,.5); }
   #mogu-face { width:110px; height:auto; margin:22px 0 8px; animation:bob 1.6s ease-in-out infinite;
     filter:drop-shadow(0 8px 10px rgba(0,0,0,.4)); }
   @keyframes bob { 0%,100%{transform:translateY(0) rotate(-4deg)} 50%{transform:translateY(-12px) rotate(4deg)} }
@@ -90,8 +100,10 @@
 </head>
 <body>
 <div id="wrap">
-  <img id="hero-photo" src="game/assets/mogu-cushion.jpg" alt="선반 아래 방석에 엎드려 올려다보는 모구">
-  <div class="hero-cap">🐾 오늘의 모구</div>
+  <div id="mogu-stack" tabindex="0" role="group"
+       aria-label="오늘의 모구 사진. 좌우로 드래그하거나 방향키를 누르면 지난 사진을 볼 수 있어요."></div>
+  <div class="hero-cap" id="mogu-cap"></div>
+  <div class="hero-hint" id="mogu-hint"></div>
   <div class="logo">모구 게임 시리즈</div>
   <div class="sub">MOGU GAME SERIES</div>
   <a class="yt-link" href="https://www.youtube.com/@mo9-mogoo" target="_blank" rel="noopener">
@@ -263,6 +275,130 @@
   </div>
   <div class="foot">🐱 mogu game series · made with June & 아타리</div>
 </div>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   오늘의 모구 사진 덱
+   새 사진을 올릴 때는 ▼ MOGU_PHOTOS 배열 "맨 앞"에 한 줄만 추가하면 됩니다.
+   맨 앞이 곧 맨 위(=오늘의 모구)이고, 나머지는 그 아래로 밀려 쌓입니다.
+     { src:'game/assets/파일명.jpg', alt:'설명', emoji:'🐱', title:'짧은 이름' }
+   ══════════════════════════════════════════════════════════════ */
+var MOGU_PHOTOS = [
+  { src:'game/assets/mogu-cushion.jpg', alt:'선반 아래 방석에 엎드려 올려다보는 모구',
+    emoji:'🐾', title:'방석 위 모구' },
+  { src:'game/assets/mogu-ukulele.jpg', alt:'우쿨렐레를 연주하는 모구',
+    emoji:'🎸', title:'우쿨렐레 모구' }
+];
+
+(function () {
+  "use strict";
+  var stack = document.getElementById('mogu-stack');
+  var capEl = document.getElementById('mogu-cap');
+  var hintEl = document.getElementById('mogu-hint');
+  if (!stack || !MOGU_PHOTOS.length) return;
+
+  var N = MOGU_PHOTOS.length;
+  // 깊이별 자세: 0=맨 위. 3장째부터는 맨 뒤 자세로 숨겨 둔다.
+  var POSE = [ {y:0, s:1, r:-2}, {y:9, s:.955, r:3.2}, {y:18, s:.91, r:-5} ];
+  var order = MOGU_PHOTOS.map(function (_, i) { return i; });   // order[0] = 맨 위 사진
+  var els = MOGU_PHOTOS.map(function (p) {
+    var card = document.createElement('div');
+    card.className = 'mogu-card';
+    var img = document.createElement('img');
+    img.src = p.src; img.alt = p.alt; img.draggable = false; img.decoding = 'async';
+    card.appendChild(img);
+    stack.appendChild(card);
+    return card;
+  });
+
+  function place(el, depth) {
+    var pose = POSE[Math.min(depth, POSE.length - 1)];
+    el.style.zIndex = String(N - depth);
+    el.style.opacity = depth >= POSE.length ? '0' : '1';
+    el.style.transform = 'translate3d(0,' + pose.y + 'px,0) rotate(' + pose.r + 'deg) scale(' + pose.s + ')';
+    el.classList.toggle('is-top', depth === 0);
+    el.style.pointerEvents = depth === 0 ? 'auto' : 'none';
+  }
+
+  function render() {
+    for (var d = 0; d < order.length; d++) place(els[order[d]], d);
+    var top = MOGU_PHOTOS[order[0]];
+    var isToday = order[0] === 0;
+    capEl.textContent = top.emoji + ' ' + (isToday ? '오늘의 모구' : top.title);
+    hintEl.textContent = N < 2 ? ''
+      : (isToday ? '좌우로 드래그해서 지난 모구 보기 · ' : '좌우로 드래그해서 계속 넘기기 · ')
+        + (order[0] + 1) + ' / ' + N;
+  }
+
+  // 맨 위 카드를 dir(-1=왼쪽, 1=오른쪽)로 날려 보내고 맨 뒤로 보낸다.
+  var busy = false;
+  function advance(dir) {
+    if (busy || N < 2) return;
+    busy = true;
+    var el = els[order[0]];
+    el.classList.remove('no-anim');
+    el.style.transform = 'translate3d(' + (dir * 135) + '%,20px,0) rotate(' + (dir * 18) + 'deg) scale(.95)';
+    el.style.opacity = '0';
+    setTimeout(function () {
+      order.push(order.shift());
+      el.classList.add('no-anim');                 // 날아간 카드는 애니메이션 없이 맨 뒤로
+      place(el, order.length - 1);
+      void el.offsetWidth;                          // 리플로우 강제 → 다음 트랜지션 정상화
+      el.classList.remove('no-anim');
+      render();
+      busy = false;
+    }, 340);
+  }
+
+  /* ── 드래그 / 스와이프 ── */
+  var startX = 0, startY = 0, dx = 0, axis = null, pid = null;
+
+  stack.addEventListener('pointerdown', function (e) {
+    if (busy || N < 2 || e.button > 0) return;
+    pid = e.pointerId; startX = e.clientX; startY = e.clientY; dx = 0; axis = null;
+  });
+
+  stack.addEventListener('pointermove', function (e) {
+    if (pid === null || e.pointerId !== pid) return;
+    dx = e.clientX - startX;
+    var dy = e.clientY - startY;
+    if (axis === null) {                            // 세로로 끌면 페이지 스크롤에 양보
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (axis === 'x') {
+        els[order[0]].classList.add('no-anim');
+        if (stack.setPointerCapture) stack.setPointerCapture(pid);
+      } else { pid = null; return; }
+    }
+    e.preventDefault();
+    els[order[0]].style.transform =
+      'translate3d(' + dx + 'px,0,0) rotate(' + (-2 + dx * 0.045) + 'deg)';
+  });
+
+  function endDrag(e) {
+    if (pid === null || (e && e.pointerId !== pid)) return;
+    var id = pid; pid = null;
+    if (stack.releasePointerCapture && stack.hasPointerCapture && stack.hasPointerCapture(id)) {
+      stack.releasePointerCapture(id);
+    }
+    if (axis !== 'x') { axis = null; return; }
+    axis = null;
+    var el = els[order[0]];
+    el.classList.remove('no-anim');
+    if (Math.abs(dx) > Math.min(96, stack.offsetWidth * 0.3)) advance(dx < 0 ? -1 : 1);
+    else place(el, 0);                              // 문턱 미달 → 제자리로
+  }
+  stack.addEventListener('pointerup', endDrag);
+  stack.addEventListener('pointercancel', endDrag);
+
+  stack.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') { advance(-1); e.preventDefault(); }
+    if (e.key === 'ArrowRight' || e.key === ' ') { advance(1); e.preventDefault(); }
+  });
+  stack.addEventListener('dragstart', function (e) { e.preventDefault(); });
+
+  render();
+})();
+</script>
 <script>
 (function () {
   "use strict";
