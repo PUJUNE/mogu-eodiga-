@@ -9,15 +9,13 @@ OUT = HERE.parent / "mogudong.html"
 
 html = (HERE / "index.html").read_text(encoding="utf-8")
 
-# 1) 에셋 → base64 데이터 URI (모구 스프라이트는 game/assets 재사용)
+# 1) 에셋 → base64 데이터 URI (모구 스프라이트는 moguski/assets 재사용)
 def data_uri(p):
     b = (HERE.parent / p).read_bytes()
     return "data:image/png;base64," + base64.b64encode(b).decode()
 
-assets_js = 'window.MDD = { ASSETS: { mogu: "%s", body: "%s" } };' % (
-    data_uri("game/assets/mogu-icon.png"),      # 타이틀 아이콘
-    data_uri("game/assets/mogu-upright.png"),   # 인게임 전신 모구
-)
+# 타이틀 아이콘 · 인게임 모구 모두 모구 스키점프와 같은 스프라이트를 쓴다
+assets_js = 'window.MDD = { ASSETS: { mogu: "%s" } };' % data_uri("moguski/assets/mogu-ski.png")
 html = re.sub(
     r'<script>window\.MDD = \{ ASSETS: .*?\};</script>',
     lambda m: "<script>" + assets_js + "</script>",
