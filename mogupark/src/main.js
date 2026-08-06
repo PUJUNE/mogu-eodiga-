@@ -62,6 +62,7 @@ function setRef(x, y) {
 }
 
 function goMap() {
+  M.Render.clipDrop();
   mode = 'map';
   M.audio.engineOff();
   M.ui.buildMap();
@@ -71,6 +72,7 @@ function goMap() {
 }
 
 function startStage(no) {
+  M.Render.clipDrop();                        // 저장은 방금 친 판에 대해서만
   st = M.Logic.create(no);
   mode = 'run';
   endDelay = 0;
@@ -92,9 +94,11 @@ function toReplay() {
   M.audio.engineOff();
   $('hud').classList.add('hidden');
   M.Render.startReplay(st);
+  M.Render.clipStart();                       // 리플레이가 도는 동안 화면을 녹화해 둔다
 }
 
 function finishRun() {
+  M.Render.clipStop();                        // 준비되면 onClipReady 로 버튼이 켜진다
   const isBest = M.save.record(st.no, st.stars, st.elapsed);
   mode = 'result';
   M.ui.showResult(st, isBest);
@@ -245,6 +249,9 @@ $('btn-start').onclick = () => goMap();
 $('btn-series').onclick = () => {
   location.href = location.pathname.includes('/mogupark/') ? '../index.html' : 'index.html';
 };
+// 녹화는 리플레이가 끝난 뒤 비동기로 마무리된다 — 준비되면 그때 버튼을 켠다
+M.Render.onClipReady = (clip) => { if (mode === 'result') M.ui.clipReady(clip); };
+$('btn-clip').onclick = () => M.ui.saveClip();
 $('btn-retry').onclick = () => startStage(st.no);
 $('btn-map').onclick = () => goMap();
 $('btn-next').onclick = () => startStage(st.no + 1);

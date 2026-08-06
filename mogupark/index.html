@@ -129,6 +129,8 @@
   #result-dist { font-size:min(50px,11vw); font-weight:900; color:#fff; }
   #result-stars { font-size:min(30px,7vw); color:#ffd83d; letter-spacing:4px; margin:4px 0 8px; }
   #result-stats { font-size:min(14px,3.4vw); color:#cfe0f4; line-height:1.8; text-align:center; margin-bottom:14px; }
+  #btn-clip { display:none; background:#3a4a6a; }
+  #clip-msg { min-height:1.2em; margin-top:6px; font-size:12px; font-weight:700; color:#ffd83d; }
 
   /* ── 터치 버튼 ── */
   .vbtn { position:absolute; display:none; align-items:center; justify-content:center; z-index:7;
@@ -252,6 +254,8 @@
     <button class="btn" id="btn-next">▶ 다음 주차장</button>
     <button class="btn sub-btn" id="btn-retry">↻ 다시 주차</button>
     <button class="btn sub-btn" id="btn-map">주차장 목록</button>
+    <button class="btn sub-btn" id="btn-clip">🎬 리플레이 영상 저장</button>
+    <div id="clip-msg"></div>
   </div>
 
   <div id="pause-screen" class="screen hidden">

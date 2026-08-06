@@ -177,6 +177,31 @@ M.ui = {
     if (isBest) html += '<br><b style="color:#7de08a">신기록!</b>';
     $('result-stats').innerHTML = html;
     $('btn-next').style.display = st.stars > 0 && st.no < M.COURSES ? '' : 'none';
+    this.clipNo = st.no;
+    this.clipReady(M.Render.clip);
     this.show('result-screen');
+  },
+
+  // 리플레이 영상이 준비됐을 때만 저장 버튼을 띄운다 (녹화 미지원 브라우저에서는 안 뜸)
+  clipReady(clip) {
+    // CSS 기본이 display:none 이라 ''로는 안 켜진다 — 값을 명시해야 한다
+    $('btn-clip').style.display = clip ? 'inline-block' : 'none';
+    $('clip-msg').textContent = '';
+  },
+
+  saveClip() {
+    const clip = M.Render.clip;
+    if (!clip) return;
+    const ext = clip.mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const url = URL.createObjectURL(clip.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    // 파일명은 ASCII 로 — 한글을 넣으면 크로미움이 이름을 통째로 버리고
+    // 확장자 없는 'download' 로 저장해 버린다
+    a.download = `mogupark-stage${String(this.clipNo).padStart(2, '0')}-replay.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);
+    $('clip-msg').textContent = `저장했어요 · ${(clip.blob.size / 1024 / 1024).toFixed(1)}MB`;
   },
 };
