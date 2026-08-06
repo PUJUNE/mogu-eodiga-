@@ -18,7 +18,8 @@ const BRAKE_A = 6.5;             // 풀 브레이크 감속
 const COAST = 0.9;               // N단 구름저항
 const CREEP = 0.85;              // 오토 크리프 목표 속도 — 정밀 주차의 핵심
 const STEER_RATE = 2.1;          // 핸들이 도는 속도 (로드휠 rad/s) — 풀 록까지 약 0.6초
-const HEAD_MAX = 2.05;           // 고개 최대 회전 (rad, ≈117° — B필러 너머까지)
+const HEAD_MAX = 2.05;           // 고개 최대 회전 (rad, ≈117° — B필러 너머 어깨너머 확인)
+const HEAD_MIRROR = 1.22;        // 기본 고개 회전 (rad, ≈70°) — 그쪽 백미러가 시야에 들어오는 각도
 const PARK_HOLD = 1.0;           // 칸 안 정지 유지 시간 (초) → 성공
 const ANG_TOL = 0.21;            // 주차 인정 각도 (rad, ≈12°)
 const CURB_COOL = 0.5;           // 연석 쿵 재판정 쿨다운
@@ -51,7 +52,7 @@ function obbOverlap(A, B) {
 }
 
 M.Logic = {
-  RANGE_Y, BRAKE_Y, DEAD_Y, RANGE_X, VMAX_F, VMAX_R, CREEP, HEAD_MAX, PARK_HOLD,
+  RANGE_Y, BRAKE_Y, DEAD_Y, RANGE_X, VMAX_F, VMAX_R, CREEP, HEAD_MAX, HEAD_MIRROR, PARK_HOLD,
   corners, obbOverlap, wrapPi,
 
   // 화면 좌표 → 조작량. 순수 함수 — 테스트에서 경계값을 그대로 찍는다.
@@ -110,7 +111,8 @@ M.Logic = {
     } else { st.throttle = 0; st.brake = 0; }                   // 커서 이탈 = 페달 오프 (크리프는 유지)
 
     // 고개 돌리기 — 누르는 동안 돌아가고 놓으면 정면 복귀 (판정과 무관, 항상 동작)
-    const lookTgt = (inp ? inp.look : 0) * HEAD_MAX;
+    // 기본은 백미러가 보이는 각도에서 멈춘다. Shift(어깨너머)를 같이 누르면 B필러 너머까지.
+    const lookTgt = (inp ? inp.look : 0) * (inp && inp.shoulder ? HEAD_MAX : HEAD_MIRROR);
     car.headYaw += (lookTgt - car.headYaw) * Math.min(1, 6.5 * dt);
 
     if (st.phase === 'ready') { if (inp) { inp.shift = 0; inp.gearTo = 0; } return ev; }
