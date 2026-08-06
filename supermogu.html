@@ -277,21 +277,30 @@ M.makeStage = function (no) {
     }
   } else {
     // ── 성: 천장 + 용암 갭 + 보스방 ──
+    const LAVA_LAND = 3;                          // 용암 뒤 착지 지면(타일). 다음 용암과 붙는 것을 막는다
     for (let x = 0; x < len; x++) {
       g[x][2] = T.BLOCK;                          // 천장
       if (x < 12 || x >= len - 26) { fill(x, gndY); continue; }
       // 용암 갭 or 지면
       if (rng.chance(0.22) && x > 16) {
-        const w = rng.int(2, 4);
+        const w = rng.int(2, 4);                  // 점프 상한 4타일
         for (let i = 0; i < w && x < len - 26; i++) {
+          g[x][2] = T.BLOCK;                      // 용암 위에도 천장을 이어 준다
           g[x][R - 1] = T.LAVA; g[x][gndY] = T.LAVA;
+          x++;
+        }
+        // 착지 지면 확보 — 없으면 다음 굴림이 붙어 한 구간(최대 10타일)이 되어 넘을 수 없다
+        for (let i = 0; i < LAVA_LAND && x < len - 26; i++) {
+          g[x][2] = T.BLOCK;
+          fill(x, gndY);                          // 착지 지대는 적·블록 없이 비워 둔다
           x++;
         }
         x--;
       } else {
         fill(x, gndY);
-        if (rng.chance(0.16)) enemies.push({ type: 'hedge', tx: x, ty: gndY - 1 });
-        if (rng.chance(0.1)) g[x][gndY - 4] = rng.chance(0.5) ? T.Q : T.BRICK;
+        // 착지 지대를 비워 둔 만큼(용암 구간당 3칸) 일반 지면의 배치 확률을 올려 밀도를 맞춘다
+        if (rng.chance(0.21)) enemies.push({ type: 'hedge', tx: x, ty: gndY - 1 });
+        if (rng.chance(0.13)) g[x][gndY - 4] = rng.chance(0.5) ? T.Q : T.BRICK;
       }
     }
     // 보스방 (평탄)

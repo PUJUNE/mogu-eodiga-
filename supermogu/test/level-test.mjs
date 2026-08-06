@@ -25,15 +25,28 @@ for (let s = 1; s <= 32; s++) {
   } else if (st.bossX <= 0) bad(s, '보스 없음');
 
   // 갭 폭: 연속 비지면(용암 포함) ≤ 4타일 (점프 상한)
+  // y<3 은 성 스테이지의 천장(BLOCK) — 밟을 수 없으므로 발판으로 세지 않는다.
+  // (예전엔 천장까지 세는 바람에 성의 모든 열이 "발판 있음"이 되어 10타일 용암도 통과했다)
   let gap = 0;
   for (let x = 4; x < st.len - 4; x++) {
     let hasGround = false;
-    for (let y = 0; y < M.ROWS; y++) {
+    for (let y = 3; y < M.ROWS; y++) {
       const v = g[x][y];
       if (v === T.GND || v === T.BLOCK || v === T.PIPE_T || v === T.CASTLE) { hasGround = true; break; }
     }
     if (!hasGround) { gap++; if (gap > 4) { bad(s, `갭 과대 x=${x} (${gap})`); gap = -99; } }
     else gap = 0;
+  }
+
+  // 성: 지면행의 연속 용암 폭 (천장에 가려지지 않도록 직접 검사)
+  if (st.castle) {
+    let lava = 0;
+    for (let x = 0; x < st.len; x++) {
+      if (g[x][st.gndY] === T.LAVA) {
+        lava++;
+        if (lava > 4) { bad(s, `연속 용암 과대 x=${x - lava + 1} (${lava}타일)`); lava = -99; }
+      } else lava = 0;
+    }
   }
 
   // ? 블록 내용물 정합: power 1개 이상 (블록이 있을 때)
