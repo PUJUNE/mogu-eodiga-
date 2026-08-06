@@ -129,6 +129,8 @@
   #result-dist { font-size:min(50px,11vw); font-weight:900; color:#fff; }
   #result-stars { font-size:min(30px,7vw); color:#ffd83d; letter-spacing:4px; margin:4px 0 8px; }
   #result-stats { font-size:min(14px,3.4vw); color:#cfe0f4; line-height:1.8; text-align:center; margin-bottom:14px; }
+  #btn-clip { display:none; background:#3a4a6a; }
+  #clip-msg { min-height:1.2em; margin-top:6px; font-size:12px; font-weight:700; color:#ffd83d; }
 
   /* ── 터치 버튼 ── */
   .vbtn { position:absolute; display:none; align-items:center; justify-content:center; z-index:7;
@@ -252,6 +254,8 @@
     <button class="btn" id="btn-next">▶ 다음 주차장</button>
     <button class="btn sub-btn" id="btn-retry">↻ 다시 주차</button>
     <button class="btn sub-btn" id="btn-map">주차장 목록</button>
+    <button class="btn sub-btn" id="btn-clip">🎬 리플레이 영상 저장</button>
+    <div id="clip-msg"></div>
   </div>
 
   <div id="pause-screen" class="screen hidden">
@@ -876,6 +880,7 @@ function quadPts(x, z, w, l, yaw, y) {
 
 M.Render = {
   cv: null, ctx: null, mirrorCv: {}, replay: null,
+  recorder: null, clip: null, onClipReady: null,
   mogu: null, asphalt: null, asphaltPat: null, bgImgs: {},
 
   init(root) {
@@ -912,6 +917,48 @@ M.Render = {
     fit();
     window.addEventListener('resize', fit);
     window.addEventListener('orientationchange', fit);
+  },
+
+  // ── 리플레이 화면 녹화 ──────────────────────────────────────────────
+  // 캔버스 스트림을 MediaRecorder 로 받아 둔다. 방금 친 판의 리플레이만 저장하면
+  // 되므로 판을 벗어나면 버린다. 지원 안 하는 브라우저에서는 조용히 꺼진다.
+  clipMime() {
+    if (typeof MediaRecorder === 'undefined' || !this.cv || !this.cv.captureStream) return '';
+    for (const m of ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9',
+                     'video/webm;codecs=vp8', 'video/webm']) {
+      if (MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return '';
+  },
+
+  clipStart() {
+    this.clipDrop();
+    const mime = this.clipMime();
+    if (!mime) return false;
+    try {
+      const stream = this.cv.captureStream(30);
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_000_000 });
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = () => {
+        this.clip = chunks.length ? { blob: new Blob(chunks, { type: mime }), mime } : null;
+        stream.getTracks().forEach((tr) => tr.stop());
+        if (this.onClipReady) this.onClipReady(this.clip);
+      };
+      rec.start();
+      this.recorder = rec;
+      return true;
+    } catch (e) { return false; }
+  },
+
+  clipStop() {
+    if (this.recorder && this.recorder.state !== 'inactive') this.recorder.stop();
+    this.recorder = null;
+  },
+
+  clipDrop() {
+    this.clipStop();
+    this.clip = null;
   },
 
   // 1인칭 시야로 쓸 높이. 가로 화면(=PC·가로 폰)에서는 캔버스 전체와 같다.
@@ -1752,7 +1799,32 @@ M.ui = {
     if (isBest) html += '<br><b style="color:#7de08a">신기록!</b>';
     $('result-stats').innerHTML = html;
     $('btn-next').style.display = st.stars > 0 && st.no < M.COURSES ? '' : 'none';
+    this.clipNo = st.no;
+    this.clipReady(M.Render.clip);
     this.show('result-screen');
+  },
+
+  // 리플레이 영상이 준비됐을 때만 저장 버튼을 띄운다 (녹화 미지원 브라우저에서는 안 뜸)
+  clipReady(clip) {
+    // CSS 기본이 display:none 이라 ''로는 안 켜진다 — 값을 명시해야 한다
+    $('btn-clip').style.display = clip ? 'inline-block' : 'none';
+    $('clip-msg').textContent = '';
+  },
+
+  saveClip() {
+    const clip = M.Render.clip;
+    if (!clip) return;
+    const ext = clip.mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+    const url = URL.createObjectURL(clip.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    // 파일명은 ASCII 로 — 한글을 넣으면 크로미움이 이름을 통째로 버리고
+    // 확장자 없는 'download' 로 저장해 버린다
+    a.download = `mogupark-stage${String(this.clipNo).padStart(2, '0')}-replay.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 4000);
+    $('clip-msg').textContent = `저장했어요 · ${(clip.blob.size / 1024 / 1024).toFixed(1)}MB`;
   },
 };
 
@@ -1823,6 +1895,7 @@ function setRef(x, y) {
 }
 
 function goMap() {
+  M.Render.clipDrop();
   mode = 'map';
   M.audio.engineOff();
   M.ui.buildMap();
@@ -1832,6 +1905,7 @@ function goMap() {
 }
 
 function startStage(no) {
+  M.Render.clipDrop();                        // 저장은 방금 친 판에 대해서만
   st = M.Logic.create(no);
   mode = 'run';
   endDelay = 0;
@@ -1853,9 +1927,11 @@ function toReplay() {
   M.audio.engineOff();
   $('hud').classList.add('hidden');
   M.Render.startReplay(st);
+  M.Render.clipStart();                       // 리플레이가 도는 동안 화면을 녹화해 둔다
 }
 
 function finishRun() {
+  M.Render.clipStop();                        // 준비되면 onClipReady 로 버튼이 켜진다
   const isBest = M.save.record(st.no, st.stars, st.elapsed);
   mode = 'result';
   M.ui.showResult(st, isBest);
@@ -2006,6 +2082,9 @@ $('btn-start').onclick = () => goMap();
 $('btn-series').onclick = () => {
   location.href = location.pathname.includes('/mogupark/') ? '../index.html' : 'index.html';
 };
+// 녹화는 리플레이가 끝난 뒤 비동기로 마무리된다 — 준비되면 그때 버튼을 켠다
+M.Render.onClipReady = (clip) => { if (mode === 'result') M.ui.clipReady(clip); };
+$('btn-clip').onclick = () => M.ui.saveClip();
 $('btn-retry').onclick = () => startStage(st.no);
 $('btn-map').onclick = () => goMap();
 $('btn-next').onclick = () => startStage(st.no + 1);

@@ -42,7 +42,7 @@ const wire = (p) => {
 };
 
 const W = 1280, H = 800;
-const ctx = await browser.newContext({ viewport: { width: W, height: H } });
+const ctx = await browser.newContext({ viewport: { width: W, height: H }, acceptDownloads: true });
 const page = await ctx.newPage();
 wire(page);
 
@@ -262,6 +262,49 @@ await page.keyboard.press('Enter');
 await page.waitForTimeout(500);
 ok(await page.locator('#result-screen').isVisible(), '결과 화면 표시');
 ok((await page.locator('#result-stars').textContent()).includes('★'), '별점 표기');
+
+// ── 리플레이 영상 저장 (방금 친 판에 대해서만) ──
+const clipMime = await page.evaluate(() => window.MPK.Render.clipMime());
+if (!clipMime) {
+  ok(await page.locator('#btn-clip').isHidden(), '녹화 미지원 브라우저: 저장 버튼 숨김');
+} else {
+  await page.waitForFunction(() => !!window.MPK.Render.clip, null, { timeout: 8000 }).catch(() => {});
+  const clip = await page.evaluate(() => {
+    const c = window.MPK.Render.clip;
+    return c ? { size: c.blob.size, mime: c.mime } : null;
+  });
+  ok(clip && clip.size > 5000, '리플레이가 영상으로 녹화됨',
+    clip ? `${(clip.size / 1024).toFixed(0)}KB · ${clip.mime}` : '없음');
+  ok(await page.locator('#btn-clip').isVisible(), '결과 화면에 저장 버튼 표시');
+
+  const dl = page.waitForEvent('download', { timeout: 8000 });
+  await page.click('#btn-clip');
+  const file = await dl;
+  const name = file.suggestedFilename();
+  ok(/^mogupark-stage\d+-replay\.(webm|mp4)$/.test(name), '확장자 살아 있는 파일명으로 저장', name);
+
+  // 저장된 파일이 실제로 재생 가능한 영상인지 (프레임에 내용이 있는지)
+  const frame = await page.evaluate(async () => {
+    const v = document.createElement('video');
+    v.muted = true;
+    v.src = URL.createObjectURL(window.MPK.Render.clip.blob);
+    await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error('load')); });
+    await new Promise((res) => { v.onseeked = res; v.currentTime = v.duration * 0.6; });
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    let s = 0, s2 = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4 * 97) {
+      const l = (d[i] + d[i + 1] + d[i + 2]) / 3; s += l; s2 += l * l; n++;
+    }
+    const mean = s / n;
+    URL.revokeObjectURL(v.src);
+    return { w: v.videoWidth, h: v.videoHeight, dur: v.duration, sd: Math.sqrt(s2 / n - mean * mean) };
+  }).catch((e) => ({ err: String(e) }));
+  ok(frame.w > 0 && frame.dur > 0.3 && frame.sd > 10, '저장본이 재생되고 화면 내용이 담겨 있다',
+    frame.err || `${frame.w}x${frame.h} ${frame.dur.toFixed(2)}s 대비 ${frame.sd.toFixed(0)}`);
+}
 await page.screenshot({ path: join(shots, 'shot-result.png') });
 
 // ── 저장: 클리어 기록 + 다음 판 해금 ──
@@ -270,6 +313,9 @@ ok(saved && saved.stars && saved.stars[1] >= 1, '세이브에 별점 기록', JS
 await page.click('#btn-map');
 ok(await page.locator('.stage-cell.locked').count() === 48, '다음 판 해금',
   `잠김 ${await page.locator('.stage-cell.locked').count()}`);
+// 저장은 방금 친 판에 대해서만 — 결과 화면을 벗어나면 영상은 버린다
+ok(await page.evaluate(() => window.MPK.Render.clip) === null, '판을 벗어나면 저장본 폐기');
+ok(await page.locator('#btn-clip').isHidden(), '폐기 후 저장 버튼 숨김');
 
 // ── 난이도 버튼 저장 ──
 await page.keyboard.press('Escape');

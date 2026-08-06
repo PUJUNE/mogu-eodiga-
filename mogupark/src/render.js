@@ -109,6 +109,7 @@ function quadPts(x, z, w, l, yaw, y) {
 
 M.Render = {
   cv: null, ctx: null, mirrorCv: {}, replay: null,
+  recorder: null, clip: null, onClipReady: null,
   mogu: null, asphalt: null, asphaltPat: null, bgImgs: {},
 
   init(root) {
@@ -145,6 +146,48 @@ M.Render = {
     fit();
     window.addEventListener('resize', fit);
     window.addEventListener('orientationchange', fit);
+  },
+
+  // ── 리플레이 화면 녹화 ──────────────────────────────────────────────
+  // 캔버스 스트림을 MediaRecorder 로 받아 둔다. 방금 친 판의 리플레이만 저장하면
+  // 되므로 판을 벗어나면 버린다. 지원 안 하는 브라우저에서는 조용히 꺼진다.
+  clipMime() {
+    if (typeof MediaRecorder === 'undefined' || !this.cv || !this.cv.captureStream) return '';
+    for (const m of ['video/mp4;codecs=avc1', 'video/webm;codecs=vp9',
+                     'video/webm;codecs=vp8', 'video/webm']) {
+      if (MediaRecorder.isTypeSupported(m)) return m;
+    }
+    return '';
+  },
+
+  clipStart() {
+    this.clipDrop();
+    const mime = this.clipMime();
+    if (!mime) return false;
+    try {
+      const stream = this.cv.captureStream(30);
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_000_000 });
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = () => {
+        this.clip = chunks.length ? { blob: new Blob(chunks, { type: mime }), mime } : null;
+        stream.getTracks().forEach((tr) => tr.stop());
+        if (this.onClipReady) this.onClipReady(this.clip);
+      };
+      rec.start();
+      this.recorder = rec;
+      return true;
+    } catch (e) { return false; }
+  },
+
+  clipStop() {
+    if (this.recorder && this.recorder.state !== 'inactive') this.recorder.stop();
+    this.recorder = null;
+  },
+
+  clipDrop() {
+    this.clipStop();
+    this.clip = null;
   },
 
   // 1인칭 시야로 쓸 높이. 가로 화면(=PC·가로 폰)에서는 캔버스 전체와 같다.
