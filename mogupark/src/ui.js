@@ -10,6 +10,15 @@ M.save = {
     return this.data;
   },
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
+  // 미러 조절값은 판이 바뀌어도 유지된다 (실제로 한 번 맞추면 그대로 두는 것과 같게)
+  loadMirror() {
+    const m = this.data.mirror;
+    if (!m) return;
+    for (const k of ['room', 'left', 'right']) {
+      if (m[k]) M.mirrorAdj[k] = { yaw: +m[k].yaw || 0, pitch: +m[k].pitch || 0 };
+    }
+  },
+  storeMirror() { this.data.mirror = M.mirrorAdj; this.store(); },
   unlocked() {
     let max = 1;
     for (let s = 1; s <= M.COURSES; s++) if (this.data.stars[s] > 0) max = Math.max(max, Math.min(M.COURSES, s + 1));
@@ -119,12 +128,28 @@ M.ui = {
     }
   },
 
+  // 미러 조절 중 안내 띠 (null 이면 숨김)
+  hudAdjust(kind, label) {
+    const el = $('hud-adjust');
+    el.style.display = kind ? 'block' : 'none';
+    if (kind) {
+      el.textContent = M.touch
+        ? `🪞 ${label} 미러 조절 — 화면을 끌어 겨누기 · 🪞 버튼으로 다음 미러`
+        : `🪞 ${label} 미러 조절 — 방향키(또는 드래그)로 겨누기 · M 다음 미러 · 0 초기화 · Esc 끝`;
+    }
+    const b = $('vbtn-mirror');
+    if (b) b.classList.toggle('on', !!kind);
+  },
+
   hudRun(st) {
     const stg = st.stage;
-    $('hud-stage').textContent = `STAGE ${st.no} · ${stg.theme.name} · ${stg.typeName}` +
+    const narrow = window.innerWidth < 620;                     // 좁은 화면은 제목을 줄여 TIME 과 안 겹치게
+    $('hud-stage').textContent = (narrow ? `S${st.no} · ${stg.typeName}`
+      : `STAGE ${st.no} · ${stg.theme.name} · ${stg.typeName}`) +
       (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '');
     const best = M.save.data.best[st.no];
-    $('hud-target').textContent = `제한 ${stg.timeLimit}초 · 노란 칸에 정확히 세우면 성공` +
+    $('hud-target').textContent = (narrow ? `${stg.timeLimit}초 · 노란 칸에 정확히`
+      : `제한 ${stg.timeLimit}초 · 노란 칸에 정확히 세우면 성공`) +
       (best ? ` · 최고 ${best.toFixed(1)}초` : '');
   },
 

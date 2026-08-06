@@ -158,6 +158,59 @@ await page.waitForTimeout(800);
 d = await page.evaluate(() => window.MPK._dbg());
 ok(Math.abs(d.headYaw) < 0.15, '놓으면 정면 복귀', `headYaw ${d.headYaw}`);
 
+// ── 미러 조절 (M) ──
+const adjOf = (k) => page.evaluate((kk) => ({ ...window.MPK.mirrorAdj[kk] }), k);
+const mirrorPix = () => page.evaluate(() => {
+  const c = window.MPK.Render.mirrorCv.left, g = c.getContext('2d');
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  let s = 0;
+  for (let i = 0; i < d.length; i += 40) s += d[i];
+  return s;
+});
+await page.keyboard.press('KeyM');
+await page.waitForTimeout(900);
+ok(await page.locator('#hud-adjust').isVisible(), 'M = 미러 조절 모드 진입 (안내 표시)');
+d = await page.evaluate(() => window.MPK._dbg());
+ok(d.headYaw < -1.0, '조절 중엔 고른 미러 쪽으로 고개 고정', `headYaw ${d.headYaw}`);
+const pixBefore = await mirrorPix();
+for (let i = 0; i < 3; i++) { await page.keyboard.press('ArrowUp'); await page.waitForTimeout(60); }
+for (let i = 0; i < 2; i++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(60); }
+await page.waitForTimeout(300);
+let adj = await adjOf('left');
+ok(adj.pitch < 0 && adj.yaw > 0, '방향키로 좌측 미러 겨눔 (↑ = 위로 = pitch 감소)',
+  `yaw ${adj.yaw.toFixed(3)} pitch ${adj.pitch.toFixed(3)}`);
+ok(Math.abs(await mirrorPix() - pixBefore) > 0, '겨눈 만큼 미러에 비치는 장면이 실제로 바뀐다');
+// 한계값 클램프
+for (let i = 0; i < 40; i++) await page.keyboard.press('ArrowRight');
+await page.waitForTimeout(300);
+adj = await adjOf('left');
+ok(Math.abs(adj.yaw - (await page.evaluate(() => window.MPK.MIRROR_ADJ_MAX.yaw))) < 1e-6,
+  '한계 각도에서 멈춘다', `yaw ${adj.yaw.toFixed(3)}`);
+// 0 = 초기화
+await page.keyboard.press('Digit0');
+await page.waitForTimeout(200);
+adj = await adjOf('left');
+ok(adj.yaw === 0 && adj.pitch === 0, '0 = 이 미러 초기화');
+// 다시 겨눈 뒤 세이브에 남는지
+for (let i = 0; i < 2; i++) { await page.keyboard.press('ArrowDown'); await page.waitForTimeout(60); }
+await page.waitForTimeout(200);
+const savedAdj = await page.evaluate(() => JSON.parse(localStorage.getItem('mogupark-save-v1')).mirror);
+ok(savedAdj && savedAdj.left && savedAdj.left.pitch > 0, '조절값이 세이브에 남는다',
+  JSON.stringify(savedAdj && savedAdj.left));
+// M 으로 좌 → 우 → 룸 → 종료
+await page.keyboard.press('KeyM'); await page.waitForTimeout(200);
+ok((await page.locator('#hud-adjust').textContent()).includes('우측'), 'M = 다음 미러 (우측)');
+await page.keyboard.press('KeyM'); await page.waitForTimeout(200);
+ok((await page.locator('#hud-adjust').textContent()).includes('룸'), 'M = 다음 미러 (룸)');
+await page.keyboard.press('KeyM'); await page.waitForTimeout(700);
+ok(await page.locator('#hud-adjust').isHidden(), 'M 한 번 더 = 조절 종료');
+d = await page.evaluate(() => window.MPK._dbg());
+ok(Math.abs(d.headYaw) < 0.15, '조절 끝나면 고개 정면 복귀', `headYaw ${d.headYaw}`);
+await page.evaluate(() => {                                   // 뒤 검사에 영향 없게 원래대로
+  window.MPK.mirrorAdj.left = { yaw: 0, pitch: 0 };
+  window.MPK.save.storeMirror();
+});
+
 // 왼쪽도 같은 조건 (좌우 대칭 확인)
 await page.keyboard.down('ArrowLeft');
 await page.waitForTimeout(700);
@@ -314,6 +367,31 @@ ok(await page3.evaluate(() => document.body.classList.contains('touch')), '터�
 await page3.tap('#btn-start');
 await page3.locator('.stage-cell').first().tap();
 await page3.waitForTimeout(400);
+
+// ── 세로 화면 레이아웃 ──
+// 세로로 길쭉한 화면에서 전체 높이를 1인칭 시야로 쓰면 세로 화각이 120°까지 벌어져
+// 노면이 휘어 보였다. 위쪽 띠만 시야로 쓰고 아래는 조작 콘솔이어야 한다.
+const layout = () => page3.evaluate(() => {
+  const c = document.getElementById('game-canvas');
+  const vh = window.MPK.Render.viewH();
+  const f = (c.width / 2) / Math.tan((76 * Math.PI / 180) / 2);
+  const box = (id) => { const e = document.getElementById(id); const r = e.getBoundingClientRect();
+    return { x: r.x, y: r.y, w: r.width, h: r.height, vis: r.width > 0 && getComputedStyle(e).display !== 'none' }; };
+  return { ch: c.height, vh, vfov: 2 * Math.atan((vh / 2) / f) * 180 / Math.PI,
+    stage: box('hud-stage'), time: box('hud-time-wrap'), ready: box('ready-box'),
+    gear: box('gear-panel'), look: box('vbtn-look-l') };
+});
+const L3 = await layout();
+ok(L3.vh < L3.ch - 40, '세로 화면: 시야 띠와 조작 콘솔이 나뉜다', `시야 ${L3.vh} / 화면 ${L3.ch}`);
+ok(L3.vfov < 80, '세로 화면: 세로 화각이 과하지 않다', `${L3.vfov.toFixed(1)}°`);
+const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+ok(!overlap(L3.stage, L3.time), '세로 화면: 스테이지 제목과 TIME 이 안 겹친다',
+  `제목 ${Math.round(L3.stage.x)}~${Math.round(L3.stage.x + L3.stage.w)} / TIME ${Math.round(L3.time.x)}~`);
+ok(L3.ready.y + L3.ready.h <= L3.vh + 2, '세로 화면: 준비 안내가 조작 콘솔을 안 덮는다',
+  `안내 하단 ${Math.round(L3.ready.y + L3.ready.h)} vs 시야 ${L3.vh}`);
+ok(L3.gear.y >= L3.vh - 2 && L3.look.y >= L3.vh - 2, '세로 화면: 기어·고개 버튼이 콘솔 안에 있다',
+  `기어 ${Math.round(L3.gear.y)} / 고개 ${Math.round(L3.look.y)} vs ${L3.vh}`);
+
 await page3.tap('#app', { position: { x: 195, y: 640 } });
 await page3.waitForTimeout(300);
 let d3 = await page3.evaluate(() => window.MPK._dbg());
@@ -323,6 +401,19 @@ await page3.waitForTimeout(1400);
 d3 = await page3.evaluate(() => window.MPK._dbg());
 ok(d3.gear === 'D' && d3.v > 0.3, '터치: 기어 버튼 + 크리프', `gear ${d3.gear} v=${d3.v}`);
 ok(await page3.locator('#vbtn-look-l').isVisible(), '터치: 고개 버튼 표시');
+ok(await page3.locator('#vbtn-mirror').isVisible(), '터치: 미러 조절 버튼 표시');
+await page3.locator('#vbtn-mirror').dispatchEvent('pointerdown');
+await page3.waitForTimeout(700);
+ok(await page3.locator('#hud-adjust').isVisible(), '터치: 미러 버튼 → 조절 모드');
+const tw = await page3.evaluate(() => window.MPK.mirrorAdj.left.yaw);
+await page3.mouse.move(180, 420); await page3.mouse.down();
+await page3.mouse.move(300, 420, { steps: 6 }); await page3.mouse.up();
+await page3.waitForTimeout(200);
+ok(await page3.evaluate(() => window.MPK.mirrorAdj.left.yaw) > tw, '터치: 드래그로 미러 겨눔');
+await page3.locator('#vbtn-mirror').dispatchEvent('pointerdown');
+await page3.locator('#vbtn-mirror').dispatchEvent('pointerdown');
+await page3.locator('#vbtn-mirror').dispatchEvent('pointerdown');
+await page3.waitForTimeout(500);
 await page3.screenshot({ path: join(shots, 'shot-touch.png') });
 ok(errors3.length === 0, '터치 콘솔 에러 0건', errors3.slice(0, 3).join(' | '));
 await ctx3.close();

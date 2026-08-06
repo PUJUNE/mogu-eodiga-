@@ -32,6 +32,10 @@
   #hud-look { position:absolute; top:52px; left:50%; transform:translateX(-50%);
     color:rgba(255,255,255,.55); font-size:11px; font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,.6); }
 
+  #hud-adjust { position:absolute; top:70px; left:50%; transform:translateX(-50%); display:none;
+    padding:6px 16px; border-radius:16px; background:rgba(216,166,58,.9); color:#1a1c22;
+    font-size:13px; font-weight:800; white-space:nowrap; box-shadow:0 3px 10px rgba(0,0,0,.45); }
+
   #hud-toast { position:absolute; top:34%; left:50%; transform:translateX(-50%);
     color:#fff; font-size:min(26px,6vw); font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
     opacity:0; transition:opacity .3s; white-space:nowrap; }
@@ -69,7 +73,7 @@
   #ready-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     z-index:6; pointer-events:none; }
   #ready-box { background:rgba(10,14,24,.72); border:2px solid rgba(255,255,255,.5); border-radius:14px;
-    padding:18px 26px; text-align:center; color:#fff; }
+    padding:18px 26px; text-align:center; color:#fff; max-width:92vw; box-sizing:border-box; }
   #ready-title { font-size:min(24px,5.5vw); font-weight:900; color:#ffd83d; margin-bottom:8px; }
   #ready-hint { font-size:min(15px,3.6vw); line-height:1.7; color:#e2eaf6; }
 
@@ -131,7 +135,35 @@
     background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.6); color:#fff; font-weight:800; }
   #vbtn-pause { top:10px; left:10px; width:44px; height:44px; border-radius:10px; font-size:18px; }
   #vbtn-look-l { top:26%; left:10px; width:56px; height:64px; border-radius:14px; font-size:22px; }
-  #vbtn-look-r { top:26%; right:80px; width:56px; height:64px; border-radius:14px; font-size:22px; }
+  #vbtn-look-r { top:26%; right:118px; width:56px; height:64px; border-radius:14px; font-size:22px; }
+  #vbtn-mirror { top:26%; left:10px; margin-top:76px; width:56px; height:48px; border-radius:14px; font-size:20px; }
+  #vbtn-mirror.on { background:rgba(216,166,58,.85); border-color:#fff; }
+
+  /* ── 세로 화면: 1인칭 시야는 위쪽 띠(--viewh)만 쓰고, 그 아래를 조작 콘솔로 ── */
+  body.console #gear-panel { top:calc(var(--viewh) + 12px); bottom:auto; right:12px; transform:none; }
+  /* 준비 안내는 조작 콘솔을 덮지 않게 시야 띠 안에 둔다 */
+  body.console #ready-overlay { align-items:flex-start; padding-top:calc(var(--viewh) * 0.16); }
+  body.console.touch #vbtn-look-l { top:calc(var(--viewh) + 14px); left:12px; width:70px; height:62px; }
+  body.console.touch #vbtn-look-r { top:calc(var(--viewh) + 14px); left:90px; right:auto; width:70px; height:62px; }
+  body.console.touch #vbtn-mirror { top:calc(var(--viewh) + 86px); left:12px; margin-top:0;
+    width:148px; height:52px; font-size:22px; }
+  /* 좁은 화면에서 스테이지 제목이 TIME 과 겹치던 것 정리 */
+  @media (max-width: 620px) {
+    #hud-stage { top:8px; font-size:12.5px; max-width:58vw; white-space:normal;
+      line-height:1.24; text-align:center; }
+    /* 안내 줄은 룸미러를 피해 시야 띠 아래쪽에 쌓는다 */
+    #hud-target { top:auto; bottom:calc(100% - var(--viewh) + 30px); font-size:11px;
+      max-width:94vw; white-space:nowrap; text-align:center; }
+    #hud-time-wrap { top:8px; right:10px; }
+    #hud-time { font-size:30px; }
+    #hud-time-lbl { font-size:9px; letter-spacing:1px; }
+  }
+  @media (max-width: 620px), (max-height: 520px) {
+    #hud-look { top:auto; bottom:calc(100% - var(--viewh) + 8px); font-size:10px;
+      max-width:98vw; white-space:nowrap; text-align:center; }
+    #hud-adjust { top:auto; bottom:calc(100% - var(--viewh) + 50px); font-size:11px;
+      max-width:94vw; white-space:normal; text-align:center; }
+  }
   body.touch #app { cursor:none; }
 </style>
 </head>
@@ -141,7 +173,8 @@
   <div id="hud" class="hidden">
     <div id="hud-stage"></div>
     <div id="hud-target"></div>
-    <div id="hud-look">◀ ▶ 백미러 보기 · Shift 같이 = 어깨너머 · 휠/클릭 = 기어</div>
+    <div id="hud-look">◀ ▶ 백미러 보기 · Shift 같이 = 어깨너머 · M = 미러 조절 · 휠/클릭 = 기어</div>
+    <div id="hud-adjust"></div>
     <div id="hud-time-wrap">
       <div id="hud-time">0.0</div>
       <div id="hud-time-lbl">TIME</div>
@@ -230,6 +263,7 @@
   <div class="vbtn" id="vbtn-pause">⏸</div>
   <div class="vbtn" id="vbtn-look-l">◀</div>
   <div class="vbtn" id="vbtn-look-r">▶</div>
+  <div class="vbtn" id="vbtn-mirror">🪞</div>
 </div>
 
 <script>window.MPK = { ASSETS: {

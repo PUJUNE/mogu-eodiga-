@@ -32,6 +32,10 @@
   #hud-look { position:absolute; top:52px; left:50%; transform:translateX(-50%);
     color:rgba(255,255,255,.55); font-size:11px; font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,.6); }
 
+  #hud-adjust { position:absolute; top:70px; left:50%; transform:translateX(-50%); display:none;
+    padding:6px 16px; border-radius:16px; background:rgba(216,166,58,.9); color:#1a1c22;
+    font-size:13px; font-weight:800; white-space:nowrap; box-shadow:0 3px 10px rgba(0,0,0,.45); }
+
   #hud-toast { position:absolute; top:34%; left:50%; transform:translateX(-50%);
     color:#fff; font-size:min(26px,6vw); font-weight:900; text-shadow:0 3px 6px rgba(0,0,0,.6);
     opacity:0; transition:opacity .3s; white-space:nowrap; }
@@ -69,7 +73,7 @@
   #ready-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     z-index:6; pointer-events:none; }
   #ready-box { background:rgba(10,14,24,.72); border:2px solid rgba(255,255,255,.5); border-radius:14px;
-    padding:18px 26px; text-align:center; color:#fff; }
+    padding:18px 26px; text-align:center; color:#fff; max-width:92vw; box-sizing:border-box; }
   #ready-title { font-size:min(24px,5.5vw); font-weight:900; color:#ffd83d; margin-bottom:8px; }
   #ready-hint { font-size:min(15px,3.6vw); line-height:1.7; color:#e2eaf6; }
 
@@ -131,7 +135,35 @@
     background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.6); color:#fff; font-weight:800; }
   #vbtn-pause { top:10px; left:10px; width:44px; height:44px; border-radius:10px; font-size:18px; }
   #vbtn-look-l { top:26%; left:10px; width:56px; height:64px; border-radius:14px; font-size:22px; }
-  #vbtn-look-r { top:26%; right:80px; width:56px; height:64px; border-radius:14px; font-size:22px; }
+  #vbtn-look-r { top:26%; right:118px; width:56px; height:64px; border-radius:14px; font-size:22px; }
+  #vbtn-mirror { top:26%; left:10px; margin-top:76px; width:56px; height:48px; border-radius:14px; font-size:20px; }
+  #vbtn-mirror.on { background:rgba(216,166,58,.85); border-color:#fff; }
+
+  /* ── 세로 화면: 1인칭 시야는 위쪽 띠(--viewh)만 쓰고, 그 아래를 조작 콘솔로 ── */
+  body.console #gear-panel { top:calc(var(--viewh) + 12px); bottom:auto; right:12px; transform:none; }
+  /* 준비 안내는 조작 콘솔을 덮지 않게 시야 띠 안에 둔다 */
+  body.console #ready-overlay { align-items:flex-start; padding-top:calc(var(--viewh) * 0.16); }
+  body.console.touch #vbtn-look-l { top:calc(var(--viewh) + 14px); left:12px; width:70px; height:62px; }
+  body.console.touch #vbtn-look-r { top:calc(var(--viewh) + 14px); left:90px; right:auto; width:70px; height:62px; }
+  body.console.touch #vbtn-mirror { top:calc(var(--viewh) + 86px); left:12px; margin-top:0;
+    width:148px; height:52px; font-size:22px; }
+  /* 좁은 화면에서 스테이지 제목이 TIME 과 겹치던 것 정리 */
+  @media (max-width: 620px) {
+    #hud-stage { top:8px; font-size:12.5px; max-width:58vw; white-space:normal;
+      line-height:1.24; text-align:center; }
+    /* 안내 줄은 룸미러를 피해 시야 띠 아래쪽에 쌓는다 */
+    #hud-target { top:auto; bottom:calc(100% - var(--viewh) + 30px); font-size:11px;
+      max-width:94vw; white-space:nowrap; text-align:center; }
+    #hud-time-wrap { top:8px; right:10px; }
+    #hud-time { font-size:30px; }
+    #hud-time-lbl { font-size:9px; letter-spacing:1px; }
+  }
+  @media (max-width: 620px), (max-height: 520px) {
+    #hud-look { top:auto; bottom:calc(100% - var(--viewh) + 8px); font-size:10px;
+      max-width:98vw; white-space:nowrap; text-align:center; }
+    #hud-adjust { top:auto; bottom:calc(100% - var(--viewh) + 50px); font-size:11px;
+      max-width:94vw; white-space:normal; text-align:center; }
+  }
   body.touch #app { cursor:none; }
 </style>
 </head>
@@ -141,7 +173,8 @@
   <div id="hud" class="hidden">
     <div id="hud-stage"></div>
     <div id="hud-target"></div>
-    <div id="hud-look">◀ ▶ 백미러 보기 · Shift 같이 = 어깨너머 · 휠/클릭 = 기어</div>
+    <div id="hud-look">◀ ▶ 백미러 보기 · Shift 같이 = 어깨너머 · M = 미러 조절 · 휠/클릭 = 기어</div>
+    <div id="hud-adjust"></div>
     <div id="hud-time-wrap">
       <div id="hud-time">0.0</div>
       <div id="hud-time-lbl">TIME</div>
@@ -230,6 +263,7 @@
   <div class="vbtn" id="vbtn-pause">⏸</div>
   <div class="vbtn" id="vbtn-look-l">◀</div>
   <div class="vbtn" id="vbtn-look-r">▶</div>
+  <div class="vbtn" id="vbtn-mirror">🪞</div>
 </div>
 
 <script>window.MPK = { ASSETS: {
@@ -746,6 +780,10 @@ const MIRRORS = {
   right: { lx: 0.92,  ly: 1.02, lz: 0.55, dyaw: Math.PI - 0.30, fov: 50, pitch: 0.055, self: true },
 };
 
+// 사용자가 맞춘 미러 각도 (yaw = 좌우, pitch = 상하). ui.js 가 세이브에서 읽어 채운다.
+M.MIRROR_ADJ_MAX = { yaw: 0.42, pitch: 0.26 };
+M.mirrorAdj = { room: { yaw: 0, pitch: 0 }, left: { yaw: 0, pitch: 0 }, right: { yaw: 0, pitch: 0 } };
+
 // 콕핏 오버레이에서 좌우 백미러를 그릴 방향 (눈 위치 기준 실제 각도).
 // 고개를 HEAD_MIRROR(±1.22rad)만큼 돌리면 해당 미러가 화면 한가운데 오도록 맞춰 뒀다.
 const A_MIRROR_L = -1.18, A_MIRROR_R = 1.30;
@@ -862,9 +900,24 @@ M.Render = {
       this.asphaltPat = this.ctx.createPattern(c, 'repeat');
     });
     for (const k in M.ASSETS.bg) this.bgImgs[k] = load(M.ASSETS.bg[k]);
-    const fit = () => { this.cv.width = window.innerWidth; this.cv.height = window.innerHeight; };
+    const fit = () => {
+      this.cv.width = window.innerWidth;
+      this.cv.height = window.innerHeight;
+      // 세로 화면에서는 1인칭 시야를 위쪽 띠로 제한하고 아래는 콘솔로 쓴다.
+      // 전체 높이를 다 쓰면 세로 화각이 120°까지 벌어져 노면이 훅 휘어 보인다.
+      const vh = this.viewH();
+      document.documentElement.style.setProperty('--viewh', vh + 'px');
+      document.body.classList.toggle('console', vh < this.cv.height - 40);
+    };
     fit();
     window.addEventListener('resize', fit);
+    window.addEventListener('orientationchange', fit);
+  },
+
+  // 1인칭 시야로 쓸 높이. 가로 화면(=PC·가로 폰)에서는 캔버스 전체와 같다.
+  viewH() {
+    const W = this.cv.width, H = this.cv.height;
+    return Math.round(Math.min(H, Math.max(W * 0.85, H * 0.42)));
   },
 
   setStage(stage) {
@@ -1019,17 +1072,23 @@ M.Render = {
     for (const k of ['room', 'left', 'right']) {
       const mdef = MIRRORS[k], mc = this.mirrorCv[k], g = mc.getContext('2d');
       const [mx, mz] = px(mdef.lx, mdef.lz);
-      const cam = makeCam(mx, mdef.ly, mz, car.h + mdef.dyaw, mdef.pitch, mdef.fov, mc.width, mc.height);
+      // 사용자가 맞춘 각도를 더한다. 화면에 붙일 때 좌우 반전하므로 yaw 는 부호를 뒤집어야
+      // "→ 를 누르면 보이는 범위가 오른쪽으로" 가 된다.
+      const adj = M.mirrorAdj[k] || { yaw: 0, pitch: 0 };
+      const cam = makeCam(mx, mdef.ly, mz, car.h + mdef.dyaw - adj.yaw,
+        mdef.pitch + adj.pitch, mdef.fov, mc.width, mc.height);
       g.save();
       g.translate(mc.width, 0); g.scale(-1, 1);
       this.drawScene(g, cam, st, { self: mdef.self }, t);
       g.restore();
     }
 
-    // 메인 뷰
+    // 메인 뷰 — 세로 화면에서는 위쪽 띠(VH)만 1인칭 시야로 쓴다
+    const VH = this.viewH();
     const [ex, ez] = px(EYE.x, EYE.z);
-    const cam = makeCam(ex, EYE.y, ez, car.h + car.headYaw, 0.10, 76, W, H);
+    const cam = makeCam(ex, EYE.y, ez, car.h + car.headYaw, 0.10, 76, W, VH);
     this.drawScene(ctx, cam, st, { self: false, main: true }, t);
+    if (VH < H) { ctx.fillStyle = '#141519'; ctx.fillRect(0, VH, W, H - VH); }   // 아래는 콘솔
 
     this._drawCockpit(ctx, st, t, cam);
 
@@ -1037,7 +1096,7 @@ M.Render = {
     if (st.parkT > 0 && st.phase === 'run') {
       const p = Math.min(1, st.parkT / M.Logic.PARK_HOLD);
       ctx.save();
-      ctx.translate(W / 2, H * 0.30);
+      ctx.translate(W / 2, VH * 0.30);
       ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 9;
       ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = '#7de08a';
@@ -1114,28 +1173,39 @@ M.Render = {
       const mc = this.mirrorCv[k];
       const x = sx(a), h = wPx * (mc.height / mc.width);
       if (x + wPx / 2 < 0 || x - wPx / 2 > W) return;             // 화면 밖이면 생략
-      const y = beltY(a) - h - H * 0.012;
+
+      // 비스듬히 달린 거울이라 화면에는 평행사변형으로 맺힌다 — 바깥 모서리가 내려앉는 방향
+      const mx = sx(aMount), sgn = Math.sign(mx - x) || 1;
+      const skew = -0.17 * sgn;
+      const drop = Math.abs(skew) * wPx / 2;                      // 기울어서 h보다 더 내려가는 만큼
+      const y = beltY(a) - h - drop - H * 0.022;                  // 그만큼 띄워야 아래 모서리가 창턱에 안 잘린다
       this.mirrorRect[k] = { x: x - wPx / 2, y, w: wPx, h };
 
-      // 암 + 세일패널: 미러 안쪽 모서리 → 도어 앞 모서리(창턱)
-      const mx = sx(aMount), sgn = Math.sign(mx - x) || 1;
       const inner = x + sgn * wPx * 0.46;
+      const dyInner = skew * (sgn * wPx * 0.46);                  // 기운 만큼 안쪽 모서리도 올라간다
+
+      // 암 + 세일패널: 미러 안쪽 모서리 → 도어 앞 모서리(창턱)
       const my = beltY(aMount);
       ctx.fillStyle = '#20232a';
       ctx.beginPath();
-      ctx.moveTo(inner, y + h * 0.28);
-      ctx.lineTo(inner, y + h * 0.78);
+      ctx.moveTo(inner, y + h * 0.28 + dyInner);
+      ctx.lineTo(inner, y + h * 0.78 + dyInner);
       ctx.lineTo(mx, my + H * 0.010);
       ctx.lineTo(mx, my - H * 0.085);
       ctx.closePath(); ctx.fill();
 
       ctx.save();
+      ctx.translate(x, y + h / 2);
+      ctx.transform(1, skew, 0, 1, 0, 0);                         // 세로 전단 = 평행사변형
+      const r = wPx * 0.10, gx = -wPx / 2, gy = -h / 2;
       ctx.beginPath();
-      const r = wPx * 0.12;
-      ctx.roundRect ? ctx.roundRect(x - wPx / 2 - 5, y - 5, wPx + 10, h + 10, r) : ctx.rect(x - wPx / 2 - 5, y - 5, wPx + 10, h + 10);
+      ctx.roundRect ? ctx.roundRect(gx - 5, gy - 5, wPx + 10, h + 10, r) : ctx.rect(gx - 5, gy - 5, wPx + 10, h + 10);
       ctx.fillStyle = '#15171c'; ctx.fill();
+      // 유리 테두리만 평행사변형으로 자르고, 비친 장면은 수평 그대로 —
+      // 지평선이 기울면 연석·차와의 간격을 눈으로 재기 어렵다
       ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(x - wPx / 2, y, wPx, h, r * 0.7) : ctx.rect(x - wPx / 2, y, wPx, h);
+      ctx.roundRect ? ctx.roundRect(gx, gy, wPx, h, r * 0.7) : ctx.rect(gx, gy, wPx, h);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clip();
       ctx.drawImage(mc, x - wPx / 2, y, wPx, h);
       ctx.restore();
@@ -1196,14 +1266,17 @@ M.Render = {
     // 지붕 (앞유리 위)
     ctx.fillStyle = ROOF; ctx.fillRect(0, 0, W, H * 0.10);
 
-    // 대시보드 (앞유리 아래) — 좌우 필러 사이를 곡선으로 잇는다
+    // 대시보드 (앞유리 아래) — 좌우 필러 사이를 곡선으로 잇는다.
+    // 콘솔 띠가 따로 있으면(세로 화면) 대시는 얇게 — 시야 띠를 최대한 장면에 쓴다.
+    const CONS = this.cv.height - H;
+    const dashTop = CONS > 40 ? 0.80 : 0.585;
     const sDash = span(aWL, aWR);
     if (sDash) {
       const [xL, xR] = sDash;
       ctx.fillStyle = DASH;
       ctx.beginPath();
-      ctx.moveTo(xL, H * 0.585);
-      ctx.quadraticCurveTo((xL + xR) / 2, H * 0.66, xR, H * 0.585);
+      ctx.moveTo(xL, H * dashTop);
+      ctx.quadraticCurveTo((xL + xR) / 2, H * (dashTop + 0.075), xR, H * dashTop);
       ctx.lineTo(xR, H); ctx.lineTo(xL, H);
       ctx.closePath(); ctx.fill();
     }
@@ -1237,17 +1310,20 @@ M.Render = {
       }
     }
 
-    // 핸들 — 조향각 × 스티어링비만큼 실제로 돈다
+    // 핸들 — 조향각 × 스티어링비만큼 실제로 돈다.
+    // 콘솔 띠가 있으면 그 아래쪽에 크게 놓아 빈 공간이 남지 않게 한다.
     if (!off(0)) {
-      const x = sx(0), y = H * 1.02, R = H * 0.27;
+      const x = sx(0);
+      const y = CONS > 40 ? H + CONS * 0.66 : H * 1.02;
+      const R = CONS > 40 ? Math.min(W * 0.34, CONS * 0.40) : H * 0.27;
       const th = (st.car.steer / M.CAR.LOCK) * (470 * Math.PI / 180);
       ctx.save();
       ctx.translate(x, y);
       ctx.scale(1, 0.86);                                        // 컬럼 기울기
       ctx.rotate(th);
-      ctx.strokeStyle = '#22252c'; ctx.lineWidth = H * 0.052; ctx.lineCap = 'round';
+      ctx.strokeStyle = '#22252c'; ctx.lineWidth = R * 0.19; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
-      ctx.strokeStyle = '#2c3038'; ctx.lineWidth = H * 0.030;
+      ctx.strokeStyle = '#2c3038'; ctx.lineWidth = R * 0.11;
       for (const a of [Math.PI, 0, Math.PI / 2]) {
         ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * R * 0.92, Math.sin(a) * R * 0.92); ctx.stroke();
       }
@@ -1509,6 +1585,15 @@ M.save = {
     return this.data;
   },
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
+  // 미러 조절값은 판이 바뀌어도 유지된다 (실제로 한 번 맞추면 그대로 두는 것과 같게)
+  loadMirror() {
+    const m = this.data.mirror;
+    if (!m) return;
+    for (const k of ['room', 'left', 'right']) {
+      if (m[k]) M.mirrorAdj[k] = { yaw: +m[k].yaw || 0, pitch: +m[k].pitch || 0 };
+    }
+  },
+  storeMirror() { this.data.mirror = M.mirrorAdj; this.store(); },
   unlocked() {
     let max = 1;
     for (let s = 1; s <= M.COURSES; s++) if (this.data.stars[s] > 0) max = Math.max(max, Math.min(M.COURSES, s + 1));
@@ -1618,12 +1703,28 @@ M.ui = {
     }
   },
 
+  // 미러 조절 중 안내 띠 (null 이면 숨김)
+  hudAdjust(kind, label) {
+    const el = $('hud-adjust');
+    el.style.display = kind ? 'block' : 'none';
+    if (kind) {
+      el.textContent = M.touch
+        ? `🪞 ${label} 미러 조절 — 화면을 끌어 겨누기 · 🪞 버튼으로 다음 미러`
+        : `🪞 ${label} 미러 조절 — 방향키(또는 드래그)로 겨누기 · M 다음 미러 · 0 초기화 · Esc 끝`;
+    }
+    const b = $('vbtn-mirror');
+    if (b) b.classList.toggle('on', !!kind);
+  },
+
   hudRun(st) {
     const stg = st.stage;
-    $('hud-stage').textContent = `STAGE ${st.no} · ${stg.theme.name} · ${stg.typeName}` +
+    const narrow = window.innerWidth < 620;                     // 좁은 화면은 제목을 줄여 TIME 과 안 겹치게
+    $('hud-stage').textContent = (narrow ? `S${st.no} · ${stg.typeName}`
+      : `STAGE ${st.no} · ${stg.theme.name} · ${stg.typeName}`) +
       (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '');
     const best = M.save.data.best[st.no];
-    $('hud-target').textContent = `제한 ${stg.timeLimit}초 · 노란 칸에 정확히 세우면 성공` +
+    $('hud-target').textContent = (narrow ? `${stg.timeLimit}초 · 노란 칸에 정확히`
+      : `제한 ${stg.timeLimit}초 · 노란 칸에 정확히 세우면 성공`) +
       (best ? ` · 최고 ${best.toFixed(1)}초` : '');
   },
 
@@ -1671,9 +1772,38 @@ const input = { active: false, shift: 0, gearTo: 0, look: 0, shoulder: 0, w: 0, 
 const LOOK_HOLD_MS = 700;        // 터치: 이만큼 계속 누르면 미러 확인 → 어깨너머로 넘어간다
 let refSet = false;
 const lookKeys = new Set();
+
+// ── 미러 조절 ──────────────────────────────────────────────────────────
+// 실제 차처럼 좌/우/룸 미러를 골라 상하좌우로 겨눈다. 고른 미러 쪽으로 고개가
+// 고정되어 보면서 맞출 수 있고, 조절값은 세이브에 남아 다음 판에도 유지된다.
+const MIRROR_CYCLE = ['left', 'right', 'room'];
+const MIRROR_LABEL = { left: '좌측', right: '우측', room: '룸' };
+const MIRROR_STEP = 0.055;       // 한 번 누를 때 움직이는 각도 (rad)
+let adjust = null;               // null | 'left' | 'right' | 'room'
+let adjustDrag = null;           // 터치·마우스 드래그로 겨눌 때의 시작점
+
+function nudgeMirror(dyaw, dpitch) {
+  if (!adjust) return;
+  const a = M.mirrorAdj[adjust], lim = M.MIRROR_ADJ_MAX;
+  a.yaw = Math.min(lim.yaw, Math.max(-lim.yaw, a.yaw + dyaw));
+  a.pitch = Math.min(lim.pitch, Math.max(-lim.pitch, a.pitch + dpitch));
+  M.save.storeMirror();
+}
+function setAdjust(k) {
+  adjust = k;
+  input.look = 0; input.shoulder = 0; lookKeys.clear();
+  if (k) input.active = false;                                  // 조절 중엔 드래그가 페달·핸들로 안 읽히게
+  adjustDrag = null;
+  M.ui.hudAdjust(k, k ? MIRROR_LABEL[k] : '');
+}
+function cycleAdjust() {
+  const i = adjust ? MIRROR_CYCLE.indexOf(adjust) : -1;
+  setAdjust(i + 1 < MIRROR_CYCLE.length ? MIRROR_CYCLE[i + 1] : null);
+}
 const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
 M.save.load();
+M.save.loadMirror();
 if (M.DIFF_ORDER.includes(M.save.data.diff)) M.diff = M.save.data.diff;
 M.ui.init();
 M.Render.init($('app'));
@@ -1707,6 +1837,7 @@ function startStage(no) {
   endDelay = 0;
   input.active = false; input.shift = 0; input.gearTo = 0; input.look = 0; input.shoulder = 0;
   refSet = false; lookKeys.clear();
+  setAdjust(null);
   M.ui.hideAll();
   $('hud').classList.remove('hidden');
   $('ready-overlay').classList.remove('hidden');
@@ -1752,6 +1883,7 @@ app.addEventListener('pointerdown', (e) => {
   if (mode === 'replay') { skipReplay(); return; }
   if (mode !== 'run' || !st) return;
   e.preventDefault();
+  if (adjust) { adjustDrag = { x: e.clientX, y: e.clientY }; return; }   // 조절 중엔 드래그 = 겨누기
   if (st.phase === 'ready') {                                   // 클릭한 자리가 기준점 → 출발
     setRef(e.clientX, e.clientY);
     M.Logic.begin(st);
@@ -1761,15 +1893,24 @@ app.addEventListener('pointerdown', (e) => {
   if (e.button === 0) input.shift = 1;                          // 좌클릭 = 기어 위로 (R→N→D)
   else if (e.button === 2) input.shift = -1;                    // 우클릭 = 기어 아래로
 });
+app.addEventListener('pointerup', () => { adjustDrag = null; });
 app.addEventListener('wheel', (e) => {
   if (mode === 'run' && st && st.phase === 'run') {
     e.preventDefault();
     input.shift = e.deltaY < 0 ? 1 : -1;
   }
 }, { passive: false });
-app.addEventListener('pointercancel', () => { input.active = false; });
+app.addEventListener('pointercancel', () => { input.active = false; adjustDrag = null; });
 app.addEventListener('pointermove', (e) => {
   if (e.target.closest('#gear-panel, .vbtn')) return;           // 기어·버튼 위 커서는 조작으로 안 읽음
+  if (adjust) {
+    if (adjustDrag) {                                           // 끌어서 미러 겨누기 (드래그 = 보이는 범위가 따라온다)
+      const k = 0.0022;
+      nudgeMirror((e.clientX - adjustDrag.x) * k, (e.clientY - adjustDrag.y) * k);
+      adjustDrag = { x: e.clientX, y: e.clientY };
+    }
+    return;
+  }
   input.x = e.clientX; input.y = e.clientY;
   if (mode === 'run' && refSet) input.active = true;
 });
@@ -1787,8 +1928,11 @@ function skipReplay() {
 // 터치: 드래그 동일 매핑, 고개·기어는 화면 버튼
 if (isTouch) {
   document.body.classList.add('touch');
-  $('ready-hint').innerHTML = '화면을 눌러 기준점을 정하세요<br>위로 밀면 엑셀 · 아래로 브레이크 · 좌우 핸들<br>기어는 오른쪽 R N D 버튼';
+  M.touch = true;
+  $('ready-hint').innerHTML = '화면을 눌러 기준점을 정하세요<br>위로 밀면 엑셀 · 아래로 브레이크 · 좌우 핸들<br>기어는 R N D 버튼';
   $('title-hint').textContent = '누른 자리가 기준점 · 위 엑셀 · 아래 브레이크 · ◀▶ 버튼으로 백미러 보기(길게 = 어깨너머)';
+  // 안내에서 PC 전용 조작(Shift·M·휠)을 빼고 버튼 기준으로 바꾼다
+  $('hud-look').textContent = '◀▶ 백미러 · 길게 = 어깨너머 · 🪞 미러 조절';
   document.addEventListener('touchmove', (e) => {
     if (!e.target.closest('#map-scroll')) e.preventDefault();
   }, { passive: false });
@@ -1808,6 +1952,21 @@ window.addEventListener('keydown', (e) => {
     if (k === 'Enter') startStage(Math.min(M.save.unlocked(), M.COURSES));
     if (k === 'Escape') { mode = 'title'; M.ui.show('title-screen'); }
   } else if (mode === 'run') {
+    // M = 미러 조절 (좌 → 우 → 룸 → 끝). 조절 중엔 방향키가 미러를 겨눈다.
+    if (e.code === 'KeyM') { cycleAdjust(); e.preventDefault(); return; }
+    if (adjust) {
+      if (k === 'Escape' || k === 'Enter') { setAdjust(null); e.preventDefault(); return; }
+      if (e.code === 'Digit0' || e.code === 'Numpad0') {          // 0 = 이 미러 초기화
+        M.mirrorAdj[adjust].yaw = 0; M.mirrorAdj[adjust].pitch = 0;
+        M.save.storeMirror(); e.preventDefault(); return;
+      }
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') { nudgeMirror(-MIRROR_STEP, 0); e.preventDefault(); return; }
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') { nudgeMirror(MIRROR_STEP, 0); e.preventDefault(); return; }
+      // pitch 를 키우면 미러가 아래를 향한다 → ↑ 는 pitch 를 줄여야 "보이는 범위가 위로"
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') { nudgeMirror(0, -MIRROR_STEP); e.preventDefault(); return; }
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') { nudgeMirror(0, MIRROR_STEP); e.preventDefault(); return; }
+      return;
+    }
     if (k === 'Escape') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); return; }
     if (k === 'r' || k === 'R') { startStage(st.no); return; }
     // ← → (또는 A/D) 누르는 동안 고개 돌리기 — e.code라 한글 자판에서도 동작
@@ -1879,6 +2038,11 @@ for (const [id, dir] of [['vbtn-look-l', -1], ['vbtn-look-r', 1]]) {
   el.addEventListener('pointercancel', offF);
   el.addEventListener('pointerleave', offF);
 }
+// 미러 조절 버튼 (터치) — 누를 때마다 좌 → 우 → 룸 → 끝
+$('vbtn-mirror').addEventListener('pointerdown', (e) => {
+  e.preventDefault(); e.stopPropagation();
+  if (mode === 'run') cycleAdjust();
+});
 $('vbtn-pause').addEventListener('pointerdown', (e) => {
   e.preventDefault(); e.stopPropagation();
   if (mode === 'run') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); }
@@ -1933,8 +2097,13 @@ function frame(now) {
   $('vbtn-look-l').style.display = lookBtns ? 'flex' : 'none';
   $('vbtn-look-r').style.display = lookBtns ? 'flex' : 'none';
   $('gear-panel').style.display = mode === 'run' ? 'block' : 'none';
+  $('vbtn-mirror').style.display = lookBtns ? 'flex' : 'none';
 
   if (mode === 'run' && st) {
+    if (adjust) {                                               // 조절 중엔 고른 미러 쪽으로 고개 고정
+      input.look = adjust === 'left' ? -1 : adjust === 'right' ? 1 : 0;
+      input.shoulder = 0;
+    }
     handleEvents(M.Logic.step(st, dt, input));
     M.audio.engineUpdate(Math.abs(st.car.v) / M.Logic.VMAX_F, st.throttle, st.car.gear);
     updateHud();

@@ -13,6 +13,10 @@ const MIRRORS = {
   right: { lx: 0.92,  ly: 1.02, lz: 0.55, dyaw: Math.PI - 0.30, fov: 50, pitch: 0.055, self: true },
 };
 
+// 사용자가 맞춘 미러 각도 (yaw = 좌우, pitch = 상하). ui.js 가 세이브에서 읽어 채운다.
+M.MIRROR_ADJ_MAX = { yaw: 0.42, pitch: 0.26 };
+M.mirrorAdj = { room: { yaw: 0, pitch: 0 }, left: { yaw: 0, pitch: 0 }, right: { yaw: 0, pitch: 0 } };
+
 // 콕핏 오버레이에서 좌우 백미러를 그릴 방향 (눈 위치 기준 실제 각도).
 // 고개를 HEAD_MIRROR(±1.22rad)만큼 돌리면 해당 미러가 화면 한가운데 오도록 맞춰 뒀다.
 const A_MIRROR_L = -1.18, A_MIRROR_R = 1.30;
@@ -129,9 +133,24 @@ M.Render = {
       this.asphaltPat = this.ctx.createPattern(c, 'repeat');
     });
     for (const k in M.ASSETS.bg) this.bgImgs[k] = load(M.ASSETS.bg[k]);
-    const fit = () => { this.cv.width = window.innerWidth; this.cv.height = window.innerHeight; };
+    const fit = () => {
+      this.cv.width = window.innerWidth;
+      this.cv.height = window.innerHeight;
+      // 세로 화면에서는 1인칭 시야를 위쪽 띠로 제한하고 아래는 콘솔로 쓴다.
+      // 전체 높이를 다 쓰면 세로 화각이 120°까지 벌어져 노면이 훅 휘어 보인다.
+      const vh = this.viewH();
+      document.documentElement.style.setProperty('--viewh', vh + 'px');
+      document.body.classList.toggle('console', vh < this.cv.height - 40);
+    };
     fit();
     window.addEventListener('resize', fit);
+    window.addEventListener('orientationchange', fit);
+  },
+
+  // 1인칭 시야로 쓸 높이. 가로 화면(=PC·가로 폰)에서는 캔버스 전체와 같다.
+  viewH() {
+    const W = this.cv.width, H = this.cv.height;
+    return Math.round(Math.min(H, Math.max(W * 0.85, H * 0.42)));
   },
 
   setStage(stage) {
@@ -286,17 +305,23 @@ M.Render = {
     for (const k of ['room', 'left', 'right']) {
       const mdef = MIRRORS[k], mc = this.mirrorCv[k], g = mc.getContext('2d');
       const [mx, mz] = px(mdef.lx, mdef.lz);
-      const cam = makeCam(mx, mdef.ly, mz, car.h + mdef.dyaw, mdef.pitch, mdef.fov, mc.width, mc.height);
+      // 사용자가 맞춘 각도를 더한다. 화면에 붙일 때 좌우 반전하므로 yaw 는 부호를 뒤집어야
+      // "→ 를 누르면 보이는 범위가 오른쪽으로" 가 된다.
+      const adj = M.mirrorAdj[k] || { yaw: 0, pitch: 0 };
+      const cam = makeCam(mx, mdef.ly, mz, car.h + mdef.dyaw - adj.yaw,
+        mdef.pitch + adj.pitch, mdef.fov, mc.width, mc.height);
       g.save();
       g.translate(mc.width, 0); g.scale(-1, 1);
       this.drawScene(g, cam, st, { self: mdef.self }, t);
       g.restore();
     }
 
-    // 메인 뷰
+    // 메인 뷰 — 세로 화면에서는 위쪽 띠(VH)만 1인칭 시야로 쓴다
+    const VH = this.viewH();
     const [ex, ez] = px(EYE.x, EYE.z);
-    const cam = makeCam(ex, EYE.y, ez, car.h + car.headYaw, 0.10, 76, W, H);
+    const cam = makeCam(ex, EYE.y, ez, car.h + car.headYaw, 0.10, 76, W, VH);
     this.drawScene(ctx, cam, st, { self: false, main: true }, t);
+    if (VH < H) { ctx.fillStyle = '#141519'; ctx.fillRect(0, VH, W, H - VH); }   // 아래는 콘솔
 
     this._drawCockpit(ctx, st, t, cam);
 
@@ -304,7 +329,7 @@ M.Render = {
     if (st.parkT > 0 && st.phase === 'run') {
       const p = Math.min(1, st.parkT / M.Logic.PARK_HOLD);
       ctx.save();
-      ctx.translate(W / 2, H * 0.30);
+      ctx.translate(W / 2, VH * 0.30);
       ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 9;
       ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = '#7de08a';
@@ -381,28 +406,39 @@ M.Render = {
       const mc = this.mirrorCv[k];
       const x = sx(a), h = wPx * (mc.height / mc.width);
       if (x + wPx / 2 < 0 || x - wPx / 2 > W) return;             // 화면 밖이면 생략
-      const y = beltY(a) - h - H * 0.012;
+
+      // 비스듬히 달린 거울이라 화면에는 평행사변형으로 맺힌다 — 바깥 모서리가 내려앉는 방향
+      const mx = sx(aMount), sgn = Math.sign(mx - x) || 1;
+      const skew = -0.17 * sgn;
+      const drop = Math.abs(skew) * wPx / 2;                      // 기울어서 h보다 더 내려가는 만큼
+      const y = beltY(a) - h - drop - H * 0.022;                  // 그만큼 띄워야 아래 모서리가 창턱에 안 잘린다
       this.mirrorRect[k] = { x: x - wPx / 2, y, w: wPx, h };
 
-      // 암 + 세일패널: 미러 안쪽 모서리 → 도어 앞 모서리(창턱)
-      const mx = sx(aMount), sgn = Math.sign(mx - x) || 1;
       const inner = x + sgn * wPx * 0.46;
+      const dyInner = skew * (sgn * wPx * 0.46);                  // 기운 만큼 안쪽 모서리도 올라간다
+
+      // 암 + 세일패널: 미러 안쪽 모서리 → 도어 앞 모서리(창턱)
       const my = beltY(aMount);
       ctx.fillStyle = '#20232a';
       ctx.beginPath();
-      ctx.moveTo(inner, y + h * 0.28);
-      ctx.lineTo(inner, y + h * 0.78);
+      ctx.moveTo(inner, y + h * 0.28 + dyInner);
+      ctx.lineTo(inner, y + h * 0.78 + dyInner);
       ctx.lineTo(mx, my + H * 0.010);
       ctx.lineTo(mx, my - H * 0.085);
       ctx.closePath(); ctx.fill();
 
       ctx.save();
+      ctx.translate(x, y + h / 2);
+      ctx.transform(1, skew, 0, 1, 0, 0);                         // 세로 전단 = 평행사변형
+      const r = wPx * 0.10, gx = -wPx / 2, gy = -h / 2;
       ctx.beginPath();
-      const r = wPx * 0.12;
-      ctx.roundRect ? ctx.roundRect(x - wPx / 2 - 5, y - 5, wPx + 10, h + 10, r) : ctx.rect(x - wPx / 2 - 5, y - 5, wPx + 10, h + 10);
+      ctx.roundRect ? ctx.roundRect(gx - 5, gy - 5, wPx + 10, h + 10, r) : ctx.rect(gx - 5, gy - 5, wPx + 10, h + 10);
       ctx.fillStyle = '#15171c'; ctx.fill();
+      // 유리 테두리만 평행사변형으로 자르고, 비친 장면은 수평 그대로 —
+      // 지평선이 기울면 연석·차와의 간격을 눈으로 재기 어렵다
       ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(x - wPx / 2, y, wPx, h, r * 0.7) : ctx.rect(x - wPx / 2, y, wPx, h);
+      ctx.roundRect ? ctx.roundRect(gx, gy, wPx, h, r * 0.7) : ctx.rect(gx, gy, wPx, h);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clip();
       ctx.drawImage(mc, x - wPx / 2, y, wPx, h);
       ctx.restore();
@@ -463,14 +499,17 @@ M.Render = {
     // 지붕 (앞유리 위)
     ctx.fillStyle = ROOF; ctx.fillRect(0, 0, W, H * 0.10);
 
-    // 대시보드 (앞유리 아래) — 좌우 필러 사이를 곡선으로 잇는다
+    // 대시보드 (앞유리 아래) — 좌우 필러 사이를 곡선으로 잇는다.
+    // 콘솔 띠가 따로 있으면(세로 화면) 대시는 얇게 — 시야 띠를 최대한 장면에 쓴다.
+    const CONS = this.cv.height - H;
+    const dashTop = CONS > 40 ? 0.80 : 0.585;
     const sDash = span(aWL, aWR);
     if (sDash) {
       const [xL, xR] = sDash;
       ctx.fillStyle = DASH;
       ctx.beginPath();
-      ctx.moveTo(xL, H * 0.585);
-      ctx.quadraticCurveTo((xL + xR) / 2, H * 0.66, xR, H * 0.585);
+      ctx.moveTo(xL, H * dashTop);
+      ctx.quadraticCurveTo((xL + xR) / 2, H * (dashTop + 0.075), xR, H * dashTop);
       ctx.lineTo(xR, H); ctx.lineTo(xL, H);
       ctx.closePath(); ctx.fill();
     }
@@ -504,17 +543,20 @@ M.Render = {
       }
     }
 
-    // 핸들 — 조향각 × 스티어링비만큼 실제로 돈다
+    // 핸들 — 조향각 × 스티어링비만큼 실제로 돈다.
+    // 콘솔 띠가 있으면 그 아래쪽에 크게 놓아 빈 공간이 남지 않게 한다.
     if (!off(0)) {
-      const x = sx(0), y = H * 1.02, R = H * 0.27;
+      const x = sx(0);
+      const y = CONS > 40 ? H + CONS * 0.66 : H * 1.02;
+      const R = CONS > 40 ? Math.min(W * 0.34, CONS * 0.40) : H * 0.27;
       const th = (st.car.steer / M.CAR.LOCK) * (470 * Math.PI / 180);
       ctx.save();
       ctx.translate(x, y);
       ctx.scale(1, 0.86);                                        // 컬럼 기울기
       ctx.rotate(th);
-      ctx.strokeStyle = '#22252c'; ctx.lineWidth = H * 0.052; ctx.lineCap = 'round';
+      ctx.strokeStyle = '#22252c'; ctx.lineWidth = R * 0.19; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
-      ctx.strokeStyle = '#2c3038'; ctx.lineWidth = H * 0.030;
+      ctx.strokeStyle = '#2c3038'; ctx.lineWidth = R * 0.11;
       for (const a of [Math.PI, 0, Math.PI / 2]) {
         ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * R * 0.92, Math.sin(a) * R * 0.92); ctx.stroke();
       }
