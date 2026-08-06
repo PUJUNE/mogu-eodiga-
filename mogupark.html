@@ -1117,27 +1117,33 @@ M.Render = {
       const y = beltY(a) - h - H * 0.012;
       this.mirrorRect[k] = { x: x - wPx / 2, y, w: wPx, h };
 
-      // 암 + 세일패널: 미러 안쪽 모서리 → 도어 앞 모서리(창턱)
+      // 비스듬히 달린 거울이라 화면에는 평행사변형으로 맺힌다 — 바깥 모서리가 내려앉는 방향
       const mx = sx(aMount), sgn = Math.sign(mx - x) || 1;
+      const skew = -0.17 * sgn;
       const inner = x + sgn * wPx * 0.46;
+      const dyInner = skew * (sgn * wPx * 0.46);                  // 기운 만큼 안쪽 모서리도 올라간다
+
+      // 암 + 세일패널: 미러 안쪽 모서리 → 도어 앞 모서리(창턱)
       const my = beltY(aMount);
       ctx.fillStyle = '#20232a';
       ctx.beginPath();
-      ctx.moveTo(inner, y + h * 0.28);
-      ctx.lineTo(inner, y + h * 0.78);
+      ctx.moveTo(inner, y + h * 0.28 + dyInner);
+      ctx.lineTo(inner, y + h * 0.78 + dyInner);
       ctx.lineTo(mx, my + H * 0.010);
       ctx.lineTo(mx, my - H * 0.085);
       ctx.closePath(); ctx.fill();
 
       ctx.save();
+      ctx.translate(x, y + h / 2);
+      ctx.transform(1, skew, 0, 1, 0, 0);                         // 세로 전단 = 평행사변형
+      const r = wPx * 0.10, gx = -wPx / 2, gy = -h / 2;
       ctx.beginPath();
-      const r = wPx * 0.12;
-      ctx.roundRect ? ctx.roundRect(x - wPx / 2 - 5, y - 5, wPx + 10, h + 10, r) : ctx.rect(x - wPx / 2 - 5, y - 5, wPx + 10, h + 10);
+      ctx.roundRect ? ctx.roundRect(gx - 5, gy - 5, wPx + 10, h + 10, r) : ctx.rect(gx - 5, gy - 5, wPx + 10, h + 10);
       ctx.fillStyle = '#15171c'; ctx.fill();
       ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(x - wPx / 2, y, wPx, h, r * 0.7) : ctx.rect(x - wPx / 2, y, wPx, h);
+      ctx.roundRect ? ctx.roundRect(gx, gy, wPx, h, r * 0.7) : ctx.rect(gx, gy, wPx, h);
       ctx.clip();
-      ctx.drawImage(mc, x - wPx / 2, y, wPx, h);
+      ctx.drawImage(mc, gx, gy, wPx, h);
       ctx.restore();
     };
     // 미러 각도는 눈 위치에서 본 실제 방향 (운전석이 왼쪽이라 우측 미러가 더 바깥)
