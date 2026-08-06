@@ -84,6 +84,11 @@ ok(d.phase === 'run' && d.gear === 'N', '기준점 클릭 = 출발 (N단 정지)
 ok(await page.locator('#ready-overlay').isHidden(), '출발 후 안내 사라짐');
 const RY = d.refY;
 
+// ── 주차된 다른 차가 실제로 화면에 보이는지 ──
+// 부딪히면 실패하는 장애물인데 안 보이면 안 된다. 앞유리 시야에 한 대 이상 잡혀야 한다.
+const carsSeen = () => page.evaluate(() => window.MPK.Render.carsOnScreen);
+ok(await carsSeen() >= 1, '앞유리 시야에 주차 차량이 보인다', `${await carsSeen()}대`);
+
 // ── 휠 위로 = D단, 크리프 전진 ──
 await page.mouse.wheel(0, -120);
 await page.waitForTimeout(1600);
@@ -160,7 +165,8 @@ ck = await cockpit();
 ok(ck.mirror.left && ck.mirror.left.x >= 0 && ck.mirror.left.x + ck.mirror.left.w <= W,
   '← 홀드 시 좌측 백미러가 화면 안에 보인다',
   ck.mirror.left ? `x ${Math.round(ck.mirror.left.x)}~${Math.round(ck.mirror.left.x + ck.mirror.left.w)}` : '안 그려짐');
-ok(!centerBlocked(ck), '좌측 확인에서도 한가운데를 필러가 막지 않음');
+ok(!centerBlocked(ck), '좌측 확인에서도 한가운데를 필러가 막지 않음',
+  `필러 ${JSON.stringify(ck.pillars.map(([a, b]) => [Math.round(a), Math.round(b)]))} headYaw ${(await page.evaluate(() => window.MPK._dbg())).headYaw}`);
 await page.keyboard.down('Shift');
 await page.waitForTimeout(800);
 ck = await cockpit();
@@ -218,6 +224,32 @@ await page.click('.diff-btn[data-diff="hard"]');
 const diffSaved = await page.evaluate(() => JSON.parse(localStorage.getItem('mogupark-save-v1')).diff);
 ok(diffSaved === 'hard', '난이도 선택 저장');
 await page.click('.diff-btn[data-diff="normal"]');
+
+// ── 차가 양옆에 늘어선 판(11: 마트 주차장)에서 좌우로 고개를 돌리면 보이는지 ──
+await page.evaluate(() => {
+  const s = { stars: {} };
+  for (let i = 1; i <= 50; i++) s.stars[i] = 3;
+  localStorage.setItem('mogupark-save-v1', JSON.stringify(s));
+});
+await page.goto(BASE + '/mogupark/index.html');
+await page.waitForFunction(() => window.MPK && window.MPK._dbg, null, { timeout: 8000 });
+await page.click('#btn-start');
+await page.waitForTimeout(300);
+await page.locator('.stage-cell').nth(10).click();
+await page.waitForTimeout(400);
+await page.mouse.move(REF_X, CLICK_Y);
+await page.mouse.down(); await page.mouse.up();
+await page.waitForTimeout(300);
+for (const [key, label] of [['ArrowLeft', '왼쪽'], ['ArrowRight', '오른쪽']]) {
+  await page.keyboard.down(key);
+  await page.waitForTimeout(900);
+  ok(await carsSeen() >= 1, `11판: 고개를 ${label}으로 돌리면 주차 차량이 보인다`, `${await carsSeen()}대`);
+  await page.keyboard.up(key);
+  await page.waitForTimeout(800);
+}
+await page.screenshot({ path: join(shots, 'shot-cars.png') });
+await page.goto(BASE + '/mogupark/index.html');            // 타이틀로 복귀
+await page.waitForFunction(() => window.MPK && window.MPK._dbg, null, { timeout: 8000 });
 
 // ── 충돌 → 실패 리플레이 흐름 ──
 await page.click('#btn-start');

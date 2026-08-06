@@ -949,6 +949,7 @@ M.Render = {
     }
 
     // ── 상자들 (원거리부터) ──
+    if (opts.main) this.carsOnScreen = 0;                        // 테스트용: 화면에 잡힌 주차 차량 수
     const units = [];
     for (const o of stage.obstacles) units.push({ x: o.x, z: o.z, o });
     if (opts.self) units.push({ x: st.car.x, z: st.car.z, self: true });
@@ -957,7 +958,16 @@ M.Render = {
     for (const u of units) {
       if (u.self) { this._drawCarBoxes(ctx, cam, st.car.x, st.car.z, st.car.h, PLAYER_COL, th.dark); continue; }
       const o = u.o;
-      if (o.kind === 'car') this._drawCarBoxes(ctx, cam, o.x, o.z, o.yaw, M.CAR_HUES[o.hue], th.dark);
+      if (o.kind === 'car') {
+        this._drawCarBoxes(ctx, cam, o.x, o.z, o.yaw, M.CAR_HUES[o.hue], th.dark);
+        if (opts.main) {
+          const p = camPt(cam, o.x, 0.7, o.z);
+          if (p[2] > NEAR) {
+            const px = cam.cx + cam.f * p[0] / p[2], py = cam.cyp - cam.f * p[1] / p[2];
+            if (px >= 0 && px <= W && py >= 0 && py <= H) this.carsOnScreen++;
+          }
+        }
+      }
       else if (o.kind === 'pillar') drawBox(ctx, cam, o.x, o.z, 0, 2.75, o.w, o.l, o.yaw, th.wallC || '#9aa', th.dark);
       else if (o.kind === 'wall') drawBox(ctx, cam, o.x, o.z, 0, stage.world === 3 ? 2.6 : (th.dark ? 2.75 : 0.95), o.w, o.l, o.yaw, th.wallC, th.dark);
       else if (o.kind === 'curb') drawBox(ctx, cam, o.x, o.z, 0, 0.13, o.w, o.l, o.yaw, th.curbC, th.dark);
@@ -970,13 +980,32 @@ M.Render = {
     if (th.dark) { ctx.fillStyle = 'rgba(8,10,16,.18)'; ctx.fillRect(0, 0, W, H); }
   },
 
-  // 주차 차량 = 차체 + 캐빈(유리) 상자 2개
+  // 주차 차량 — 상자 두 개면 멀리서 담벼락처럼 보여서, 바퀴·유리·지붕을 나눠 실루엣을 만든다
   _drawCarBoxes(ctx, cam, x, z, yaw, col, dark) {
     const C = M.CAR;
-    drawBox(ctx, cam, x, z, 0.12, 0.78, C.W, C.L, yaw, col, dark);
     const s = Math.sin(yaw), c = Math.cos(yaw);
-    const off = -0.25;                                           // 캐빈은 살짝 뒤쪽
-    drawBox(ctx, cam, x + off * s, z + off * c, 0.78, 1.42, C.W * 0.86, C.L * 0.52, yaw, shade(col, 0.74), dark);
+    const P = (lx, lz) => [x + lx * c + lz * s, z - lx * s + lz * c];   // 차 로컬 → 월드
+    const glass = dark ? '#252a33' : '#39434f';
+    const tyre = dark ? '#121317' : '#1a1c20';
+
+    // 바퀴 4개 — 차체보다 살짝 바깥으로 튀어나오게
+    const wb = C.WB / 2, tw = C.W / 2 - 0.05;
+    for (const [lx, lz] of [[-tw, wb], [tw, wb], [-tw, -wb], [tw, -wb]]) {
+      const [wx, wz] = P(lx, lz);
+      drawBox(ctx, cam, wx, wz, 0.0, 0.33, 0.22, 0.66, yaw, tyre, dark);
+    }
+    // 차체: 문턱(좁고 낮음) + 몸통
+    drawBox(ctx, cam, x, z, 0.22, 0.44, C.W * 0.92, C.L * 0.97, yaw, shade(col, 0.72), dark);
+    drawBox(ctx, cam, x, z, 0.30, 0.82, C.W, C.L, yaw, col, dark);
+    // 캐빈: 유리띠 + 그 위 지붕 (뒤로 살짝 물러나 있음)
+    const [gx, gz] = P(0, -0.28);
+    drawBox(ctx, cam, gx, gz, 0.82, 1.26, C.W * 0.90, C.L * 0.50, yaw, glass, dark);
+    drawBox(ctx, cam, gx, gz, 1.26, 1.40, C.W * 0.86, C.L * 0.46, yaw, shade(col, 0.92), dark);
+    // 앞뒤 등 — 어느 쪽을 향한 차인지 한눈에 보이게
+    const [tx, tz] = P(0, -C.L / 2 + 0.06);
+    drawBox(ctx, cam, tx, tz, 0.52, 0.70, C.W * 0.86, 0.10, yaw, dark ? '#7a2018' : '#a8342a', dark);
+    const [hx, hz] = P(0, C.L / 2 - 0.06);
+    drawBox(ctx, cam, hx, hz, 0.50, 0.66, C.W * 0.84, 0.10, yaw, dark ? '#d8d2b8' : '#efe8cf', dark);
   },
 
   // ══ 주행 화면 (1인칭 + 미러 + 콕핏) ══
@@ -1000,7 +1029,7 @@ M.Render = {
     // 메인 뷰
     const [ex, ez] = px(EYE.x, EYE.z);
     const cam = makeCam(ex, EYE.y, ez, car.h + car.headYaw, 0.10, 76, W, H);
-    this.drawScene(ctx, cam, st, { self: false }, t);
+    this.drawScene(ctx, cam, st, { self: false, main: true }, t);
 
     this._drawCockpit(ctx, st, t, cam);
 
@@ -1045,18 +1074,61 @@ M.Render = {
     };
 
     const DASH = '#191b21', DOOR = '#22242b', PILLAR = '#101216', ROOF = '#0d0f13';
+    const aWL = -0.80, aWR = 0.72;                              // 앞유리 좌/우 경계각
 
-    // 좌우 백미러 (차 외부 — 실내 패널보다 먼저 그려 창틀이 덮게)
+    // ── 옆면 실루엣 ──
+    // |각도| → [벨트라인(창 아래) y비율, 루프라인(창 위) y비율].
+    // 앞쪽은 창이 크고 낮게, 뒤로 갈수록 창턱이 올라오고 지붕이 내려앉는다 = 차 옆모습.
+    // 예전엔 이게 전부 수평선이라 창틀이 그냥 네모난 세로 기둥처럼 보였다.
+    // 앞끝(0.72)은 앞유리 지붕선(0.10H)과 같은 높이 — 안 맞추면 그 경계에 계단이 생긴다
+    const SIDE = [[0.72, 0.672, 0.100], [0.90, 0.652, 0.150], [1.20, 0.618, 0.156],
+                  [1.74, 0.590, 0.173], [2.30, 0.566, 0.199], [2.95, 0.552, 0.229]];
+    const sideY = (aAbs) => {
+      let i = 0;
+      while (i < SIDE.length - 2 && aAbs > SIDE[i + 1][0]) i++;
+      const A = SIDE[i], B = SIDE[i + 1];
+      const u = clamp((aAbs - A[0]) / (B[0] - A[0]), 0, 1);
+      return [H * (A[1] + (B[1] - A[1]) * u), H * (A[2] + (B[2] - A[2]) * u)];
+    };
+    const beltY = (a) => sideY(Math.abs(a))[0];
+    // ±π 경계에서 끊기지 않는 연속 rel 열 (span()과 같은 이유)
+    const relSeq = (as) => {
+      const out = []; let prev = null;
+      for (const a of as) {
+        let r = rel(a);
+        if (prev !== null) { while (r - prev > Math.PI) r -= Math.PI * 2; while (r - prev < -Math.PI) r += Math.PI * 2; }
+        out.push(r); prev = r;
+      }
+      return out;
+    };
+    const allOut = (rs) => rs.every((r) => r > LIM) || rs.every((r) => r < -LIM);
+
     // 테스트용: 이번 프레임에 실제로 그려진 미러 위치와 필러 가로 구간
     this.mirrorRect = { left: null, right: null };
     this.pillarRect = [];
-    const mirror = (k, a, wPx) => {
+
+    // ── 좌우 백미러 (차 외부 — 실내 패널보다 먼저 그려 창틀이 덮게) ──
+    // 창턱 위에 얹고 도어 쪽으로 암·세일패널을 뻗어 차체에 붙은 것처럼 보이게 한다.
+    const mirror = (k, a, aMount, wPx) => {
       if (off(a)) return;
       const mc = this.mirrorCv[k];
       const x = sx(a), h = wPx * (mc.height / mc.width);
       if (x + wPx / 2 < 0 || x - wPx / 2 > W) return;             // 화면 밖이면 생략
-      const y = H * 0.40;
+      const y = beltY(a) - h - H * 0.012;
       this.mirrorRect[k] = { x: x - wPx / 2, y, w: wPx, h };
+
+      // 암 + 세일패널: 미러 안쪽 모서리 → 도어 앞 모서리(창턱)
+      const mx = sx(aMount), sgn = Math.sign(mx - x) || 1;
+      const inner = x + sgn * wPx * 0.46;
+      const my = beltY(aMount);
+      ctx.fillStyle = '#20232a';
+      ctx.beginPath();
+      ctx.moveTo(inner, y + h * 0.28);
+      ctx.lineTo(inner, y + h * 0.78);
+      ctx.lineTo(mx, my + H * 0.010);
+      ctx.lineTo(mx, my - H * 0.085);
+      ctx.closePath(); ctx.fill();
+
       ctx.save();
       ctx.beginPath();
       const r = wPx * 0.12;
@@ -1069,11 +1141,62 @@ M.Render = {
       ctx.restore();
     };
     // 미러 각도는 눈 위치에서 본 실제 방향 (운전석이 왼쪽이라 우측 미러가 더 바깥)
-    mirror('left', A_MIRROR_L, Math.min(W * 0.19, 300));
-    mirror('right', A_MIRROR_R, Math.min(W * 0.19, 300));
+    mirror('left', A_MIRROR_L, -0.92, Math.min(W * 0.19, 300));
+    mirror('right', A_MIRROR_R, 0.84, Math.min(W * 0.19, 300));
+
+    // ── 필러 — 위쪽이 뒤로 눕는 사선 (앞유리 레이크) ──
+    const pillar = (a0, a1, lean, yTop) => {
+      const rb = relSeq([a0, a1]), rt = relSeq([a0 + lean, a1 + lean]);
+      if (allOut(rb) && allOut(rt)) return;
+      const xb = rb.map(xOf), xt = rt.map(xOf);
+      const lo = Math.min(xb[0], xb[1], xt[0], xt[1]), hi = Math.max(xb[0], xb[1], xt[0], xt[1]);
+      if (hi < 0 || lo > W) return;
+      // 기록은 '창 높이에서의' 가로 구간 — 기울어진 필러의 전체 바운딩박스는 실제보다 넓다
+      const u = (H * 0.35 - yTop) / (H - yTop);
+      this.pillarRect.push([Math.min(xt[0] + (xb[0] - xt[0]) * u, xt[1] + (xb[1] - xt[1]) * u),
+                            Math.max(xt[0] + (xb[0] - xt[0]) * u, xt[1] + (xb[1] - xt[1]) * u)]);
+      if (hi - lo > 2) {
+        const g = ctx.createLinearGradient(lo, 0, hi, 0);
+        g.addColorStop(0, PILLAR); g.addColorStop(0.34, '#2b2e36');
+        g.addColorStop(0.62, '#1b1e25'); g.addColorStop(1, PILLAR);
+        ctx.fillStyle = g;
+      } else ctx.fillStyle = PILLAR;
+      ctx.beginPath();
+      ctx.moveTo(xt[0], yTop); ctx.lineTo(xt[1], yTop);
+      ctx.lineTo(xb[1], H); ctx.lineTo(xb[0], H);
+      ctx.closePath(); ctx.fill();
+    };
+    pillar(-0.92, aWL, -0.20, H * 0.05);                        // A필러 (윗쪽이 뒤로)
+    pillar(aWR, 0.84, 0.20, H * 0.05);
+    // B필러는 좌석 기준 ≈100°. 예전엔 116~125°에 있어서 어깨너머(±117°)가 필러를
+    // 정면으로 보게 됐고, 화면 한가운데 검은 세로 띠만 남았다. 이제 그 각도는 뒷좌석 창이다.
+    pillar(-1.86, -1.70, -0.05, H * 0.05);                      // B필러 (거의 수직)
+    pillar(1.70, 1.86, 0.05, H * 0.05);
+
+    // ── 옆면 차체: 벨트라인 아래(도어) / 루프라인 위(헤더) ──
+    // 필러 뒤에 그려서 창틀이 필러 끝을 덮고, 창 구멍만 남는다.
+    const sideBody = (sgn) => {
+      const N = 18, A0 = 0.72, A1 = 2.95, as = [];
+      for (let i = 0; i <= N; i++) as.push(sgn * (A0 + (A1 - A0) * i / N));
+      const rs = relSeq(as);
+      if (allOut(rs)) return;
+      const xs = rs.map(xOf), ys = as.map((a) => sideY(Math.abs(a)));
+      const band = (idx, closeY) => {
+        ctx.beginPath();
+        ctx.moveTo(xs[0], ys[0][idx]);
+        for (let i = 1; i < xs.length; i++) ctx.lineTo(xs[i], ys[i][idx]);
+        ctx.lineTo(xs[xs.length - 1], closeY); ctx.lineTo(xs[0], closeY);
+        ctx.closePath(); ctx.fill();
+      };
+      ctx.fillStyle = DOOR; band(0, H);
+      ctx.fillStyle = ROOF; band(1, 0);
+    };
+    sideBody(-1); sideBody(1);
+
+    // 지붕 (앞유리 위)
+    ctx.fillStyle = ROOF; ctx.fillRect(0, 0, W, H * 0.10);
 
     // 대시보드 (앞유리 아래) — 좌우 필러 사이를 곡선으로 잇는다
-    const aWL = -0.80, aWR = 0.72;                              // 앞유리 좌/우 경계각
     const sDash = span(aWL, aWR);
     if (sDash) {
       const [xL, xR] = sDash;
@@ -1084,49 +1207,6 @@ M.Render = {
       ctx.lineTo(xR, H); ctx.lineTo(xL, H);
       ctx.closePath(); ctx.fill();
     }
-
-    // 지붕
-    ctx.fillStyle = ROOF; ctx.fillRect(0, 0, W, H * 0.10);
-
-    // A필러
-    const pillarBand = (a0, a1, y0, y1, col) => {
-      const s = span(a0, a1);
-      if (!s) return;
-      const [x0, x1] = s;
-      // 납작한 검은 띠로 보이지 않게 세로 하이라이트를 넣어 기둥처럼 읽히게 한다
-      const lo = Math.min(x0, x1), hi = Math.max(x0, x1);
-      this.pillarRect.push([lo, hi]);
-      if (hi - lo > 2) {
-        const g = ctx.createLinearGradient(lo, 0, hi, 0);
-        g.addColorStop(0, col);
-        g.addColorStop(0.34, '#2b2e36');
-        g.addColorStop(0.62, '#1b1e25');
-        g.addColorStop(1, col);
-        ctx.fillStyle = g;
-      } else ctx.fillStyle = col;
-      ctx.beginPath();
-      ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.lineTo(x1, y1); ctx.lineTo(x0, y1);
-      ctx.closePath(); ctx.fill();
-    };
-    pillarBand(-0.92, aWL, H * 0.06, H, PILLAR);
-    pillarBand(aWR, 0.84, H * 0.06, H, PILLAR);
-
-    // 옆창 아래 도어 패널 (창턱 H*0.63) + B필러 + 그 너머 뒷좌석 창
-    const doorPanel = (a0, a1) => {
-      const s = span(a0, a1);
-      if (!s) return;
-      const [x0, x1] = s;
-      ctx.fillStyle = DOOR;
-      ctx.fillRect(Math.min(x0, x1), H * 0.63, Math.abs(x1 - x0), H);
-      ctx.fillStyle = ROOF;
-      ctx.fillRect(Math.min(x0, x1), H * 0.10, Math.abs(x1 - x0), H * 0.045);   // 창 위 프레임
-    };
-    // B필러는 좌석 기준 ≈100°. 예전엔 116~125°에 있어서 어깨너머(±117°)가 필러를
-    // 정면으로 보게 됐고, 화면 한가운데 검은 세로 띠만 남았다. 이제 그 각도는 뒷좌석 창이다.
-    doorPanel(-1.70, -0.92); doorPanel(0.84, 1.74);
-    pillarBand(-1.86, -1.70, H * 0.05, H, PILLAR);              // B필러
-    pillarBand(1.74, 1.90, H * 0.05, H, PILLAR);
-    doorPanel(-2.85, -1.86); doorPanel(1.90, 2.89);             // 뒷좌석 창턱
 
     // 룸미러 (실내 — 맨 위) + 모구 참
     if (!off(0.30)) {
