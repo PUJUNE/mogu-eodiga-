@@ -381,12 +381,14 @@ M.Render = {
       const mc = this.mirrorCv[k];
       const x = sx(a), h = wPx * (mc.height / mc.width);
       if (x + wPx / 2 < 0 || x - wPx / 2 > W) return;             // 화면 밖이면 생략
-      const y = beltY(a) - h - H * 0.012;
-      this.mirrorRect[k] = { x: x - wPx / 2, y, w: wPx, h };
 
       // 비스듬히 달린 거울이라 화면에는 평행사변형으로 맺힌다 — 바깥 모서리가 내려앉는 방향
       const mx = sx(aMount), sgn = Math.sign(mx - x) || 1;
       const skew = -0.17 * sgn;
+      const drop = Math.abs(skew) * wPx / 2;                      // 기울어서 h보다 더 내려가는 만큼
+      const y = beltY(a) - h - drop - H * 0.022;                  // 그만큼 띄워야 아래 모서리가 창턱에 안 잘린다
+      this.mirrorRect[k] = { x: x - wPx / 2, y, w: wPx, h };
+
       const inner = x + sgn * wPx * 0.46;
       const dyInner = skew * (sgn * wPx * 0.46);                  // 기운 만큼 안쪽 모서리도 올라간다
 
@@ -407,10 +409,13 @@ M.Render = {
       ctx.beginPath();
       ctx.roundRect ? ctx.roundRect(gx - 5, gy - 5, wPx + 10, h + 10, r) : ctx.rect(gx - 5, gy - 5, wPx + 10, h + 10);
       ctx.fillStyle = '#15171c'; ctx.fill();
+      // 유리 테두리만 평행사변형으로 자르고, 비친 장면은 수평 그대로 —
+      // 지평선이 기울면 연석·차와의 간격을 눈으로 재기 어렵다
       ctx.beginPath();
       ctx.roundRect ? ctx.roundRect(gx, gy, wPx, h, r * 0.7) : ctx.rect(gx, gy, wPx, h);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clip();
-      ctx.drawImage(mc, gx, gy, wPx, h);
+      ctx.drawImage(mc, x - wPx / 2, y, wPx, h);
       ctx.restore();
     };
     // 미러 각도는 눈 위치에서 본 실제 방향 (운전석이 왼쪽이라 우측 미러가 더 바깥)
