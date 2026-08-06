@@ -7,7 +7,8 @@ let mode = 'title';                 // title | map | run | replay | result | pau
 let st = null;
 let endDelay = 0;                   // 종료 → 리플레이 전 정지 화면 (복기 예열)
 
-const input = { active: false, shift: 0, gearTo: 0, look: 0, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
+const input = { active: false, shift: 0, gearTo: 0, look: 0, shoulder: 0, w: 0, h: 0, refX: 0, refY: 0, x: 0, y: 0 };
+const LOOK_HOLD_MS = 700;        // 터치: 이만큼 계속 누르면 미러 확인 → 어깨너머로 넘어간다
 let refSet = false;
 const lookKeys = new Set();
 const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -44,7 +45,7 @@ function startStage(no) {
   st = M.Logic.create(no);
   mode = 'run';
   endDelay = 0;
-  input.active = false; input.shift = 0; input.gearTo = 0; input.look = 0;
+  input.active = false; input.shift = 0; input.gearTo = 0; input.look = 0; input.shoulder = 0;
   refSet = false; lookKeys.clear();
   M.ui.hideAll();
   $('hud').classList.remove('hidden');
@@ -127,7 +128,7 @@ function skipReplay() {
 if (isTouch) {
   document.body.classList.add('touch');
   $('ready-hint').innerHTML = '화면을 눌러 기준점을 정하세요<br>위로 밀면 엑셀 · 아래로 브레이크 · 좌우 핸들<br>기어는 오른쪽 R N D 버튼';
-  $('title-hint').textContent = '누른 자리가 기준점 · 위 엑셀 · 아래 브레이크 · ◀▶ 버튼으로 고개 돌리기';
+  $('title-hint').textContent = '누른 자리가 기준점 · 위 엑셀 · 아래 브레이크 · ◀▶ 버튼으로 백미러 보기(길게 = 어깨너머)';
   document.addEventListener('touchmove', (e) => {
     if (!e.target.closest('#map-scroll')) e.preventDefault();
   }, { passive: false });
@@ -137,6 +138,7 @@ if (isTouch) {
 // ── 키보드 ─────────────────────────────────────────────────────────────
 function syncLook() {
   input.look = (lookKeys.has('L') ? -1 : 0) + (lookKeys.has('R') ? 1 : 0);
+  input.shoulder = lookKeys.has('S') ? 1 : 0;         // Shift = 어깨너머 확인
 }
 window.addEventListener('keydown', (e) => {
   M.audio.resume();
@@ -149,8 +151,10 @@ window.addEventListener('keydown', (e) => {
     if (k === 'Escape') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); return; }
     if (k === 'r' || k === 'R') { startStage(st.no); return; }
     // ← → (또는 A/D) 누르는 동안 고개 돌리기 — e.code라 한글 자판에서도 동작
+    // 기본은 백미러가 보이는 각도까지, Shift를 같이 누르면 어깨너머(B필러 너머)까지
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') { lookKeys.add('L'); syncLook(); e.preventDefault(); }
     if (e.code === 'ArrowRight' || e.code === 'KeyD') { lookKeys.add('R'); syncLook(); e.preventDefault(); }
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') { lookKeys.add('S'); syncLook(); }
     if (e.code === 'KeyW') input.gearTo = 'D';
     if (e.code === 'KeyS') input.gearTo = 'R';
     if (e.code === 'KeyX') input.gearTo = 'N';
@@ -168,6 +172,7 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') { lookKeys.delete('L'); syncLook(); }
   if (e.code === 'ArrowRight' || e.code === 'KeyD') { lookKeys.delete('R'); syncLook(); }
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') { lookKeys.delete('S'); syncLook(); }
 });
 
 function syncDiffBtns() {
@@ -195,11 +200,20 @@ for (const el of document.querySelectorAll('.gearp-cell')) {
     if (mode === 'run' && st && st.phase === 'run') input.gearTo = el.dataset.gear;
   });
 }
-// 고개 돌리기 홀드 버튼 (터치)
+// 고개 돌리기 홀드 버튼 (터치) — 짧게 잡으면 미러 확인, 계속 누르면 어깨너머까지
 for (const [id, dir] of [['vbtn-look-l', -1], ['vbtn-look-r', 1]]) {
   const el = $(id);
-  const on = (e) => { e.preventDefault(); e.stopPropagation(); input.look = dir; };
-  const offF = () => { if (input.look === dir) input.look = 0; };
+  let holdTimer = null;
+  const on = (e) => {
+    e.preventDefault(); e.stopPropagation();
+    input.look = dir; input.shoulder = 0;
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(() => { if (input.look === dir) input.shoulder = 1; }, LOOK_HOLD_MS);
+  };
+  const offF = () => {
+    clearTimeout(holdTimer);
+    if (input.look === dir) { input.look = 0; input.shoulder = 0; }
+  };
   el.addEventListener('pointerdown', on);
   el.addEventListener('pointerup', offF);
   el.addEventListener('pointercancel', offF);

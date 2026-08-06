@@ -109,16 +109,66 @@ await page.waitForTimeout(900);
 d = await page.evaluate(() => window.MPK._dbg());
 ok(d.brake > 0.8 && d.v === 0, '풀 브레이크로 정지', `brake ${d.brake} v=${d.v}`);
 
-// ── 고개 돌리기 (← →) ──
+// ── 고개 돌리기 (← →) = 백미러 확인 ──
+// 콕핏 오버레이 상태 — 씬 밝기가 아니라 실제로 그려진 미러/필러 좌표로 판정한다
+const cockpit = () => page.evaluate(() => ({
+  mirror: window.MPK.Render.mirrorRect, pillars: window.MPK.Render.pillarRect,
+  cx: document.getElementById('game-canvas').width / 2,
+}));
+// 시야 한가운데(±6%)를 필러가 조금이라도 침범하면 '검은 세로 바'로 보인다
+const centerBlocked = (c) => {
+  const lo = c.cx * 0.88, hi = c.cx * 1.12;
+  return c.pillars.some(([a, b]) => a < hi && b > lo);
+};
+
 await page.keyboard.down('ArrowRight');
 await page.waitForTimeout(700);
 d = await page.evaluate(() => window.MPK._dbg());
-ok(d.headYaw > 1.2, '→ 홀드로 고개 우회전', `headYaw ${d.headYaw}`);
+ok(d.headYaw > 1.0 && d.headYaw < 1.45, '→ 홀드 = 백미러 확인 각도', `headYaw ${d.headYaw}`);
+let ck = await cockpit();
+ok(ck.mirror.right && ck.mirror.right.x >= 0 && ck.mirror.right.x + ck.mirror.right.w <= W,
+  '→ 홀드 시 우측 백미러가 화면 안에 보인다',
+  ck.mirror.right ? `x ${Math.round(ck.mirror.right.x)}~${Math.round(ck.mirror.right.x + ck.mirror.right.w)}` : '안 그려짐');
+ok(ck.mirror.right && !ck.pillars.some(([a, b]) => a < ck.mirror.right.x + ck.mirror.right.w && b > ck.mirror.right.x),
+  '백미러가 필러에 가리지 않음');
+ok(!centerBlocked(ck), '백미러 확인 시 화면 한가운데를 필러가 막지 않음',
+  `필러 ${JSON.stringify(ck.pillars.map(([a, b]) => [Math.round(a), Math.round(b)]))}`);
 await page.screenshot({ path: join(shots, 'shot-look.png') });
+
+// Shift 조합 = 어깨너머 확인 (B필러 너머 뒷좌석 창)
+await page.keyboard.down('Shift');
+await page.waitForTimeout(800);
+d = await page.evaluate(() => window.MPK._dbg());
+ok(d.headYaw > 1.9, 'Shift + → = 어깨너머 확인', `headYaw ${d.headYaw}`);
+ck = await cockpit();
+ok(!centerBlocked(ck), '어깨너머에서도 한가운데를 B필러가 막지 않음',
+  `필러 ${JSON.stringify(ck.pillars.map(([a, b]) => [Math.round(a), Math.round(b)]))}`);
+await page.keyboard.up('Shift');
+await page.waitForTimeout(700);
+d = await page.evaluate(() => window.MPK._dbg());
+ok(d.headYaw > 1.0 && d.headYaw < 1.45, 'Shift 떼면 백미러 각도로 복귀', `headYaw ${d.headYaw}`);
+
 await page.keyboard.up('ArrowRight');
 await page.waitForTimeout(800);
 d = await page.evaluate(() => window.MPK._dbg());
 ok(Math.abs(d.headYaw) < 0.15, '놓으면 정면 복귀', `headYaw ${d.headYaw}`);
+
+// 왼쪽도 같은 조건 (좌우 대칭 확인)
+await page.keyboard.down('ArrowLeft');
+await page.waitForTimeout(700);
+ck = await cockpit();
+ok(ck.mirror.left && ck.mirror.left.x >= 0 && ck.mirror.left.x + ck.mirror.left.w <= W,
+  '← 홀드 시 좌측 백미러가 화면 안에 보인다',
+  ck.mirror.left ? `x ${Math.round(ck.mirror.left.x)}~${Math.round(ck.mirror.left.x + ck.mirror.left.w)}` : '안 그려짐');
+ok(!centerBlocked(ck), '좌측 확인에서도 한가운데를 필러가 막지 않음');
+await page.keyboard.down('Shift');
+await page.waitForTimeout(800);
+ck = await cockpit();
+ok(!centerBlocked(ck), '좌측 어깨너머에서도 한가운데를 B필러가 막지 않음',
+  `필러 ${JSON.stringify(ck.pillars.map(([a, b]) => [Math.round(a), Math.round(b)]))}`);
+await page.keyboard.up('Shift');
+await page.keyboard.up('ArrowLeft');
+await page.waitForTimeout(800);
 
 // ── 미러가 실제로 렌더되는지 (오프스크린 캔버스 픽셀 분산) ──
 const mirrorVar = await page.evaluate(() => {
