@@ -11,9 +11,38 @@ const input = { active: false, shift: 0, gearTo: 0, look: 0, shoulder: 0, w: 0, 
 const LOOK_HOLD_MS = 700;        // 터치: 이만큼 계속 누르면 미러 확인 → 어깨너머로 넘어간다
 let refSet = false;
 const lookKeys = new Set();
+
+// ── 미러 조절 ──────────────────────────────────────────────────────────
+// 실제 차처럼 좌/우/룸 미러를 골라 상하좌우로 겨눈다. 고른 미러 쪽으로 고개가
+// 고정되어 보면서 맞출 수 있고, 조절값은 세이브에 남아 다음 판에도 유지된다.
+const MIRROR_CYCLE = ['left', 'right', 'room'];
+const MIRROR_LABEL = { left: '좌측', right: '우측', room: '룸' };
+const MIRROR_STEP = 0.055;       // 한 번 누를 때 움직이는 각도 (rad)
+let adjust = null;               // null | 'left' | 'right' | 'room'
+let adjustDrag = null;           // 터치·마우스 드래그로 겨눌 때의 시작점
+
+function nudgeMirror(dyaw, dpitch) {
+  if (!adjust) return;
+  const a = M.mirrorAdj[adjust], lim = M.MIRROR_ADJ_MAX;
+  a.yaw = Math.min(lim.yaw, Math.max(-lim.yaw, a.yaw + dyaw));
+  a.pitch = Math.min(lim.pitch, Math.max(-lim.pitch, a.pitch + dpitch));
+  M.save.storeMirror();
+}
+function setAdjust(k) {
+  adjust = k;
+  input.look = 0; input.shoulder = 0; lookKeys.clear();
+  if (k) input.active = false;                                  // 조절 중엔 드래그가 페달·핸들로 안 읽히게
+  adjustDrag = null;
+  M.ui.hudAdjust(k, k ? MIRROR_LABEL[k] : '');
+}
+function cycleAdjust() {
+  const i = adjust ? MIRROR_CYCLE.indexOf(adjust) : -1;
+  setAdjust(i + 1 < MIRROR_CYCLE.length ? MIRROR_CYCLE[i + 1] : null);
+}
 const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 
 M.save.load();
+M.save.loadMirror();
 if (M.DIFF_ORDER.includes(M.save.data.diff)) M.diff = M.save.data.diff;
 M.ui.init();
 M.Render.init($('app'));
@@ -47,6 +76,7 @@ function startStage(no) {
   endDelay = 0;
   input.active = false; input.shift = 0; input.gearTo = 0; input.look = 0; input.shoulder = 0;
   refSet = false; lookKeys.clear();
+  setAdjust(null);
   M.ui.hideAll();
   $('hud').classList.remove('hidden');
   $('ready-overlay').classList.remove('hidden');
@@ -92,6 +122,7 @@ app.addEventListener('pointerdown', (e) => {
   if (mode === 'replay') { skipReplay(); return; }
   if (mode !== 'run' || !st) return;
   e.preventDefault();
+  if (adjust) { adjustDrag = { x: e.clientX, y: e.clientY }; return; }   // 조절 중엔 드래그 = 겨누기
   if (st.phase === 'ready') {                                   // 클릭한 자리가 기준점 → 출발
     setRef(e.clientX, e.clientY);
     M.Logic.begin(st);
@@ -101,15 +132,24 @@ app.addEventListener('pointerdown', (e) => {
   if (e.button === 0) input.shift = 1;                          // 좌클릭 = 기어 위로 (R→N→D)
   else if (e.button === 2) input.shift = -1;                    // 우클릭 = 기어 아래로
 });
+app.addEventListener('pointerup', () => { adjustDrag = null; });
 app.addEventListener('wheel', (e) => {
   if (mode === 'run' && st && st.phase === 'run') {
     e.preventDefault();
     input.shift = e.deltaY < 0 ? 1 : -1;
   }
 }, { passive: false });
-app.addEventListener('pointercancel', () => { input.active = false; });
+app.addEventListener('pointercancel', () => { input.active = false; adjustDrag = null; });
 app.addEventListener('pointermove', (e) => {
   if (e.target.closest('#gear-panel, .vbtn')) return;           // 기어·버튼 위 커서는 조작으로 안 읽음
+  if (adjust) {
+    if (adjustDrag) {                                           // 끌어서 미러 겨누기 (드래그 = 보이는 범위가 따라온다)
+      const k = 0.0022;
+      nudgeMirror((e.clientX - adjustDrag.x) * k, (e.clientY - adjustDrag.y) * k);
+      adjustDrag = { x: e.clientX, y: e.clientY };
+    }
+    return;
+  }
   input.x = e.clientX; input.y = e.clientY;
   if (mode === 'run' && refSet) input.active = true;
 });
@@ -148,6 +188,21 @@ window.addEventListener('keydown', (e) => {
     if (k === 'Enter') startStage(Math.min(M.save.unlocked(), M.COURSES));
     if (k === 'Escape') { mode = 'title'; M.ui.show('title-screen'); }
   } else if (mode === 'run') {
+    // M = 미러 조절 (좌 → 우 → 룸 → 끝). 조절 중엔 방향키가 미러를 겨눈다.
+    if (e.code === 'KeyM') { cycleAdjust(); e.preventDefault(); return; }
+    if (adjust) {
+      if (k === 'Escape' || k === 'Enter') { setAdjust(null); e.preventDefault(); return; }
+      if (e.code === 'Digit0' || e.code === 'Numpad0') {          // 0 = 이 미러 초기화
+        M.mirrorAdj[adjust].yaw = 0; M.mirrorAdj[adjust].pitch = 0;
+        M.save.storeMirror(); e.preventDefault(); return;
+      }
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') { nudgeMirror(-MIRROR_STEP, 0); e.preventDefault(); return; }
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') { nudgeMirror(MIRROR_STEP, 0); e.preventDefault(); return; }
+      // pitch 를 키우면 미러가 아래를 향한다 → ↑ 는 pitch 를 줄여야 "보이는 범위가 위로"
+      if (e.code === 'ArrowUp' || e.code === 'KeyW') { nudgeMirror(0, -MIRROR_STEP); e.preventDefault(); return; }
+      if (e.code === 'ArrowDown' || e.code === 'KeyS') { nudgeMirror(0, MIRROR_STEP); e.preventDefault(); return; }
+      return;
+    }
     if (k === 'Escape') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); return; }
     if (k === 'r' || k === 'R') { startStage(st.no); return; }
     // ← → (또는 A/D) 누르는 동안 고개 돌리기 — e.code라 한글 자판에서도 동작
@@ -219,6 +274,11 @@ for (const [id, dir] of [['vbtn-look-l', -1], ['vbtn-look-r', 1]]) {
   el.addEventListener('pointercancel', offF);
   el.addEventListener('pointerleave', offF);
 }
+// 미러 조절 버튼 (터치) — 누를 때마다 좌 → 우 → 룸 → 끝
+$('vbtn-mirror').addEventListener('pointerdown', (e) => {
+  e.preventDefault(); e.stopPropagation();
+  if (mode === 'run') cycleAdjust();
+});
 $('vbtn-pause').addEventListener('pointerdown', (e) => {
   e.preventDefault(); e.stopPropagation();
   if (mode === 'run') { mode = 'pause'; M.audio.engineOff(); M.ui.show('pause-screen'); }
@@ -273,8 +333,13 @@ function frame(now) {
   $('vbtn-look-l').style.display = lookBtns ? 'flex' : 'none';
   $('vbtn-look-r').style.display = lookBtns ? 'flex' : 'none';
   $('gear-panel').style.display = mode === 'run' ? 'block' : 'none';
+  $('vbtn-mirror').style.display = lookBtns ? 'flex' : 'none';
 
   if (mode === 'run' && st) {
+    if (adjust) {                                               // 조절 중엔 고른 미러 쪽으로 고개 고정
+      input.look = adjust === 'left' ? -1 : adjust === 'right' ? 1 : 0;
+      input.shoulder = 0;
+    }
     handleEvents(M.Logic.step(st, dt, input));
     M.audio.engineUpdate(Math.abs(st.car.v) / M.Logic.VMAX_F, st.throttle, st.car.gear);
     updateHud();

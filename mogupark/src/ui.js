@@ -10,6 +10,15 @@ M.save = {
     return this.data;
   },
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
+  // 미러 조절값은 판이 바뀌어도 유지된다 (실제로 한 번 맞추면 그대로 두는 것과 같게)
+  loadMirror() {
+    const m = this.data.mirror;
+    if (!m) return;
+    for (const k of ['room', 'left', 'right']) {
+      if (m[k]) M.mirrorAdj[k] = { yaw: +m[k].yaw || 0, pitch: +m[k].pitch || 0 };
+    }
+  },
+  storeMirror() { this.data.mirror = M.mirrorAdj; this.store(); },
   unlocked() {
     let max = 1;
     for (let s = 1; s <= M.COURSES; s++) if (this.data.stars[s] > 0) max = Math.max(max, Math.min(M.COURSES, s + 1));
@@ -117,6 +126,15 @@ M.ui = {
       }
       track.appendChild(grid);
     }
+  },
+
+  // 미러 조절 중 안내 띠 (null 이면 숨김)
+  hudAdjust(kind, label) {
+    const el = $('hud-adjust');
+    el.style.display = kind ? 'block' : 'none';
+    if (kind) el.textContent = `🪞 ${label} 미러 조절 — 방향키(또는 드래그)로 겨누기 · M 다음 미러 · 0 초기화 · Esc 끝`;
+    const b = $('vbtn-mirror');
+    if (b) b.classList.toggle('on', !!kind);
   },
 
   hudRun(st) {

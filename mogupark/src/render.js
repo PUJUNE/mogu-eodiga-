@@ -13,6 +13,10 @@ const MIRRORS = {
   right: { lx: 0.92,  ly: 1.02, lz: 0.55, dyaw: Math.PI - 0.30, fov: 50, pitch: 0.055, self: true },
 };
 
+// 사용자가 맞춘 미러 각도 (yaw = 좌우, pitch = 상하). ui.js 가 세이브에서 읽어 채운다.
+M.MIRROR_ADJ_MAX = { yaw: 0.42, pitch: 0.26 };
+M.mirrorAdj = { room: { yaw: 0, pitch: 0 }, left: { yaw: 0, pitch: 0 }, right: { yaw: 0, pitch: 0 } };
+
 // 콕핏 오버레이에서 좌우 백미러를 그릴 방향 (눈 위치 기준 실제 각도).
 // 고개를 HEAD_MIRROR(±1.22rad)만큼 돌리면 해당 미러가 화면 한가운데 오도록 맞춰 뒀다.
 const A_MIRROR_L = -1.18, A_MIRROR_R = 1.30;
@@ -286,7 +290,11 @@ M.Render = {
     for (const k of ['room', 'left', 'right']) {
       const mdef = MIRRORS[k], mc = this.mirrorCv[k], g = mc.getContext('2d');
       const [mx, mz] = px(mdef.lx, mdef.lz);
-      const cam = makeCam(mx, mdef.ly, mz, car.h + mdef.dyaw, mdef.pitch, mdef.fov, mc.width, mc.height);
+      // 사용자가 맞춘 각도를 더한다. 화면에 붙일 때 좌우 반전하므로 yaw 는 부호를 뒤집어야
+      // "→ 를 누르면 보이는 범위가 오른쪽으로" 가 된다.
+      const adj = M.mirrorAdj[k] || { yaw: 0, pitch: 0 };
+      const cam = makeCam(mx, mdef.ly, mz, car.h + mdef.dyaw - adj.yaw,
+        mdef.pitch + adj.pitch, mdef.fov, mc.width, mc.height);
       g.save();
       g.translate(mc.width, 0); g.scale(-1, 1);
       this.drawScene(g, cam, st, { self: mdef.self }, t);
