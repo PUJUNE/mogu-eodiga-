@@ -167,8 +167,11 @@ function skipReplay() {
 // 터치: 드래그 동일 매핑, 고개·기어는 화면 버튼
 if (isTouch) {
   document.body.classList.add('touch');
-  $('ready-hint').innerHTML = '화면을 눌러 기준점을 정하세요<br>위로 밀면 엑셀 · 아래로 브레이크 · 좌우 핸들<br>기어는 오른쪽 R N D 버튼';
+  M.touch = true;
+  $('ready-hint').innerHTML = '화면을 눌러 기준점을 정하세요<br>위로 밀면 엑셀 · 아래로 브레이크 · 좌우 핸들<br>기어는 R N D 버튼';
   $('title-hint').textContent = '누른 자리가 기준점 · 위 엑셀 · 아래 브레이크 · ◀▶ 버튼으로 백미러 보기(길게 = 어깨너머)';
+  // 안내에서 PC 전용 조작(Shift·M·휠)을 빼고 버튼 기준으로 바꾼다
+  $('hud-look').textContent = '◀▶ 백미러 · 길게 = 어깨너머 · 🪞 미러 조절';
   document.addEventListener('touchmove', (e) => {
     if (!e.target.closest('#map-scroll')) e.preventDefault();
   }, { passive: false });

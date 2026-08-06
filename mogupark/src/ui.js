@@ -132,17 +132,24 @@ M.ui = {
   hudAdjust(kind, label) {
     const el = $('hud-adjust');
     el.style.display = kind ? 'block' : 'none';
-    if (kind) el.textContent = `🪞 ${label} 미러 조절 — 방향키(또는 드래그)로 겨누기 · M 다음 미러 · 0 초기화 · Esc 끝`;
+    if (kind) {
+      el.textContent = M.touch
+        ? `🪞 ${label} 미러 조절 — 화면을 끌어 겨누기 · 🪞 버튼으로 다음 미러`
+        : `🪞 ${label} 미러 조절 — 방향키(또는 드래그)로 겨누기 · M 다음 미러 · 0 초기화 · Esc 끝`;
+    }
     const b = $('vbtn-mirror');
     if (b) b.classList.toggle('on', !!kind);
   },
 
   hudRun(st) {
     const stg = st.stage;
-    $('hud-stage').textContent = `STAGE ${st.no} · ${stg.theme.name} · ${stg.typeName}` +
+    const narrow = window.innerWidth < 620;                     // 좁은 화면은 제목을 줄여 TIME 과 안 겹치게
+    $('hud-stage').textContent = (narrow ? `S${st.no} · ${stg.typeName}`
+      : `STAGE ${st.no} · ${stg.theme.name} · ${stg.typeName}`) +
       (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '');
     const best = M.save.data.best[st.no];
-    $('hud-target').textContent = `제한 ${stg.timeLimit}초 · 노란 칸에 정확히 세우면 성공` +
+    $('hud-target').textContent = (narrow ? `${stg.timeLimit}초 · 노란 칸에 정확히`
+      : `제한 ${stg.timeLimit}초 · 노란 칸에 정확히 세우면 성공`) +
       (best ? ` · 최고 ${best.toFixed(1)}초` : '');
   },
 

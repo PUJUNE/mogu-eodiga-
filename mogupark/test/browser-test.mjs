@@ -367,6 +367,31 @@ ok(await page3.evaluate(() => document.body.classList.contains('touch')), '터�
 await page3.tap('#btn-start');
 await page3.locator('.stage-cell').first().tap();
 await page3.waitForTimeout(400);
+
+// ── 세로 화면 레이아웃 ──
+// 세로로 길쭉한 화면에서 전체 높이를 1인칭 시야로 쓰면 세로 화각이 120°까지 벌어져
+// 노면이 휘어 보였다. 위쪽 띠만 시야로 쓰고 아래는 조작 콘솔이어야 한다.
+const layout = () => page3.evaluate(() => {
+  const c = document.getElementById('game-canvas');
+  const vh = window.MPK.Render.viewH();
+  const f = (c.width / 2) / Math.tan((76 * Math.PI / 180) / 2);
+  const box = (id) => { const e = document.getElementById(id); const r = e.getBoundingClientRect();
+    return { x: r.x, y: r.y, w: r.width, h: r.height, vis: r.width > 0 && getComputedStyle(e).display !== 'none' }; };
+  return { ch: c.height, vh, vfov: 2 * Math.atan((vh / 2) / f) * 180 / Math.PI,
+    stage: box('hud-stage'), time: box('hud-time-wrap'), ready: box('ready-box'),
+    gear: box('gear-panel'), look: box('vbtn-look-l') };
+});
+const L3 = await layout();
+ok(L3.vh < L3.ch - 40, '세로 화면: 시야 띠와 조작 콘솔이 나뉜다', `시야 ${L3.vh} / 화면 ${L3.ch}`);
+ok(L3.vfov < 80, '세로 화면: 세로 화각이 과하지 않다', `${L3.vfov.toFixed(1)}°`);
+const overlap = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+ok(!overlap(L3.stage, L3.time), '세로 화면: 스테이지 제목과 TIME 이 안 겹친다',
+  `제목 ${Math.round(L3.stage.x)}~${Math.round(L3.stage.x + L3.stage.w)} / TIME ${Math.round(L3.time.x)}~`);
+ok(L3.ready.y + L3.ready.h <= L3.vh + 2, '세로 화면: 준비 안내가 조작 콘솔을 안 덮는다',
+  `안내 하단 ${Math.round(L3.ready.y + L3.ready.h)} vs 시야 ${L3.vh}`);
+ok(L3.gear.y >= L3.vh - 2 && L3.look.y >= L3.vh - 2, '세로 화면: 기어·고개 버튼이 콘솔 안에 있다',
+  `기어 ${Math.round(L3.gear.y)} / 고개 ${Math.round(L3.look.y)} vs ${L3.vh}`);
+
 await page3.tap('#app', { position: { x: 195, y: 640 } });
 await page3.waitForTimeout(300);
 let d3 = await page3.evaluate(() => window.MPK._dbg());

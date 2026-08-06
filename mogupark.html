@@ -73,7 +73,7 @@
   #ready-overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     z-index:6; pointer-events:none; }
   #ready-box { background:rgba(10,14,24,.72); border:2px solid rgba(255,255,255,.5); border-radius:14px;
-    padding:18px 26px; text-align:center; color:#fff; }
+    padding:18px 26px; text-align:center; color:#fff; max-width:92vw; box-sizing:border-box; }
   #ready-title { font-size:min(24px,5.5vw); font-weight:900; color:#ffd83d; margin-bottom:8px; }
   #ready-hint { font-size:min(15px,3.6vw); line-height:1.7; color:#e2eaf6; }
 
@@ -135,9 +135,35 @@
     background:rgba(0,0,0,.42); border:2px solid rgba(255,255,255,.6); color:#fff; font-weight:800; }
   #vbtn-pause { top:10px; left:10px; width:44px; height:44px; border-radius:10px; font-size:18px; }
   #vbtn-look-l { top:26%; left:10px; width:56px; height:64px; border-radius:14px; font-size:22px; }
-  #vbtn-look-r { top:26%; right:80px; width:56px; height:64px; border-radius:14px; font-size:22px; }
+  #vbtn-look-r { top:26%; right:118px; width:56px; height:64px; border-radius:14px; font-size:22px; }
   #vbtn-mirror { top:26%; left:10px; margin-top:76px; width:56px; height:48px; border-radius:14px; font-size:20px; }
   #vbtn-mirror.on { background:rgba(216,166,58,.85); border-color:#fff; }
+
+  /* ── 세로 화면: 1인칭 시야는 위쪽 띠(--viewh)만 쓰고, 그 아래를 조작 콘솔로 ── */
+  body.console #gear-panel { top:calc(var(--viewh) + 12px); bottom:auto; right:12px; transform:none; }
+  /* 준비 안내는 조작 콘솔을 덮지 않게 시야 띠 안에 둔다 */
+  body.console #ready-overlay { align-items:flex-start; padding-top:calc(var(--viewh) * 0.16); }
+  body.console.touch #vbtn-look-l { top:calc(var(--viewh) + 14px); left:12px; width:70px; height:62px; }
+  body.console.touch #vbtn-look-r { top:calc(var(--viewh) + 14px); left:90px; right:auto; width:70px; height:62px; }
+  body.console.touch #vbtn-mirror { top:calc(var(--viewh) + 86px); left:12px; margin-top:0;
+    width:148px; height:52px; font-size:22px; }
+  /* 좁은 화면에서 스테이지 제목이 TIME 과 겹치던 것 정리 */
+  @media (max-width: 620px) {
+    #hud-stage { top:8px; font-size:12.5px; max-width:58vw; white-space:normal;
+      line-height:1.24; text-align:center; }
+    /* 안내 줄은 룸미러를 피해 시야 띠 아래쪽에 쌓는다 */
+    #hud-target { top:auto; bottom:calc(100% - var(--viewh) + 30px); font-size:11px;
+      max-width:94vw; white-space:nowrap; text-align:center; }
+    #hud-time-wrap { top:8px; right:10px; }
+    #hud-time { font-size:30px; }
+    #hud-time-lbl { font-size:9px; letter-spacing:1px; }
+  }
+  @media (max-width: 620px), (max-height: 520px) {
+    #hud-look { top:auto; bottom:calc(100% - var(--viewh) + 8px); font-size:10px;
+      max-width:98vw; white-space:nowrap; text-align:center; }
+    #hud-adjust { top:auto; bottom:calc(100% - var(--viewh) + 50px); font-size:11px;
+      max-width:94vw; white-space:normal; text-align:center; }
+  }
   body.touch #app { cursor:none; }
 </style>
 </head>
@@ -874,9 +900,24 @@ M.Render = {
       this.asphaltPat = this.ctx.createPattern(c, 'repeat');
     });
     for (const k in M.ASSETS.bg) this.bgImgs[k] = load(M.ASSETS.bg[k]);
-    const fit = () => { this.cv.width = window.innerWidth; this.cv.height = window.innerHeight; };
+    const fit = () => {
+      this.cv.width = window.innerWidth;
+      this.cv.height = window.innerHeight;
+      // 세로 화면에서는 1인칭 시야를 위쪽 띠로 제한하고 아래는 콘솔로 쓴다.
+      // 전체 높이를 다 쓰면 세로 화각이 120°까지 벌어져 노면이 훅 휘어 보인다.
+      const vh = this.viewH();
+      document.documentElement.style.setProperty('--viewh', vh + 'px');
+      document.body.classList.toggle('console', vh < this.cv.height - 40);
+    };
     fit();
     window.addEventListener('resize', fit);
+    window.addEventListener('orientationchange', fit);
+  },
+
+  // 1인칭 시야로 쓸 높이. 가로 화면(=PC·가로 폰)에서는 캔버스 전체와 같다.
+  viewH() {
+    const W = this.cv.width, H = this.cv.height;
+    return Math.round(Math.min(H, Math.max(W * 0.85, H * 0.42)));
   },
 
   setStage(stage) {
@@ -1042,10 +1083,12 @@ M.Render = {
       g.restore();
     }
 
-    // 메인 뷰
+    // 메인 뷰 — 세로 화면에서는 위쪽 띠(VH)만 1인칭 시야로 쓴다
+    const VH = this.viewH();
     const [ex, ez] = px(EYE.x, EYE.z);
-    const cam = makeCam(ex, EYE.y, ez, car.h + car.headYaw, 0.10, 76, W, H);
+    const cam = makeCam(ex, EYE.y, ez, car.h + car.headYaw, 0.10, 76, W, VH);
     this.drawScene(ctx, cam, st, { self: false, main: true }, t);
+    if (VH < H) { ctx.fillStyle = '#141519'; ctx.fillRect(0, VH, W, H - VH); }   // 아래는 콘솔
 
     this._drawCockpit(ctx, st, t, cam);
 
@@ -1053,7 +1096,7 @@ M.Render = {
     if (st.parkT > 0 && st.phase === 'run') {
       const p = Math.min(1, st.parkT / M.Logic.PARK_HOLD);
       ctx.save();
-      ctx.translate(W / 2, H * 0.30);
+      ctx.translate(W / 2, VH * 0.30);
       ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 9;
       ctx.beginPath(); ctx.arc(0, 0, 34, 0, Math.PI * 2); ctx.stroke();
       ctx.strokeStyle = '#7de08a';
@@ -1223,14 +1266,17 @@ M.Render = {
     // 지붕 (앞유리 위)
     ctx.fillStyle = ROOF; ctx.fillRect(0, 0, W, H * 0.10);
 
-    // 대시보드 (앞유리 아래) — 좌우 필러 사이를 곡선으로 잇는다
+    // 대시보드 (앞유리 아래) — 좌우 필러 사이를 곡선으로 잇는다.
+    // 콘솔 띠가 따로 있으면(세로 화면) 대시는 얇게 — 시야 띠를 최대한 장면에 쓴다.
+    const CONS = this.cv.height - H;
+    const dashTop = CONS > 40 ? 0.80 : 0.585;
     const sDash = span(aWL, aWR);
     if (sDash) {
       const [xL, xR] = sDash;
       ctx.fillStyle = DASH;
       ctx.beginPath();
-      ctx.moveTo(xL, H * 0.585);
-      ctx.quadraticCurveTo((xL + xR) / 2, H * 0.66, xR, H * 0.585);
+      ctx.moveTo(xL, H * dashTop);
+      ctx.quadraticCurveTo((xL + xR) / 2, H * (dashTop + 0.075), xR, H * dashTop);
       ctx.lineTo(xR, H); ctx.lineTo(xL, H);
       ctx.closePath(); ctx.fill();
     }
@@ -1264,17 +1310,20 @@ M.Render = {
       }
     }
 
-    // 핸들 — 조향각 × 스티어링비만큼 실제로 돈다
+    // 핸들 — 조향각 × 스티어링비만큼 실제로 돈다.
+    // 콘솔 띠가 있으면 그 아래쪽에 크게 놓아 빈 공간이 남지 않게 한다.
     if (!off(0)) {
-      const x = sx(0), y = H * 1.02, R = H * 0.27;
+      const x = sx(0);
+      const y = CONS > 40 ? H + CONS * 0.66 : H * 1.02;
+      const R = CONS > 40 ? Math.min(W * 0.34, CONS * 0.40) : H * 0.27;
       const th = (st.car.steer / M.CAR.LOCK) * (470 * Math.PI / 180);
       ctx.save();
       ctx.translate(x, y);
       ctx.scale(1, 0.86);                                        // 컬럼 기울기
       ctx.rotate(th);
-      ctx.strokeStyle = '#22252c'; ctx.lineWidth = H * 0.052; ctx.lineCap = 'round';
+      ctx.strokeStyle = '#22252c'; ctx.lineWidth = R * 0.19; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.stroke();
-      ctx.strokeStyle = '#2c3038'; ctx.lineWidth = H * 0.030;
+      ctx.strokeStyle = '#2c3038'; ctx.lineWidth = R * 0.11;
       for (const a of [Math.PI, 0, Math.PI / 2]) {
         ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(Math.cos(a) * R * 0.92, Math.sin(a) * R * 0.92); ctx.stroke();
       }
@@ -1658,17 +1707,24 @@ M.ui = {
   hudAdjust(kind, label) {
     const el = $('hud-adjust');
     el.style.display = kind ? 'block' : 'none';
-    if (kind) el.textContent = `🪞 ${label} 미러 조절 — 방향키(또는 드래그)로 겨누기 · M 다음 미러 · 0 초기화 · Esc 끝`;
+    if (kind) {
+      el.textContent = M.touch
+        ? `🪞 ${label} 미러 조절 — 화면을 끌어 겨누기 · 🪞 버튼으로 다음 미러`
+        : `🪞 ${label} 미러 조절 — 방향키(또는 드래그)로 겨누기 · M 다음 미러 · 0 초기화 · Esc 끝`;
+    }
     const b = $('vbtn-mirror');
     if (b) b.classList.toggle('on', !!kind);
   },
 
   hudRun(st) {
     const stg = st.stage;
-    $('hud-stage').textContent = `STAGE ${st.no} · ${stg.theme.name} · ${stg.typeName}` +
+    const narrow = window.innerWidth < 620;                     // 좁은 화면은 제목을 줄여 TIME 과 안 겹치게
+    $('hud-stage').textContent = (narrow ? `S${st.no} · ${stg.typeName}`
+      : `STAGE ${st.no} · ${stg.theme.name} · ${stg.typeName}`) +
       (M.diff !== 'normal' ? ` · ${M.DIFFS[M.diff].name}` : '');
     const best = M.save.data.best[st.no];
-    $('hud-target').textContent = `제한 ${stg.timeLimit}초 · 노란 칸에 정확히 세우면 성공` +
+    $('hud-target').textContent = (narrow ? `${stg.timeLimit}초 · 노란 칸에 정확히`
+      : `제한 ${stg.timeLimit}초 · 노란 칸에 정확히 세우면 성공`) +
       (best ? ` · 최고 ${best.toFixed(1)}초` : '');
   },
 
@@ -1872,8 +1928,11 @@ function skipReplay() {
 // 터치: 드래그 동일 매핑, 고개·기어는 화면 버튼
 if (isTouch) {
   document.body.classList.add('touch');
-  $('ready-hint').innerHTML = '화면을 눌러 기준점을 정하세요<br>위로 밀면 엑셀 · 아래로 브레이크 · 좌우 핸들<br>기어는 오른쪽 R N D 버튼';
+  M.touch = true;
+  $('ready-hint').innerHTML = '화면을 눌러 기준점을 정하세요<br>위로 밀면 엑셀 · 아래로 브레이크 · 좌우 핸들<br>기어는 R N D 버튼';
   $('title-hint').textContent = '누른 자리가 기준점 · 위 엑셀 · 아래 브레이크 · ◀▶ 버튼으로 백미러 보기(길게 = 어깨너머)';
+  // 안내에서 PC 전용 조작(Shift·M·휠)을 빼고 버튼 기준으로 바꾼다
+  $('hud-look').textContent = '◀▶ 백미러 · 길게 = 어깨너머 · 🪞 미러 조절';
   document.addEventListener('touchmove', (e) => {
     if (!e.target.closest('#map-scroll')) e.preventDefault();
   }, { passive: false });
