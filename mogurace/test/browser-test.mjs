@@ -164,12 +164,16 @@ const assets = await page.evaluate(() => {
   const ok = (im) => !!(im && im.complete && im.naturalWidth > 0);
   return {
     backdrop: ok(R.backdrop),
-    asphalt: !!R.asphaltPat,
+    bgStrip: !!(R.bgStrip && R.bgStrip.width > 0 && R.bgStrip.height > 0),
+    asphalt: !!(R.asphaltLayer && R.asphaltLayer.width === R.canvas.width),
+    quality: R.quality,
     traffic: R.traffic ? ['sedan', 'van', 'truck'].every((t) => (R.traffic[t] || []).length === 6) : false,
   };
 });
 ok(assets.backdrop, '월드 실사 배경 이미지 로드');
-ok(assets.asphalt, '노면 아스팔트 패턴 생성');
+ok(assets.bgStrip, '배경 타일 미리 굽기 (매 프레임 재확대 안 함)');
+ok(assets.asphalt, '아스팔트 결 레이어 미리 굽기 (화면 크기)');
+ok(assets.quality === 1, '가벼운 화면에서는 렌더 해상도 유지', `quality ${assets.quality}`);
 ok(assets.traffic, '교통 차량 후방 스프라이트 3종×6색 생성');
 
 const painted = await page.evaluate(() => {

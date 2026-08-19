@@ -42,6 +42,7 @@ function goMap() {
 function startStage(no) {
   st = M.Logic.create(no, trans);
   mode = 'run';
+  resetQuality();
   input.active = false; input.shift = 0; refSet = false;
   $('hud-gear').style.display = trans === 'stick' ? '' : 'none';   // 오토는 RPM 창만
   M.ui.hideAll();
@@ -239,11 +240,36 @@ function updateHud() {
   $('gauge-steer-needle').style.left = (50 + st.steer * 46).toFixed(1) + '%';
 }
 
+// ── 적응형 렌더 해상도 ─────────────────────────────────────────────────
+// 프레임이 밀리면 백킹 해상도를 한 단계씩 낮춘다. 주행마다 최고 화질에서 다시
+// 시작하고 내리기만 하므로, 화질이 오르내리며 깜빡이는 일은 없다.
+const QUALITY = [1, 0.82, 0.68, 0.55];
+let qi = 0, qSamples = [], qWarm = 0;
+function resetQuality() {
+  qi = 0; qSamples.length = 0; qWarm = 1.2;    // 주행 초반 1.2초는 로딩·JIT로 튄다
+  M.Render.setQuality(QUALITY[0]);
+}
+function autoQuality(dtReal) {
+  if (qWarm > 0) { qWarm -= dtReal; return; }
+  if (qi >= QUALITY.length - 1) return;
+  qSamples.push(dtReal);
+  if (qSamples.length < 45) return;
+  qSamples.sort((a, b) => a - b);
+  const med = qSamples[qSamples.length >> 1];
+  qSamples.length = 0;
+  if (med > 0.019) {                           // 중앙값이 약 53fps 아래 — 한 단계 내린다
+                                               // (60Hz에서 60을 못 지키면 30으로 떨어져 판정이 확실하다)
+    M.Render.setQuality(QUALITY[++qi]);
+    qWarm = 0.6;                               // 재굽기 프레임은 표본에서 뺀다
+  }
+}
+
 // ── 메인 루프 ──────────────────────────────────────────────────────────
 let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min(M.Logic.DT_CAP, (now - last) / 1000);   // 상한은 관통 임계와 물려 있다
+  const dtReal = (now - last) / 1000;
+  const dt = Math.min(M.Logic.DT_CAP, dtReal);                // 상한은 관통 임계와 물려 있다
   last = now;
   $('vbtn-pause').style.display = isTouch && mode === 'run' ? 'flex' : 'none';
   const stickTouch = isTouch && mode === 'run' && st && st.trans === 'stick';
@@ -252,6 +278,7 @@ function frame(now) {
   $('gear-panel').style.display = mode === 'run' && st && st.trans === 'stick' ? 'block' : 'none';
 
   if (mode === 'run' && st) {
+    autoQuality(dtReal);
     handleEvents(M.Logic.step(st, dt, input));
     M.audio.engineUpdate(st.rpm, st.speed / M.MAX_SPEED, st.throttle);
     updateHud();
