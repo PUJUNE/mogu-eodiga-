@@ -13,6 +13,10 @@ const SPRITE_W = 0.62;                    // 노변 물체 폭
 // 차폭은 logic.js의 충돌 폭을 그대로 투영해 쓴다 (보이는 폭 = 부딪히는 폭)
 const CAR_MAX_W = 0.34;                   // 교통 차량 최대 화면 폭 비율
 const CAR_CULL_W = 0.62;                  // 이보다 커질 만큼 가까우면 그리지 않음 (옆을 스치는 중)
+// 미등(=방향지시등) 위치 — 스프라이트를 굽는 쪽과 깜빡이를 얹는 쪽이 같은 값을 봐야
+// 등이 차체에서 떠 보이지 않는다. 차체 높이 대비 비율.
+const TAIL_Y = { sedan: 0.56, van: 0.60, truck: 0.745 };
+const BLINK_HZ = 1.4;                     // 방향지시등 점멸 (실제 차 기준 ~1.5Hz)
 const RAIL_X = 1.24;                      // 가드레일 위치 (갓길 줄무늬 1.14 바깥)
 
 const CAM_DEPTH = 1 / Math.tan((FOV / 2) * Math.PI / 180);
@@ -177,7 +181,7 @@ function bakeTraffic(type, hue, night) {
   g.fillStyle = '#20232a';                                   // 범퍼
   rr(W * 0.06, H * 0.87, W * 0.88, H * 0.065, H * 0.02);
 
-  const ly = type === 'truck' ? H * 0.745 : type === 'van' ? H * 0.60 : H * 0.56;
+  const ly = H * TAIL_Y[type];
   if (night) {                                               // 야간: 미등 점등 글로우
     for (const lx of [W * 0.165, W * 0.835]) {
       const glow = g.createRadialGradient(lx, ly + H * 0.035, 2, lx, ly + H * 0.035, W * 0.15);
@@ -598,7 +602,22 @@ M.Render = {
           dw = w * CAR_MAX_W;
         }
         const dh = dw * (img.height / img.width);
-        drawClipped(img, rx + rw * c.offset - dw / 2, ry - dh, dw, dh, seg.fog * fade, clip);
+        const dxp = rx + rw * c.offset - dw / 2, dyp = ry - dh;
+        drawClipped(img, dxp, dyp, dw, dh, seg.fog * fade, clip);
+
+        // 방향지시등 — 미등 자리를 호박색으로 덮는다. 차마다 위상이 어긋나 있어
+        // 실제 도로처럼 제각각 깜빡인다. (차선을 바꾸는 차는 반드시 여기에 걸린다)
+        if (c.blink && ((time * BLINK_HZ + c.phase) % 1) < 0.55) {
+          const bw = Math.max(1.5, dw * 0.13), bh = Math.max(1.5, dh * 0.07);
+          const bx = dxp + dw * (c.blink < 0 ? 0.10 : 0.77);
+          const by = dyp + dh * TAIL_Y[c.type];
+          ctx.globalAlpha = seg.fog * fade;
+          ctx.fillStyle = '#ffb02e';
+          if (by + bh > clip) {                           // 크레스트 뒤는 잘라낸다 — 차와 같은 규칙
+            if (by < clip) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, clip); ctx.clip(); ctx.fillRect(bx, by, bw, bh); ctx.restore(); }
+          } else ctx.fillRect(bx, by, bw, bh);
+          ctx.globalAlpha = 1;
+        }
       }
     }
 

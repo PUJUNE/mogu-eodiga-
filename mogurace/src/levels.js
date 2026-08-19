@@ -258,7 +258,8 @@ M.makeStage = function (no) {
   }
 
   // ── 교통 (추월 대상) ──
-  // 차선 중앙(-2/3 · 0 · +2/3)에 정렬해 제 차선을 지키며 달린다 — 표류·차선 이탈 없음
+  // 차선 중앙(-2/3 · 0 · +2/3)에서 출발해, 주행 중에는 깜빡이를 켠 뒤 차선을 바꾼다.
+  // 차선 변경 상태는 logic.js의 _updateCars가 굴린다 (여기서는 초기값만).
   const cars = [];
   for (let i = 0; i < trafficN; i++) {
     const z = rng.range(300, total - 120) * M.SEG_LEN;
@@ -269,6 +270,10 @@ M.makeStage = function (no) {
       speed: M.MAX_SPEED * rng.range(0.22, 0.46),
       type: rng.pick(['sedan', 'van', 'truck', 'sedan']),
       hue: rng.int(0, 5),
+      // 차선 변경 상태 — blink: -1 좌 · 0 끔 · +1 우
+      toLane: lane, blink: 0, blinkT: 0, moveT: 0, fromOff: 0, toOff: 0,
+      nextT: rng.range(0.5, 5),           // 첫 변경 시점을 흩어 한꺼번에 움직이지 않게
+      phase: rng.next(),                  // 깜빡임 위상 — 차마다 어긋나야 실제 도로처럼 보인다
     });
   }
 
