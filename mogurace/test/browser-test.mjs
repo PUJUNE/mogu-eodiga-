@@ -135,6 +135,25 @@ ok(d.kmh < fast, '브레이크로 감속', `${fast} → ${d.kmh} km/h`);
 await page.screenshot({ path: join(shots, 'shot-brake.png') });
 
 // ── 실제 주행으로 체크포인트 통과 ──
+// 교통 차량 감시자 — 매 프레임 차선 변경과 깜빡이를 대조한다
+await page.evaluate(() => {
+  const L = window.MRC.Logic, os = L.step.bind(L);
+  const w = window.__laneWatch = { moved: 0, silent: 0, blinked: 0 };
+  let prev = null;
+  L.step = function (st, ...rest) {
+    const r = os(st, ...rest);
+    if (prev && prev.length === st.cars.length) {
+      for (let i = 0; i < st.cars.length; i++) {
+        const c = st.cars[i];
+        if (c.blink) w.blinked++;
+        if (c.offset !== prev[i]) { w.moved++; if (!c.blink) w.silent++; }
+      }
+    }
+    prev = st.cars.map((c) => c.offset);
+    return r;
+  };
+});
+
 // 화면 좌표만 조작하는 미니 봇 — 중앙을 유지하며 전개 엑셀로 달린다
 const t0 = Date.now();
 let cp = 0;
@@ -147,6 +166,11 @@ while (Date.now() - t0 < 22000) {
   await page.waitForTimeout(60);
 }
 ok(cp >= 1, '주행으로 체크포인트 통과', `CP ${cp}`);
+// 주행 중에 실제로 깜빡이를 켜고 차선을 바꾸는 차가 있었는지 (빌드 전 모듈본 기준)
+const lane = await page.evaluate(() => window.__laneWatch);
+ok(lane && lane.blinked > 0, '교통 차량이 깜빡이를 켬', `점등 관측 ${lane ? lane.blinked : 0}회`);
+ok(lane && lane.moved > 0 && lane.silent === 0, '차선 변경은 전부 깜빡이를 켠 채',
+  `이동 ${lane ? lane.moved : 0} · 무점등 ${lane ? lane.silent : '?'}`);
 d = await page.evaluate(() => window.MRC._dbg());
 ok(d.progress > 3, '코스 진행률 증가', `${d.progress}%`);
 ok(d.trans === 'auto' && d.gear >= 3, '오토 모드 — 자동 변속으로 기어 상승', `${d.gear}단 rpm ${d.rpm}`);

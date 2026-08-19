@@ -571,7 +571,8 @@ M.makeStage = function (no) {
   }
 
   // ── 교통 (추월 대상) ──
-  // 차선 중앙(-2/3 · 0 · +2/3)에 정렬해 제 차선을 지키며 달린다 — 표류·차선 이탈 없음
+  // 차선 중앙(-2/3 · 0 · +2/3)에서 출발해, 주행 중에는 깜빡이를 켠 뒤 차선을 바꾼다.
+  // 차선 변경 상태는 logic.js의 _updateCars가 굴린다 (여기서는 초기값만).
   const cars = [];
   for (let i = 0; i < trafficN; i++) {
     const z = rng.range(300, total - 120) * M.SEG_LEN;
@@ -582,6 +583,10 @@ M.makeStage = function (no) {
       speed: M.MAX_SPEED * rng.range(0.22, 0.46),
       type: rng.pick(['sedan', 'van', 'truck', 'sedan']),
       hue: rng.int(0, 5),
+      // 차선 변경 상태 — blink: -1 좌 · 0 끔 · +1 우
+      toLane: lane, blink: 0, blinkT: 0, moveT: 0, fromOff: 0, toOff: 0,
+      nextT: rng.range(0.5, 5),           // 첫 변경 시점을 흩어 한꺼번에 움직이지 않게
+      phase: rng.next(),                  // 깜빡임 위상 — 차마다 어긋나야 실제 도로처럼 보인다
     });
   }
 
@@ -636,6 +641,16 @@ const CAR_LEN = 260;                     // 차 길이(월드 단위) — 전후
 // 넘지 않도록 물리와 묶는다. 18000 × 1/36 = 500 < 520. (main.js와 테스트가 공유)
 const DT_CAP = 1 / 36;
 const HIT_COOL = 0.55;                   // 충돌 재판정 쿨다운 (초)
+
+// ── 교통 차량 차선 변경 ──
+// 순서는 실제 도로와 같다: ① 깜빡이 점등 → ② 잠깐 뒤 차선 이동 → ③ 도착하면 소등.
+// 깜빡이 없이 움직이는 경로는 없다 (_updateCars의 상태 기계가 유일한 이동 통로다).
+const LANE_OFF = (lane) => (lane - (M.LANES - 1) / 2) * (2 / M.LANES);
+const BLINK_LEAD = 0.9;                  // 깜빡이를 켜고 실제로 움직이기까지 (초)
+const LANE_MOVE = 1.15;                  // 차선 하나를 건너는 데 걸리는 시간 (초)
+const LANE_GAP = 2.6;                    // 옮겨갈 차선 앞뒤로 비어 있어야 하는 거리 (CAR_LEN 배수)
+const LANE_WAIT = [1.6, 4.2];            // 다음 차선 변경을 노리기까지 (초) — 자주 바꾼다
+const LANE_RETRY = [0.6, 1.4];           // 옆 차선이 막혀 있었을 때 다시 볼 때까지 (초)
 const IDLE_CLOSE = 1.8;                  // 커서 이탈 시 엑셀이 닫히는 속도 (1/초)
 
 // ── 변속 (오토·스틱 공용 물리 — 오토는 변속만 자동) ──
@@ -670,6 +685,9 @@ M.Logic = {
     const stage = M.makeStage(no);
     return {
       stage, no, phase: 'ready',
+      // 주행 중 판단(차선 변경)용 난수. 스테이지 생성 난수와 분리해 두고 st에 담아야
+      // 같은 코스를 다시 달릴 때 처음부터 같은 흐름이 재현된다.
+      rng: M.makeRng(no * 104729 + 977),
       pos: 0, speed: 0, playerX: 0,
       time: stage.startTime, elapsed: 0,
       throttle: 0, steer: 0, brake: 0,
@@ -825,13 +843,64 @@ M.Logic = {
     return ev;
   },
 
-  // 교통 차량: 제 차선 중앙을 지키며 전진만 한다 (표류시키면 차선을 넘는다)
+  // 교통 차량: 전진하면서, 깜빡이를 켠 뒤에만 차선을 바꾼다.
+  // c.blink 는 -1(좌) · 0(끔) · +1(우) — 렌더가 이 값으로 방향지시등을 켠다.
   _updateCars(st, dt) {
-    const L = st.stage.length;
+    const L = st.stage.length, rng = st.rng;
     for (const c of st.cars) {
       c.z += c.speed * dt;
       if (c.z > L) c.z -= L;
+
+      // ③ 도착한 '다음' 프레임에 소등한다 — 조금이라도 움직이는 프레임에는
+      // 깜빡이가 반드시 켜져 있어야 한다 (도착 프레임에 같이 끄면 그 한 프레임이 예외가 된다).
+      if (c.blink && c.moveT <= 0 && c.blinkT <= 0) c.blink = 0;
+
+      if (c.moveT > 0) {                                  // ② 차선 이동 중 — 깜빡이 켠 채
+        c.moveT -= dt;
+        const p = clamp(1 - c.moveT / LANE_MOVE, 0, 1);
+        c.offset = c.fromOff + (c.toOff - c.fromOff) * p * p * (3 - 2 * p);   // 부드럽게 들고 난다
+        if (c.moveT <= 0) {                               // 도착 (소등은 다음 프레임에)
+          c.moveT = 0; c.offset = c.toOff; c.lane = c.toLane;
+          c.nextT = rng.range(LANE_WAIT[0], LANE_WAIT[1]);
+        }
+        continue;
+      }
+      if (c.blinkT > 0) {                                 // ① 깜빡이만 켜고 대기
+        c.blinkT -= dt;
+        if (c.blinkT <= 0) {
+          c.blinkT = 0; c.moveT = LANE_MOVE;
+          c.fromOff = c.offset; c.toOff = LANE_OFF(c.toLane);
+        }
+        continue;
+      }
+
+      c.nextT -= dt;                                      // 다음 차선 변경을 노린다
+      if (c.nextT > 0) continue;
+      const first = rng.chance(0.5) ? -1 : 1;             // 한쪽을 먼저 보고, 막혔으면 반대쪽
+      let dir = 0;
+      for (const d of (first === -1 ? [-1, 1] : [1, -1])) {
+        const to = c.lane + d;
+        if (to < 0 || to >= M.LANES) continue;
+        if (!this._laneClear(st, c, to)) continue;
+        dir = d; c.toLane = to; break;
+      }
+      if (dir) { c.blink = dir; c.blinkT = BLINK_LEAD; }
+      else c.nextT = rng.range(LANE_RETRY[0], LANE_RETRY[1]);
     }
+  },
+
+  // 옮겨갈 차선이 앞뒤로 비어 있는가. 이미 그 차선으로 들어가겠다고 깜빡이를 켠
+  // 차도 그 차선을 차지한 것으로 본다 — 아니면 둘이 같은 자리로 동시에 들어간다.
+  _laneClear(st, car, lane) {
+    const L = st.stage.length, gap = CAR_LEN * LANE_GAP;
+    for (const o of st.cars) {
+      if (o === car) continue;
+      if (o.lane !== lane && o.toLane !== lane) continue;
+      let d = Math.abs(o.z - car.z);
+      if (d > L / 2) d = L - d;                           // 순환 코스라 양끝이 이어져 있다
+      if (d < gap) return false;
+    }
+    return true;
   },
 
   // 진행률 0~1 (HUD·결과 표시용)
@@ -856,6 +925,10 @@ const SPRITE_W = 0.62;                    // 노변 물체 폭
 // 차폭은 logic.js의 충돌 폭을 그대로 투영해 쓴다 (보이는 폭 = 부딪히는 폭)
 const CAR_MAX_W = 0.34;                   // 교통 차량 최대 화면 폭 비율
 const CAR_CULL_W = 0.62;                  // 이보다 커질 만큼 가까우면 그리지 않음 (옆을 스치는 중)
+// 미등(=방향지시등) 위치 — 스프라이트를 굽는 쪽과 깜빡이를 얹는 쪽이 같은 값을 봐야
+// 등이 차체에서 떠 보이지 않는다. 차체 높이 대비 비율.
+const TAIL_Y = { sedan: 0.56, van: 0.60, truck: 0.745 };
+const BLINK_HZ = 1.4;                     // 방향지시등 점멸 (실제 차 기준 ~1.5Hz)
 const RAIL_X = 1.24;                      // 가드레일 위치 (갓길 줄무늬 1.14 바깥)
 
 const CAM_DEPTH = 1 / Math.tan((FOV / 2) * Math.PI / 180);
@@ -1020,7 +1093,7 @@ function bakeTraffic(type, hue, night) {
   g.fillStyle = '#20232a';                                   // 범퍼
   rr(W * 0.06, H * 0.87, W * 0.88, H * 0.065, H * 0.02);
 
-  const ly = type === 'truck' ? H * 0.745 : type === 'van' ? H * 0.60 : H * 0.56;
+  const ly = H * TAIL_Y[type];
   if (night) {                                               // 야간: 미등 점등 글로우
     for (const lx of [W * 0.165, W * 0.835]) {
       const glow = g.createRadialGradient(lx, ly + H * 0.035, 2, lx, ly + H * 0.035, W * 0.15);
@@ -1441,7 +1514,22 @@ M.Render = {
           dw = w * CAR_MAX_W;
         }
         const dh = dw * (img.height / img.width);
-        drawClipped(img, rx + rw * c.offset - dw / 2, ry - dh, dw, dh, seg.fog * fade, clip);
+        const dxp = rx + rw * c.offset - dw / 2, dyp = ry - dh;
+        drawClipped(img, dxp, dyp, dw, dh, seg.fog * fade, clip);
+
+        // 방향지시등 — 미등 자리를 호박색으로 덮는다. 차마다 위상이 어긋나 있어
+        // 실제 도로처럼 제각각 깜빡인다. (차선을 바꾸는 차는 반드시 여기에 걸린다)
+        if (c.blink && ((time * BLINK_HZ + c.phase) % 1) < 0.55) {
+          const bw = Math.max(1.5, dw * 0.13), bh = Math.max(1.5, dh * 0.07);
+          const bx = dxp + dw * (c.blink < 0 ? 0.10 : 0.77);
+          const by = dyp + dh * TAIL_Y[c.type];
+          ctx.globalAlpha = seg.fog * fade;
+          ctx.fillStyle = '#ffb02e';
+          if (by + bh > clip) {                           // 크레스트 뒤는 잘라낸다 — 차와 같은 규칙
+            if (by < clip) { ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, clip); ctx.clip(); ctx.fillRect(bx, by, bw, bh); ctx.restore(); }
+          } else ctx.fillRect(bx, by, bw, bh);
+          ctx.globalAlpha = 1;
+        }
       }
     }
 

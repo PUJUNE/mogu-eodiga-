@@ -13,6 +13,38 @@ function section(name, fn) {
   else console.log(`FAIL ${name}`);
 }
 
+// ── 0. 교통 차량 차선 변경 — 깜빡이 없이 움직이는 차는 없어야 한다 ──
+section('교통 차량 차선 변경 (깜빡이 → 이동 → 소등)', () => {
+  const st = M.Logic.create(45);
+  const prev = st.cars.map((c) => c.offset);
+  let moved = 0, silent = 0, blinkedFirst = 0, lanesSeen = new Set();
+  const lead = new Map();                              // 차 → 이번 변경에서 깜빡인 프레임 수
+  for (let f = 0; f < 60 * 40; f++) {                  // 40초치
+    M.Logic.step(st, DT, mouse(0.5, 0));
+    for (let i = 0; i < st.cars.length; i++) {
+      const c = st.cars[i];
+      if (c.blink) lead.set(c, (lead.get(c) || 0) + 1);
+      if (c.offset !== prev[i]) {
+        moved++;
+        if (!c.blink) silent++;                        // 깜빡이 없이 움직였다 = 규칙 위반
+        else if ((lead.get(c) || 0) > 1) blinkedFirst++;   // 움직이기 전부터 켜져 있었다
+        lanesSeen.add(c.lane + ':' + c.toLane);
+      }
+      if (!c.blink) lead.delete(c);
+      prev[i] = c.offset;
+    }
+  }
+  if (moved === 0) bad('40초 동안 차선을 바꾼 차가 하나도 없음');
+  if (silent > 0) bad(`깜빡이 없이 움직인 프레임 ${silent}개`);
+  if (blinkedFirst !== moved) bad(`이동 전 점등이 없던 프레임 ${moved - blinkedFirst}개`);
+  // 차선 범위를 벗어나지 않는다
+  for (const c of st.cars) {
+    if (c.lane < 0 || c.lane >= M.LANES) bad(`차선 번호가 범위 밖 (${c.lane})`);
+    if (Math.abs(c.offset) > 1) bad(`차가 도로 밖으로 나감 (offset ${c.offset.toFixed(2)})`);
+  }
+  return `이동 프레임 ${moved}개 · 전부 깜빡이 선점등 · 변경 조합 ${lanesSeen.size}종`;
+});
+
 // ── 1. 마우스 → 조작 매핑 (앞=엑셀 · 데드존=관성 · 뒤=브레이크 깊이 비례) ──
 section('마우스 매핑 (앞=엑셀 · 데드존=관성 · 뒤=브레이크 깊이 비례)', () => {
   const { DEAD_Y, RANGE_Y, BRAKE_Y, RANGE_X } = M.Logic;
@@ -168,16 +200,23 @@ section('충돌 판정 (차폭 · 차선 · 고속 터널링)', () => {
   return `차폭 합 ${sep.toFixed(2)} < 차선 ${LANE.toFixed(2)} · 실주행 도약 ${realJump.toFixed(0)} < 임계 ${CAR_LEN * 2} · 도약 ${jump}단위도 스윕이 감지`;
 });
 
-// ── 5c. 교통 차량 차선 준수 ──
-section('교통 차량 차선 준수', () => {
+// ── 5c. 교통 차량 차선 중앙 정렬 ──
+// 차선을 바꾸긴 하지만, 바꾸는 중이 아니면 반드시 차선 중앙에 있어야 한다.
+// (표류하듯 차선 사이에 걸쳐 있으면 어느 차선이 비었는지 읽을 수 없다)
+section('교통 차량 차선 중앙 정렬', () => {
   const st = M.Logic.create(7);
-  const before = st.cars.map((c) => c.offset);
   for (let i = 0; i < 60 * 30; i++) M.Logic.step(st, DT, mouse(0.5, 0));   // 30초 주행
-  const drifted = st.cars.filter((c, i) => Math.abs(c.offset - before[i]) > 1e-9).length;
-  if (drifted) bad(`주행 중 차선을 벗어난 차량 ${drifted}대`);
+  const centers = [];
+  for (let l = 0; l < M.LANES; l++) centers.push((l - (M.LANES - 1) / 2) * (2 / M.LANES));
+  let between = 0, moving = 0;
+  for (const c of st.cars) {
+    if (c.moveT > 0) { moving++; continue; }                 // 이동 중은 당연히 중간
+    if (!centers.some((x) => Math.abs(c.offset - x) < 1e-9)) between++;
+  }
+  if (between) bad(`이동 중이 아닌데 차선 중앙에 있지 않은 차량 ${between}대`);
   const lane = 2 / 3;
   if (M.Logic.CAR_HALF * 2 >= lane) bad(`차폭 ${(M.Logic.CAR_HALF * 2).toFixed(2)}이 차선 폭 ${lane.toFixed(2)} 이상`);
-  return `30초 주행 후 전 차량(${st.cars.length}대) 차선 유지 · 차폭 ${(M.Logic.CAR_HALF * 2).toFixed(2)} < 차선 ${lane.toFixed(2)}`;
+  return `30초 주행 후 ${st.cars.length}대 중 ${moving}대 변경 중 · 나머지 전부 차선 중앙 · 차폭 ${(M.Logic.CAR_HALF * 2).toFixed(2)} < 차선 ${lane.toFixed(2)}`;
 });
 
 // ── 6. 전 코스 완주 가능 (숙련 봇) ──
