@@ -196,9 +196,10 @@ function bakeTraffic(type, hue, night) {
 
 // ── 모구 레이서 굽기 (오픈탑 차체 + 모구 뒷모습 합성) ──────────────────
 // 모구를 먼저 그리고 차체를 그 위에 덮어, 하반신이 차체에 가려 '앉아 있게' 만든다.
+// 모구 머리 꼭대기를 헤드레스트(차체 최상단)와 같은 높이에 맞춰, 콕핏에 깊이 앉은 모습으로.
 function bakeMogu(moguImg) {
-  // 비례는 실제 차 뒷모습에 맞춘다 — 폭:높이 ≈ 1.15:1. 이전 1.4:1은 납작한 판처럼 보였다.
-  const W = 380, H = 330;
+  // 차체 위로는 머리와 어깨만 나오므로 스프라이트는 차체에 딱 맞게 잡는다 — 폭:높이 ≈ 1.58:1.
+  const W = 380, H = 240;
   const c = mkCanvas(W, H), g = c.getContext('2d');
   const round = (x, y, w, h, r) => {
     g.beginPath();
@@ -208,49 +209,56 @@ function bakeMogu(moguImg) {
     g.closePath(); g.fill();
   };
 
+  const TOP = H * 0.106;                               // 차체 최상단(헤드레스트 꼭대기) = 모구 머리 높이
+  const DECK = H * 0.374;                              // 차체 상면(모구가 잠기는 선)
+
   g.fillStyle = 'rgba(0,0,0,.34)';                     // 접지 그림자
-  g.beginPath(); g.ellipse(W / 2, H * 0.965, W * 0.46, H * 0.04, 0, 0, Math.PI * 2); g.fill();
+  g.beginPath(); g.ellipse(W / 2, H * 0.952, W * 0.46, H * 0.055, 0, 0, Math.PI * 2); g.fill();
 
   g.fillStyle = '#15161a';                             // 뒷바퀴 — 차체 밖으로 살짝만
-  round(W * 0.005, H * 0.60, W * 0.155, H * 0.35, W * 0.035);
-  round(W * 0.84, H * 0.60, W * 0.155, H * 0.35, W * 0.035);
+  round(W * 0.005, H * 0.450, W * 0.155, H * 0.481, W * 0.035);
+  round(W * 0.84, H * 0.450, W * 0.155, H * 0.481, W * 0.035);
   g.fillStyle = '#40454e';                             // 휠
-  round(W * 0.03, H * 0.70, W * 0.105, H * 0.15, W * 0.02);
-  round(W * 0.865, H * 0.70, W * 0.105, H * 0.15, W * 0.02);
+  round(W * 0.03, H * 0.588, W * 0.105, H * 0.206, W * 0.02);
+  round(W * 0.865, H * 0.588, W * 0.105, H * 0.206, W * 0.02);
 
-  g.fillStyle = '#1c1e24';                             // 좌석 등받이 (모구 뒤 배경)
-  g.beginPath(); g.ellipse(W / 2, H * 0.52, W * 0.19, H * 0.17, 0, 0, Math.PI * 2); g.fill();
+  g.fillStyle = '#1c1e24';                             // 헤드레스트 — 꼭대기를 TOP에 맞춰 모구 머리와 같은 높이
+  g.beginPath(); g.ellipse(W / 2, TOP + H * 0.234, W * 0.15, H * 0.234, 0, 0, Math.PI * 2); g.fill();
 
-  if (moguImg && moguImg.width) {                      // 운전석의 모구 (뒷모습)
-    const mh = H * 0.70, mw = mh * (moguImg.width / moguImg.height);
-    g.drawImage(moguImg, W / 2 - mw / 2, H * 0.02, mw, mh);
+  if (moguImg && moguImg.width) {                      // 운전석의 모구 (뒷모습) — 머리 꼭대기를 TOP에 맞춘다
+    // 원본에서 머리는 왼쪽으로 치우쳐 있어(가로 0.28 지점), 이미지가 아니라 머리를 차 중앙에 맞춘다.
+    const mh = H * 1.10, mw = mh * (moguImg.width / moguImg.height);
+    g.save();                                          // 차체 상면 아래는 콕핏 안 — 꼬리가 차 밑으로 삐져나오지 않게 자른다
+    g.beginPath(); g.rect(0, 0, W, DECK); g.clip();
+    g.drawImage(moguImg, W / 2 - mw * 0.28, TOP, mw, mh);
+    g.restore();
   }
 
-  // 차체 — 모구 하반신을 덮어 앉은 자세를 만든다. 아래로 갈수록 살짝 벌어지는 사다리꼴.
-  const grd = g.createLinearGradient(0, H * 0.52, 0, H * 0.95);
+  // 차체 — 모구 몸통을 덮어 콕핏에 앉은 자세를 만든다. 아래로 갈수록 살짝 벌어지는 사다리꼴.
+  const grd = g.createLinearGradient(0, DECK, 0, H * 0.931);
   grd.addColorStop(0, '#e05a45'); grd.addColorStop(0.45, '#c8402f'); grd.addColorStop(1, '#8e2a1e');
   g.fillStyle = grd;
   g.beginPath();
-  g.moveTo(W * 0.10, H * 0.95); g.lineTo(W * 0.185, H * 0.545);
-  g.lineTo(W * 0.815, H * 0.545); g.lineTo(W * 0.90, H * 0.95);
+  g.moveTo(W * 0.10, H * 0.931); g.lineTo(W * 0.185, DECK);
+  g.lineTo(W * 0.815, DECK); g.lineTo(W * 0.90, H * 0.931);
   g.closePath(); g.fill();
 
   g.fillStyle = 'rgba(255,255,255,.30)';               // 상면 하이라이트
-  g.fillRect(W * 0.19, H * 0.545, W * 0.62, H * 0.035);
+  g.fillRect(W * 0.19, DECK, W * 0.62, H * 0.048);
   g.fillStyle = '#23262c';                             // 사이드 포드
-  round(W * 0.115, H * 0.66, W * 0.075, H * 0.22, W * 0.02);
-  round(W * 0.81, H * 0.66, W * 0.075, H * 0.22, W * 0.02);
+  round(W * 0.115, H * 0.5325, W * 0.075, H * 0.3025, W * 0.02);
+  round(W * 0.81, H * 0.5325, W * 0.075, H * 0.3025, W * 0.02);
 
   g.fillStyle = '#1f2228';                             // 리어윙 (화면에 가장 가까운 요소)
-  g.fillRect(W * 0.225, H * 0.575, W * 0.035, H * 0.10);
-  g.fillRect(W * 0.74, H * 0.575, W * 0.035, H * 0.10);
-  round(W * 0.14, H * 0.545, W * 0.72, H * 0.045, H * 0.014);
+  g.fillRect(W * 0.225, H * 0.4156, W * 0.035, H * 0.1375);
+  g.fillRect(W * 0.74, H * 0.4156, W * 0.035, H * 0.1375);
+  round(W * 0.14, DECK, W * 0.72, H * 0.0619, H * 0.0194);
 
   g.fillStyle = '#ff5f4d';                             // 미등
-  round(W * 0.20, H * 0.755, W * 0.13, H * 0.055, H * 0.014);
-  round(W * 0.67, H * 0.755, W * 0.13, H * 0.055, H * 0.014);
+  round(W * 0.20, H * 0.663, W * 0.13, H * 0.0756, H * 0.0194);
+  round(W * 0.67, H * 0.663, W * 0.13, H * 0.0756, H * 0.0194);
   g.fillStyle = '#2b2f36';                             // 디퓨저
-  round(W * 0.30, H * 0.875, W * 0.40, H * 0.06, H * 0.012);
+  round(W * 0.30, H * 0.828, W * 0.40, H * 0.0825, H * 0.0165);
   return c;
 }
 
