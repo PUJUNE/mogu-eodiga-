@@ -265,9 +265,12 @@ function bakeMogu(moguImg) {
 // ── 렌더러 ─────────────────────────────────────────────────────────────
 M.Render = {
   canvas: null, ctx: null, w: 0, h: 0,
-  stage: null, backdrop: null, sprites: null, traffic: null, asphalt: null, asphaltPat: null,
+  stage: null, backdrop: null, sprites: null, traffic: null, asphalt: null,
   mogu: null, moguImg: null,
   offFar: 0, offMid: 0, lastPos: 0, shake: 0,
+  dpr: 1, quality: 1, theme: null,
+  bgStrip: null, bgTileW: 0,          // 그릴 크기로 미리 구운 배경 타일 (정상+좌우반전)
+  asphaltImg: null, asphaltLayer: null,   // 노면색 위에 결까지 합성해 둔 화면 크기 레이어
 
   init(container) {
     this.canvas = mkCanvas(1, 1);
@@ -284,25 +287,88 @@ M.Render = {
 
     // 실사 배경(월드별) · 아스팔트 타일
     this.bgImgs = {};
-    for (const k in M.ASSETS.bg) this.bgImgs[k] = load(M.ASSETS.bg[k], () => {});
+    for (const k in M.ASSETS.bg) this.bgImgs[k] = load(M.ASSETS.bg[k], (im) => {
+      if (this.backdrop === im) this._bakeBackdrop();     // 사진이 늦게 도착한 경우
+    });
     this.asphalt = load(M.ASSETS.asphalt, (im) => {
-      this.asphaltPat = this.ctx.createPattern(im, 'repeat');
+      this.asphaltImg = im;
+      this._bakeAsphalt();
     });
   },
 
+  // 화면 채우기 비용은 백킹 픽셀 수에 정비례한다. 버거운 기기에서는 배율을 낮춰
+  // 프레임을 지킨다 — 선명도보다 프레임이 체감에 크다. (main.js가 자동으로 부른다)
+  setQuality(q) {
+    if (q === this.quality) return;
+    this.quality = q;
+    this.resize();
+  },
+
   resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = Math.min(window.devicePixelRatio || 1, 2) * this.quality;
+    this.dpr = dpr;
     this.w = window.innerWidth; this.h = window.innerHeight;
     this.canvas.width = Math.round(this.w * dpr);
     this.canvas.height = Math.round(this.h * dpr);
     this.canvas.style.width = this.w + 'px';
     this.canvas.style.height = this.h + 'px';
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this._bakeBackdrop();               // 구운 것들은 전부 화면 크기에 묶여 있다
+    this._bakeAsphalt();
+  },
+
+  // ── 배경 사진 굽기 ────────────────────────────────────────────────────
+  // 매 프레임 사진을 확대·축소해 붙이면 리샘플링만으로 프레임 예산을 다 쓴다.
+  // 그릴 크기 그대로 [정상|좌우반전] 두 장짜리 띠를 미리 구워두고, 프레임마다
+  // 디바이스 픽셀 등배로 붙이기만 한다.
+  _bakeBackdrop() {
+    this.bgStrip = null;
+    const img = this.backdrop;
+    if (!img || !img.width || !this.canvas.height) return;
+    const dh = Math.round(this.canvas.height / 2);        // 지평선(화면 절반)까지
+    const dw = Math.round(img.width * (dh / img.height));
+    if (dh < 1 || dw < 1) return;
+    const c = mkCanvas(dw * 2, dh), g = c.getContext('2d');
+    g.drawImage(img, 0, 0, dw, dh);
+    g.translate(dw * 2, 0); g.scale(-1, 1);              // 이음매를 지우는 좌우 반전 타일
+    g.drawImage(img, 0, 0, dw, dh);
+    this.bgStrip = c; this.bgTileW = dw;
+  },
+
+  // ── 아스팔트 결 굽기 ──────────────────────────────────────────────────
+  // 결은 원근을 따르지 않는 화면 고정 레이어라 미리 구울 수 있다. 노면색 위에
+  // overlay로 합성하고 거리별 농도를 알파로 구워두면, 프레임마다 할 일은
+  // 도로 모양으로 잘라 한 번 붙이는 것뿐이다. 알파 합성은 블렌드 결과의
+  // 선형 보간이므로 노면 위에서는 매 프레임 overlay를 돌리던 것과 결과가 같다.
+  _bakeAsphalt() {
+    this.asphaltLayer = null;
+    const im = this.asphaltImg, theme = this.theme;
+    if (!im || !theme || !this.canvas.width) return;
+    const c = mkCanvas(this.canvas.width, this.canvas.height), g = c.getContext('2d');
+    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);      // 화면과 같은 좌표계에서 굽는다
+    const w = this.w, h = this.h;
+    g.fillStyle = theme.road; g.fillRect(0, 0, w, h);    // 합성 바탕 = 노면색
+    g.globalCompositeOperation = 'overlay';
+    g.fillStyle = g.createPattern(im, 'repeat');
+    g.fillRect(0, 0, w, h);
+    // 거리별 농도(가까울수록 진하게)를 알파로 굽는다. 띠 밖(지평선 위)은 알파 0.
+    g.globalCompositeOperation = 'destination-in';
+    const top = h * 0.52, bands = 4;
+    const grd = g.createLinearGradient(0, top, 0, h);
+    for (let b = 0; b < bands; b++) {
+      const a = 0.05 + b * 0.075;
+      grd.addColorStop(b / bands, `rgba(0,0,0,${a})`);
+      grd.addColorStop((b + 1) / bands - 1e-4, `rgba(0,0,0,${a})`);
+    }
+    g.fillStyle = grd;
+    g.fillRect(0, top, w, h - top);
+    this.asphaltLayer = c;
   },
 
   setStage(stage) {
     this.stage = stage;
     const theme = stage.theme;
+    this.theme = theme;
     this.backdrop = this.bgImgs[theme.bg || stage.world] || null;   // 테마 6+는 사진 재활용
     this.sprites = {};
     for (const t of ['lamp', 'sign']) this.sprites[t] = bakeSprite(t, theme);
@@ -312,31 +378,25 @@ M.Render = {
       for (let hue = 0; hue < TRAFFIC_HUES.length; hue++) this.traffic[t].push(bakeTraffic(t, hue, theme.night));
     }
     this.offFar = 0; this.offMid = 0; this.lastPos = 0; this.shake = 0;
+    this._bakeBackdrop();
+    this._bakeAsphalt();
   },
 
   // ── 배경 — 월드별 실사 사진 한 장을 지평선(h/2)에 맞춰 좌우로 흘린다 ──
   // 사진은 이어붙는 그림이 아니라서 좌우 반전 타일링으로 이음매를 없앤다.
   _background(theme, horizon) {
     const ctx = this.ctx, w = this.w, h = this.h;
-    const img = this.backdrop;
-    if (!img || !img.width) {                            // 로딩 전에는 하늘색만
+    if (!this.bgStrip) {                                 // 로딩 전에는 하늘색만
       ctx.fillStyle = theme.sky1; ctx.fillRect(0, 0, w, horizon + 2);
-      return;
-    }
-    const dh = horizon;                                  // 화면 위쪽부터 지평선까지 채운다
-    const dw = img.width * (dh / img.height);
-    let x = -(((this.offFar * dw) % (dw * 2)) + dw * 2) % (dw * 2);
-    for (let i = 0; x < w; i++, x += dw) {
-      const flip = ((Math.round(x / dw) % 2) + 2) % 2 === 1;
-      if (flip) {
-        ctx.save();
-        ctx.translate(x + dw, 0);
-        ctx.scale(-1, 1);
-        ctx.drawImage(img, 0, 0, dw, dh);
-        ctx.restore();
-      } else {
-        ctx.drawImage(img, x, 0, dw, dh);
-      }
+    } else {
+      // 미리 구운 띠를 디바이스 픽셀 정수 위치에 등배로 붙인다 — 확대·축소가 없으니
+      // 리샘플링도 없다. 원경 시차는 아주 느려서 1픽셀 단위 이동으로 충분하다.
+      const tile = this.bgTileW, span = tile * 2, cw = this.canvas.width;
+      let x = Math.round(-(((this.offFar * tile) % span) + span) % span);
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);                // 디바이스 좌표계
+      for (; x < cw; x += span) ctx.drawImage(this.bgStrip, x, 0);
+      ctx.restore();
     }
     if (theme.tint) {                                    // 사진 재활용 테마의 색조 — 노을·새벽·눈보라
       ctx.fillStyle = theme.tint;
@@ -419,13 +479,12 @@ M.Render = {
       // 차선 경계는 ±1/3 지점의 흰 점선. 중앙 황색 복선은 가운데 차선을 반으로
       // 갈라 4개의 불균등한 차선처럼 보이게 하므로 두지 않는다.
       // 도색은 원경에서 서브픽셀로 사라지므로 최소 폭을 보장한다.
-      const mark = (den) => [Math.max(0.7, p1.w / den), Math.max(0.7, p2.w / den)];
-      const [ew1, ew2] = mark(34);
+      const ew1 = Math.max(0.7, p1.w / 34), ew2 = Math.max(0.7, p2.w / 34);
       poly(ctx, p1.x - p1.w * 0.955, p1.y, ew1, p2.x - p2.w * 0.955, p2.y, ew2, theme.center);
       poly(ctx, p1.x + p1.w * 0.955, p1.y, ew1, p2.x + p2.w * 0.955, p2.y, ew2, theme.lane);
 
       if (alt) {                                            // 차선 점선
-        const [lw1, lw2] = mark(46);
+        const lw1 = Math.max(0.7, p1.w / 46), lw2 = Math.max(0.7, p2.w / 46);
         for (let l = 1; l < M.LANES; l++) {
           const o = (l / M.LANES) * 2 - 1;
           poly(ctx, p1.x + p1.w * o, p1.y, lw1, p2.x + p2.w * o, p2.y, lw2, theme.lane);
@@ -444,7 +503,7 @@ M.Render = {
 
     // ── 아스팔트 결 — 도로 영역만 잘라내 실사 텍스처를 덧입힌다 ──
     // 패턴은 원근을 따르지 않으므로, 가까울수록 진하고 멀수록 옅게 띠를 나눠 얹는다.
-    if (this.asphaltPat && drawn.length > 2) {
+    if (this.asphaltLayer && drawn.length > 2) {
       ctx.save();
       ctx.beginPath();
       const first = drawn[0].p1.screen;
@@ -453,17 +512,8 @@ M.Render = {
       for (let i = drawn.length - 1; i >= 0; i--) { const p = drawn[i].p1.screen; ctx.lineTo(p.x + p.w, p.y); }
       ctx.closePath();
       ctx.clip();
-      ctx.globalCompositeOperation = 'overlay';
-      ctx.fillStyle = this.asphaltPat;
-      const top = h * 0.52, bands = 4;
-      for (let b = 0; b < bands; b++) {
-        const y0 = top + (h - top) * (b / bands), y1 = top + (h - top) * ((b + 1) / bands);
-        ctx.globalAlpha = 0.05 + b * 0.075;
-        ctx.fillRect(0, y0, w, y1 - y0 + 1);
-      }
+      ctx.drawImage(this.asphaltLayer, 0, 0, w, h);      // 농도·블렌드는 구울 때 끝냈다
       ctx.restore();
-      ctx.globalAlpha = 1;
-      ctx.globalCompositeOperation = 'source-over';
     }
 
     // ── 도로 위로 솟는 것들은 먼 것부터 별도 패스로 (도로 폴리곤이 덮어쓰지 않게) ──
