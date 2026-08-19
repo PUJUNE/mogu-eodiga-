@@ -26,7 +26,7 @@ export function mouse(throttle, steer, brake = 0) {
   return {
     active: true,
     w: SCREEN.w, h: SCREEN.h, refX: SCREEN.refX, refY: SCREEN.refY,
-    x: SCREEN.refX + steer * 0.28 * SCREEN.w,
+    x: SCREEN.refX + steer * M.Logic.RANGE_X * SCREEN.w,
     y: SCREEN.refY - dy * SCREEN.h,
   };
 }
