@@ -15,7 +15,7 @@ function section(name, fn) {
 
 // ── 1. 마우스 → 조작 매핑 (앞=엑셀 · 데드존=관성 · 뒤=브레이크 깊이 비례) ──
 section('마우스 매핑 (앞=엑셀 · 데드존=관성 · 뒤=브레이크 깊이 비례)', () => {
-  const { DEAD_Y, RANGE_Y, BRAKE_Y } = M.Logic;
+  const { DEAD_Y, RANGE_Y, BRAKE_Y, RANGE_X } = M.Logic;
   const base = { active: true, w: SCREEN.w, h: SCREEN.h, refX: SCREEN.refX, refY: SCREEN.refY };
   // dyFrac + = 기준점 위 (화면 높이 비율)
   const at = (dxFrac, dyFrac) => M.Logic.readInput(Object.assign({}, base, {
@@ -34,10 +34,10 @@ section('마우스 매핑 (앞=엑셀 · 데드존=관성 · 뒤=브레이크 �
   const shallow = at(0, -(DEAD_Y + 0.02)).brake, deep = at(0, -BRAKE_Y * 0.8).brake;
   if (!(shallow > 0 && deep > shallow && deep < 1)) bad(`브레이크 깊이 비례 실패 (얕음 ${shallow.toFixed(2)} 깊음 ${deep.toFixed(2)})`);
   if (at(0, -0.1).throttle !== 0) bad('브레이크 중인데 엑셀이 걸림');
-  if (!near(at(0.28, 0).steer, 1)) bad('우측 28%에서 최대 타각 아님');
-  if (!near(at(-0.14, 0).steer, -0.5)) bad('좌측 14%에서 -0.5 아님');
+  if (!near(at(RANGE_X, 0).steer, 1)) bad(`우측 ${RANGE_X * 100}%에서 최대 타각 아님`);
+  if (!near(at(-RANGE_X / 2, 0).steer, -0.5)) bad(`좌측 ${RANGE_X * 50}%에서 -0.5 아님`);
   if (at(-2, 0).steer !== -1) bad('조향이 -1을 넘어감');
-  return `데드존 ±${DEAD_Y} · 엑셀 전개 +${RANGE_Y} · 브레이크 전개 -${BRAKE_Y}`;
+  return `데드존 ±${DEAD_Y} · 엑셀 전개 +${RANGE_Y} · 브레이크 전개 -${BRAKE_Y} · 조향 전개 ±${RANGE_X}`;
 });
 
 // ── 2. 손을 멈추면 입력이 유지된다 ──

@@ -100,10 +100,13 @@ ok(after.throttle === before.throttle && after.kmh > before.kmh,
   '마우스 정지 — 엑셀 유지된 채 계속 가속', `${before.kmh} → ${after.kmh} km/h`);
 
 // ── 좌우 이동 = 조향 ──
-await page.mouse.move(REF_X + W * 0.28, RY - H * 0.32, { steps: 6 });
+// 전개 폭(RANGE_X)은 로직에서 읽어 온다 — 민감도를 조정해도 테스트가 따라온다.
+const RANGE_X = await page.evaluate(() => window.MRC.Logic.RANGE_X);
+const steerX = (s) => Math.max(2, Math.min(W - 2, REF_X + s * W * RANGE_X));   // 뷰포트 밖으로 나가지 않게
+await page.mouse.move(steerX(1), RY - H * 0.32, { steps: 6 });
 await page.waitForTimeout(400);
 d = await page.evaluate(() => window.MRC._dbg());
-ok(d.steer > 0.95, '우측 28%에서 최대 우조향', `steer ${d.steer}`);
+ok(d.steer > 0.95, `우측 ${RANGE_X * 100}%에서 최대 우조향`, `steer ${d.steer}`);
 ok(d.playerX > 0, '차가 오른쪽으로 이동', `x ${d.playerX}`);
 await page.mouse.move(REF_X, RY - H * 0.32, { steps: 6 });
 await page.waitForTimeout(300);
@@ -140,7 +143,7 @@ while (Date.now() - t0 < 22000) {
   if (s.cp > 0) { cp = s.cp; break; }
   if (s.phase !== 'run') break;
   const steer = Math.max(-1, Math.min(1, -s.playerX * 2.2));
-  await page.mouse.move(REF_X + steer * W * 0.28, RY - H * 0.32);
+  await page.mouse.move(steerX(steer), RY - H * 0.32);
   await page.waitForTimeout(60);
 }
 ok(cp >= 1, '주행으로 체크포인트 통과', `CP ${cp}`);
