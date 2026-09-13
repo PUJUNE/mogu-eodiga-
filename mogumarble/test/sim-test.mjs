@@ -20,17 +20,20 @@ const step = (st, d1, d2, answer) => {
   return evs;
 };
 
-// 1) 보드 구성: 48칸(한 변 12), 도시 3곳 × 12지역, 코너·황금열쇠 8칸
+// 1) 보드 구성: 48칸(한 변 12), 도시 3곳 38지역(수원 14 — 대부도 2곳 포함), 코너·황금열쇠 6칸
 {
   check('보드 48칸 (한 변 12)', M.TILES.length === 48 && M.SIZE === 48);
   const cnt = { wonju: 0, seongnam: 0, suwon: 0 };
   for (const t of M.TILES) if (t.kind === 'city') cnt[t.city]++;
-  check(`도시별 12지역 (원주 ${cnt.wonju} · 성남 ${cnt.seongnam} · 수원 ${cnt.suwon})`,
-    cnt.wonju === 12 && cnt.seongnam === 12 && cnt.suwon === 12);
+  check(`도시별 지역 수 (원주 ${cnt.wonju} · 성남 ${cnt.seongnam} · 수원 ${cnt.suwon})`,
+    cnt.wonju === 12 && cnt.seongnam === 12 && cnt.suwon === 14);
   check('코너: 출발(0)/무인도(12)/축제(24)/특급열차(36)', M.TILES[0].kind === 'start' &&
     M.TILES[12].kind === 'island' && M.TILES[24].kind === 'festival' && M.TILES[36].kind === 'express' &&
     M.ISLAND_IDX === 12);
-  check('황금열쇠 8칸', M.TILES.filter((t) => t.kind === 'key').length === 8);
+  check('황금열쇠 6칸', M.TILES.filter((t) => t.kind === 'key').length === 6);
+  const daebu = ['대부도 펜션', '나우바다 좌대낚시터'];
+  check('대부도 명소 2곳 (수원 그룹)', daebu.every((n) => M.TILES.some(
+    (t) => t.kind === 'city' && t.city === 'suwon' && t.name === n)));
   check('카드 14종', M.CARDS.length === 14);
   const prices = M.TILES.filter((t) => t.kind === 'city').map((t) => t.price);
   check('가격 오름차순 (원주 저가 → 수원 고가)', prices.every((p, i) => i === 0 || p > prices[i - 1]));
