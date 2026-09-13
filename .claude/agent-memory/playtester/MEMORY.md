@@ -20,7 +20,7 @@
 - 순수 로직 테스트(level-test.mjs 등)는 `shim.mjs`로 window 셔임 후 Node에서 실행 — import 없는 순수 모듈(rng/difficulty/levels/logic)만 로드 가능.
 
 ## 게임별 전역 네임스페이스 (window.XXX)
-game(어디가)=MOGU, mogubble=MGB, mogubrick=MBK, mogudiver=MDV, mogudragon=MDG, mogufortress=MFT, mogukingdom=MKR, moguman=MGM, mogumarble=MBL, mogumuscle=MMS, mogunamgeuk=MNG, mogunocountry?, mogurace=MRC, mogupark=MPK, mogusamguk=MSG, moguski=MSJ, mogusolo=MSL, moguvolley=MGV, motris=MTR, supermogu=SMG
+game(어디가)=MOGU, mogubble=MGB, mogubrick=MBK, mogudiver=MDV, mogudragon=MDG, mogufortress=MFT, mogukingdom=MKR, moguman=MGM, mogumarble=MBL, mogumuscle=MMS, mogunamgeuk=MNG, mogunocountry?, mogurace=MRC, mogupark=MPK, mogusamguk=MSG, moguski=MSJ, mogusolo=MSL, moguvolley=MGV, motris=MTR, supermogu=SMG, mogudong=MDD, mogurider=MDR, mogudungeon=MDN
 
 - mogupark(모구의 주차, 포트 8766): 마우스 전용(모구레이스 앵커 문법). 기준점 클릭 즉시 phase=run(타이머 시작), 기어는 N 시작 — 휠 위/좌클릭=D, `_startStage(n)`으로 판 직행. 성공 주입: `_st()`로 `car.x/z/h`를 `stage.target`에 맞추고 v=0, gear='N' → 1초 뒤 parked → 1.1초 뒤 자동 리플레이(mode=replay) → 끝나면 result. 리플레이가 짧으면 순식간에 result까지 가므로 Enter 스킵 전에 mode를 폴링할 것. 루트에 node_modules 심링크(→game/node_modules)가 있어야 ESM이 playwright-core를 찾는다.
 
@@ -43,3 +43,6 @@ game(어디가)=MOGU, mogubble=MGB, mogubrick=MBK, mogudiver=MDV, mogudragon=MDG
 ## 주의사항
 - three.js 게임(game, mogukingdom)은 CDN 인터넷 연결 필요 — 오프라인이면 로드 실패가 콘솔 에러로 뜬다.
 - 화면 전환마다 waitForTimeout이 필요하다 (전환 연출 0.4~2.5초). check 실패 시 대기 부족부터 의심.
+
+- mogurider(모구 드래곤 라이더, 포트 8768): 세로형 360×560 종스크롤 슈팅. `_st()`로 `dist`(거리)·`bossIdx`·`p.inv`를 주입해 보스/클리어 상황을 만든다. 적 주입 시 `y`는 `M.PY`(462)보다 위, 반경 합보다 가깝게(예 `PY-16`) 둬야 충돌한다. 보스 처치는 `boss.hp=1`.
+- mogudungeon(모구 던전, 포트 8769): 가로형 480×270 벨트스크롤. 공격은 keydown 펄스(`press('z')`)로 들어간다. 구간 강제 클리어는 `pending=[]; enemies=[]; section=sections-1; camX=section*SEC_W; waveDone=false` 조합. 갈림길은 `.branch-btn[data-key]`, 컨티뉴는 Enter. 적 주입 객체엔 `entered:true`·`atkCd`가 필요.
