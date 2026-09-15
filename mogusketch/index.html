@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구 스케치 파이터</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#eceae2;
+    font-family:'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  #app { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  canvas#game { display:block; background:#fbfbf7; box-shadow:0 2px 14px rgba(0,0,0,.12); }
+
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:10; }
+  .hidden { display:none !important; }
+
+  /* 손그림 테두리 — 네 모서리 반경을 비대칭으로 */
+  .sketch-box { border:2.5px solid #222; border-radius:255px 18px 225px 16px / 16px 225px 18px 255px; }
+
+  /* ── 타이틀 (종이 한 장) ── */
+  #title-screen { background:#fbfbf7;
+    background-image:linear-gradient(transparent 46.5%, rgba(232,160,160,.35) 46.5%, rgba(232,160,160,.35) 46.8%, transparent 46.8%),
+      linear-gradient(90deg, transparent 33%, rgba(232,160,160,.3) 33%, rgba(232,160,160,.3) 33.2%, transparent 33.2%); }
+  #title-screen .logo { font-size:min(62px, 11vw); font-weight:900; white-space:nowrap; color:transparent;
+    -webkit-text-stroke:2.2px #18181c; letter-spacing:min(4px, 1vw); transform:rotate(-2deg); }
+  #title-screen .logo b { -webkit-text-stroke-color:#d6282e; }
+  #title-screen .sub { margin-top:4px; font-size:16px; color:#5a5a60; font-weight:800; }
+  #title-preview { width:min(420px, 78vw); height:auto; aspect-ratio:420/220; margin:10px 0 2px; }
+  #title-hi { margin-top:4px; color:#5a5a60; font-size:14px; font-weight:800; min-height:19px; text-align:center; }
+  #title-hint { margin-top:10px; color:#5a5a60; font-size:13px; text-align:center; line-height:1.6; padding:0 14px; }
+
+  .menu-buttons { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
+  .btn { pointer-events:auto; padding:10px 22px; font-size:16px; font-weight:800; color:#18181c;
+    background:#fbfbf7; border:2.5px solid #222; border-radius:255px 18px 225px 16px / 16px 225px 18px 255px;
+    cursor:pointer; font-family:inherit; box-shadow:3px 3px 0 rgba(0,0,0,.18); }
+  .btn:active { transform:translate(2px,2px); box-shadow:1px 1px 0 rgba(0,0,0,.18); }
+  .btn.primary { border-color:#d6282e; color:#d6282e; }
+  .btn.series { padding:8px 16px; font-size:13px; }
+  .diff-btn { padding:7px 13px; font-size:14px; border-color:rgba(0,0,0,.35); color:#5a5a60; }
+  .diff-btn.selected { border-color:#18181c; color:#18181c; box-shadow:3px 3px 0 rgba(214,40,46,.5); }
+  .diff-btn.crazy.selected { border-color:#d6282e; color:#d6282e; }
+
+  /* ── 결과 화면: 종이 위 도장 ── */
+  #win-screen, #over-screen, #pause-screen { background:rgba(251,251,247,.86); z-index:20; }
+  .stamp { width:108px; height:108px; border:5px solid #d6282e; border-radius:50%; color:#d6282e;
+    font-size:58px; font-weight:900; display:flex; align-items:center; justify-content:center;
+    transform:rotate(-14deg); box-shadow:inset 0 0 0 3px rgba(214,40,46,.35); opacity:.9; }
+  .stamp.lose { border-color:#18181c; color:#18181c; box-shadow:inset 0 0 0 3px rgba(0,0,0,.25); transform:rotate(10deg); }
+  .result-title { margin-top:14px; font-size:min(38px, 8vw); font-weight:900; color:transparent;
+    -webkit-text-stroke:1.6px #18181c; white-space:nowrap; }
+  .result-stats { margin-top:8px; color:#3a3a40; font-size:15px; line-height:1.8; text-align:center; padding:0 14px; }
+  #pause-screen .big { font-size:min(44px, 9vw); font-weight:900; color:transparent; -webkit-text-stroke:1.8px #18181c; }
+  #ending-screen { justify-content:flex-end; padding-bottom:9vh; z-index:20; pointer-events:none; }
+
+  /* ── 터치: 8방향 패드 + 버튼 ── */
+  #vpad { position:fixed; inset:0; pointer-events:none; z-index:8; display:none; }
+  body.touch #vpad.on { display:block; }
+  #vdpad { position:absolute; pointer-events:auto; width:136px; height:136px; border-radius:50%;
+    left:calc(18px + env(safe-area-inset-left)); bottom:calc(18px + env(safe-area-inset-bottom));
+    border:2.5px dashed rgba(24,24,28,.55); background:rgba(251,251,247,.35); touch-action:none; }
+  #vdpad-knob { position:absolute; left:50%; top:50%; width:56px; height:56px; margin:-28px 0 0 -28px;
+    border-radius:50%; border:2.5px solid rgba(24,24,28,.8); background:rgba(251,251,247,.6); }
+  #vbtns { position:absolute; right:calc(14px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom));
+    display:grid; grid-template-columns:repeat(3, 66px); gap:8px; pointer-events:none; }
+  .vbtn { pointer-events:auto; width:66px; height:66px; border-radius:50%;
+    background:rgba(251,251,247,.55); border:2.5px solid rgba(24,24,28,.75);
+    color:#18181c; font-size:17px; font-weight:900; display:flex; align-items:center; justify-content:center;
+    touch-action:none; user-select:none; }
+  .vbtn.pressed { background:rgba(214,40,46,.22); border-color:#d6282e; }
+  #vb-su { border-style:dashed; opacity:.45; }
+  #vb-su.ready { opacity:1; border-color:#d6282e; color:#d6282e; animation:pulse .6s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform:scale(1.08); } }
+  #vb-pause { position:absolute; pointer-events:auto; right:calc(12px + env(safe-area-inset-right)); top:calc(10px + env(safe-area-inset-top));
+    width:44px; height:44px; border-radius:12px; font-size:16px; }
+  #rotate-hint { position:fixed; inset:0; z-index:50; background:#fbfbf7; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; color:#18181c; font-size:20px; font-weight:900; text-align:center; gap:10px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game" width="960" height="540"></canvas>
+
+  <div id="title-screen" class="screen">
+    <div class="logo">모구 <b>스케치</b> 파이터</div>
+    <div class="sub">~ 연필 선 위의 1:1 대결 ~</div>
+    <canvas id="title-preview" width="840" height="440"></canvas>
+    <div id="title-hi"></div>
+    <div class="menu-buttons">
+      <button class="btn diff-btn" data-diff="easy">이지</button>
+      <button class="btn diff-btn" data-diff="normal">노말</button>
+      <button class="btn diff-btn" data-diff="hard">하드</button>
+      <button class="btn diff-btn crazy" data-diff="crazy">크레이지</button>
+    </div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-start">도전 시작 (Enter)</button>
+      <button class="btn hidden" id="btn-fresh">처음부터</button>
+    </div>
+    <div class="menu-buttons"><button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button></div>
+    <div id="title-hint">←→ 이동 · ↑ 점프 · ↓ 앉기 · Z 약 · X 강 · Z+X 잡기 · C 초필살 · Esc 일시정지<br>
+      ↓↘→+Z 냥파동 · →↓↘+X 고양이 발톱 연무 · 뒤로 누르면 가드(앉아서 뒤 = 하단 가드)</div>
+  </div>
+
+  <div id="win-screen" class="screen hidden">
+    <div class="stamp">승</div>
+    <div class="result-title" id="win-title">격파!</div>
+    <div class="result-stats" id="win-stats"></div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-next">다음 도전자 → (Enter)</button>
+      <button class="btn" id="btn-win-title">타이틀로</button>
+    </div>
+  </div>
+
+  <div id="over-screen" class="screen hidden">
+    <div class="stamp lose">패</div>
+    <div class="result-title" id="over-title">패배</div>
+    <div class="result-stats" id="over-stats"></div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-over-retry">다시 도전 (Enter)</button>
+      <button class="btn" id="btn-over-title">타이틀로</button>
+    </div>
+  </div>
+
+  <div id="pause-screen" class="screen hidden">
+    <div class="big">일시정지</div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-resume">계속</button>
+      <button class="btn" id="btn-restart">재시작</button>
+      <button class="btn" id="btn-title">타이틀로</button>
+    </div>
+  </div>
+
+  <div id="ending-screen" class="screen hidden">
+    <div class="menu-buttons" style="pointer-events:auto"><button class="btn primary" id="btn-end-title">타이틀로 (Enter)</button></div>
+  </div>
+
+  <div id="vpad">
+    <div id="vdpad"><div id="vdpad-knob"></div></div>
+    <div id="vbtns">
+      <div class="vbtn" id="vb-grab">잡기</div>
+      <div class="vbtn" id="vb-sp">필살</div>
+      <div class="vbtn" id="vb-su">초필</div>
+      <div class="vbtn" id="vb-lp">약</div>
+      <div class="vbtn" id="vb-hp">강</div>
+      <div></div>
+    </div>
+    <div class="vbtn" id="vb-pause">⏸</div>
+  </div>
+  <div id="rotate-hint" class="hidden">📱↻<div>가로로 돌려서 싸워 주세요</div></div>
+</div>
+
+<script>window.MSK = {};</script>
+<script src="src/rng.js"></script>
+<script src="src/data.js"></script>
+<script src="src/poses.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/ai.js"></script>
+<script src="src/render.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
