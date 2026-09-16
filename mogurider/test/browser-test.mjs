@@ -18,7 +18,7 @@ const server = createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': MIME[extname(f)] || 'application/octet-stream' });
   res.end(readFileSync(f));
 });
-await new Promise((r) => server.listen(8768, r));
+await new Promise((r) => server.listen(8770, r));
 
 const launch = process.env.CHROMIUM
   ? { executablePath: process.env.CHROMIUM, headless: true }

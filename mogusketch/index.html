@@ -41,6 +41,10 @@
   .diff-btn { padding:7px 13px; font-size:14px; border-color:rgba(0,0,0,.35); color:#5a5a60; }
   .diff-btn.selected { border-color:#18181c; color:#18181c; box-shadow:3px 3px 0 rgba(214,40,46,.5); }
   .diff-btn.crazy.selected { border-color:#d6282e; color:#d6282e; }
+  #char-row { margin-top:8px; gap:6px; max-width:min(720px, 94vw); }
+  #char-row .lab { width:100%; text-align:center; font-size:12px; font-weight:800; color:#5a5a60; margin-bottom:-2px; }
+  .char-btn { padding:6px 11px; font-size:13px; border-color:rgba(0,0,0,.35); color:#5a5a60; }
+  .char-btn.selected { border-color:#18181c; color:#18181c; background:#fbfbf7; box-shadow:3px 3px 0 rgba(24,24,28,.55); }
 
   /* ── 결과 화면: 종이 위 도장 ── */
   #win-screen, #over-screen, #pause-screen { background:rgba(251,251,247,.86); z-index:20; }
@@ -87,6 +91,18 @@
     <div class="sub">~ 연필 선 위의 1:1 대결 ~</div>
     <canvas id="title-preview" width="840" height="440"></canvas>
     <div id="title-hi"></div>
+    <div class="menu-buttons" id="char-row">
+      <span class="lab">✏️ 누구로 싸울까? (검은 잉크 = 나 · 고른 캐릭터의 자리는 빨간 모구가 대신)</span>
+      <button class="btn char-btn" data-char="mogu">모구</button>
+      <button class="btn char-btn" data-char="bboy">후드 비보이 쥐</button>
+      <button class="btn char-btn" data-char="kkokko">꼬꼬 권법가</button>
+      <button class="btn char-btn" data-char="boxer">복서 쥐</button>
+      <button class="btn char-btn" data-char="tkd">태권 쥐</button>
+      <button class="btn char-btn" data-char="sumo">스모 쥐</button>
+      <button class="btn char-btn" data-char="ninja">닌자 쥐</button>
+      <button class="btn char-btn" data-char="wrestler">레슬러 쥐</button>
+      <button class="btn char-btn" data-char="sensei">연필 사범</button>
+    </div>
     <div class="menu-buttons">
       <button class="btn diff-btn" data-diff="easy">이지</button>
       <button class="btn diff-btn" data-diff="normal">노말</button>

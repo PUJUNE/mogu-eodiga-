@@ -49,7 +49,41 @@ check('난이도 버튼 4단계', (await page.$$('.diff-btn')).length === 4);
 await page.click('.diff-btn[data-diff="hard"]');
 check('난이도 선택이 반영된다', await page.evaluate(() => window.MSK.diff === 'hard'));
 await page.click('.diff-btn[data-diff="normal"]');
+// 플레이어 캐릭터 선택 — 9종 버튼, 고르면 미리보기·힌트가 바뀌고 저장된다
+check('캐릭터 선택 버튼 9종', (await page.$$('.char-btn')).length === 9);
+await page.click('.char-btn[data-char="ninja"]');
+await wait(page, 200);
+check('닌자 쥐 선택이 반영·저장된다', await page.evaluate(() =>
+  window.MSK.player === 'ninja' && document.querySelector('.char-btn[data-char="ninja"]').classList.contains('selected') &&
+  JSON.parse(localStorage.getItem('mogusketch-save-v1')).player === 'ninja'));
+check('힌트가 닌자 쥐 커맨드로 바뀐다', await page.evaluate(() => document.getElementById('title-hint').textContent.includes('수리검 3연')));
 await page.screenshot({ path: join(shots, 'shot-title.png') });
+await page.keyboard.press('Enter');
+await wait(page, 700);
+let dn = await dbg(page);
+check('닌자 쥐로 대전 시작 — 플레이어 닌자 쥐 · 도전자 후드 비보이 쥐', dn.mode === 'play' && dn.player === 'ninja' && dn.p[0].id === 'ninja' && dn.p[1].id === 'bboy', `${dn.player}/${dn.p[0].id}`);
+check('닌자 쥐 사다리에서 6번째 도전자는 모구', await page.evaluate(() => window.MSK._st().ladder[5] === 'mogu'));
+await wait(page, 2400);
+await page.evaluate(() => window.MSK._ai(false));
+await page.screenshot({ path: join(shots, 'shot-ninja.png') });
+const sN = await page.evaluate(() => {
+  const cv = document.getElementById('game'); const c = cv.getContext('2d');
+  const { data } = c.getImageData(0, 0, cv.width, cv.height);
+  let red = 0, black = 0, total = 0;
+  for (let i = 0; i < data.length; i += 16) {
+    const r = data[i], g = data[i + 1], b = data[i + 2]; total++;
+    if (r > 170 && g < 90 && b < 90) red++; else if (r < 70 && g < 70 && b < 80) black++;
+  }
+  return { red: red / total, black: black / total };
+});
+check('닌자 쥐 플레이어도 검은 선, 도전자는 빨간 선', sN.black > 0.002 && sN.red > 0.002, `black ${sN.black.toFixed(3)} red ${sN.red.toFixed(3)}`);
+await page.keyboard.press('Escape');
+await wait(page, 200);
+await page.click('#btn-title');
+await wait(page, 300);
+await page.click('.char-btn[data-char="mogu"]');
+await wait(page, 200);
+check('모구로 되돌리면 힌트도 냥파동으로', await page.evaluate(() => window.MSK.player === 'mogu' && document.getElementById('title-hint').textContent.includes('냥파동')));
 
 // ══ 2. 대전 시작 · 스케치 톤 ══
 await page.evaluate(() => { try { localStorage.removeItem('mogusketch-save-v1'); } catch (e) {} });

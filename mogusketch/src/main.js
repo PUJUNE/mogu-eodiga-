@@ -18,7 +18,7 @@ M.ui.show('title-screen');
 
 function startMatch(stage) {
   const s = stage != null ? stage : M.save.stageOf(M.diff);
-  st = M.Logic.create((Date.now() & 0x7fffffff) || 1, M.diff, s);
+  st = M.Logic.create((Date.now() & 0x7fffffff) || 1, M.diff, s, M.player);
   ai = M.AI.create(M.diff, (Date.now() * 7) & 0x7fffffff);
   M.Render.reset();
   for (const k of Object.keys(held)) held[k] = false;
@@ -31,6 +31,7 @@ function startMatch(stage) {
 function toTitle() {
   mode = 'title';
   M.ui.updateDiffBtns();
+  M.ui.updateCharBtns();
   M.ui.refreshTitle();
   M.ui.show('title-screen');
 }
@@ -54,7 +55,7 @@ function handleEvents(evs) {
       case 'ko': case 'timeup': M.audio.ko(); break;
       case 'matchEnd':
         resultT = 0;
-        if (e.winner === 0) { M.save.beat(st.diff, st.stage); M.audio.win(); }
+        if (e.winner === 0) { M.save.beat(st.diff, st.stage, st.playerId); M.audio.win(); }
         else M.audio.lose();
         break;
     }
@@ -114,7 +115,8 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 const vpad = $('vpad');
 if (isTouch) {
   document.body.classList.add('touch');
-  $('title-hint').innerHTML = '왼쪽 패드로 이동·점프·앉기 · 약·강·잡기·필살 버튼<br>필살 버튼 = 냥파동, 패드 위+필살 = 발톱 연무 · 게이지가 차면 초필살';
+  $('title-hint').dataset.touch = '1';
+  M.ui.refreshTitle();
   const pad = $('vdpad'), knob = $('vdpad-knob');
   let padId = null;
   const setDir = (e) => {
@@ -150,7 +152,7 @@ if (isTouch) {
   bindHold('vb-lp', () => { press('lp'); }, () => { held.lp = false; });
   bindHold('vb-hp', () => { press('hp'); }, () => { held.hp = false; });
   bindHold('vb-grab', () => { press('grab'); }, () => { held.grab = false; });
-  bindHold('vb-sp', () => { if (held.up) press('sp2'); else press('sp1'); }, () => { held.sp1 = held.sp2 = false; });
+  bindHold('vb-sp', () => { if (held.down && st && st.p[0].def.sp3) press('sp3'); else if (held.up) press('sp2'); else press('sp1'); }, () => { held.sp1 = held.sp2 = held.sp3 = false; });
   bindHold('vb-su', () => { press('su'); }, () => { held.su = false; });
   $('vb-pause').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); pause(); });
   document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
@@ -160,7 +162,7 @@ if (isTouch) {
 
 // ── 디버그 훅 (테스트 자동화용) ──
 M._dbg = () => ({
-  mode, diff: st ? st.diff : M.diff, phase: st ? st.phase : null,
+  mode, diff: st ? st.diff : M.diff, player: st ? st.playerId : M.player, phase: st ? st.phase : null,
   stage: st ? st.stage : null, round: st ? st.round : 0, wins: st ? st.wins.slice() : [0, 0],
   timer: st ? +st.timer.toFixed(2) : 0, segments: M.Render.stats.segments,
   p: st ? st.p.map((f) => ({ id: f.id, hp: f.hp, state: f.state, x: +f.x.toFixed(1), y: +f.y.toFixed(1), gauge: f.gauge, face: f.face, mv: f.mv ? f.mv.key : null })) : [],
@@ -210,7 +212,7 @@ function frame(now) {
   }
   if (mode === 'ending') {
     endingT += dt;
-    M.Render.drawEnding(tsec, endingT);
+    M.Render.drawEnding(tsec, endingT, st);
     if (endingT > 4.5 && $('ending-screen').classList.contains('hidden')) M.ui.show('ending-screen');
     return;
   }

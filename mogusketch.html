@@ -41,6 +41,10 @@
   .diff-btn { padding:7px 13px; font-size:14px; border-color:rgba(0,0,0,.35); color:#5a5a60; }
   .diff-btn.selected { border-color:#18181c; color:#18181c; box-shadow:3px 3px 0 rgba(214,40,46,.5); }
   .diff-btn.crazy.selected { border-color:#d6282e; color:#d6282e; }
+  #char-row { margin-top:8px; gap:6px; max-width:min(720px, 94vw); }
+  #char-row .lab { width:100%; text-align:center; font-size:12px; font-weight:800; color:#5a5a60; margin-bottom:-2px; }
+  .char-btn { padding:6px 11px; font-size:13px; border-color:rgba(0,0,0,.35); color:#5a5a60; }
+  .char-btn.selected { border-color:#18181c; color:#18181c; background:#fbfbf7; box-shadow:3px 3px 0 rgba(24,24,28,.55); }
 
   /* ── 결과 화면: 종이 위 도장 ── */
   #win-screen, #over-screen, #pause-screen { background:rgba(251,251,247,.86); z-index:20; }
@@ -87,6 +91,18 @@
     <div class="sub">~ 연필 선 위의 1:1 대결 ~</div>
     <canvas id="title-preview" width="840" height="440"></canvas>
     <div id="title-hi"></div>
+    <div class="menu-buttons" id="char-row">
+      <span class="lab">✏️ 누구로 싸울까? (검은 잉크 = 나 · 고른 캐릭터의 자리는 빨간 모구가 대신)</span>
+      <button class="btn char-btn" data-char="mogu">모구</button>
+      <button class="btn char-btn" data-char="bboy">후드 비보이 쥐</button>
+      <button class="btn char-btn" data-char="kkokko">꼬꼬 권법가</button>
+      <button class="btn char-btn" data-char="boxer">복서 쥐</button>
+      <button class="btn char-btn" data-char="tkd">태권 쥐</button>
+      <button class="btn char-btn" data-char="sumo">스모 쥐</button>
+      <button class="btn char-btn" data-char="ninja">닌자 쥐</button>
+      <button class="btn char-btn" data-char="wrestler">레슬러 쥐</button>
+      <button class="btn char-btn" data-char="sensei">연필 사범</button>
+    </div>
     <div class="menu-buttons">
       <button class="btn diff-btn" data-diff="easy">이지</button>
       <button class="btn diff-btn" data-diff="normal">노말</button>
@@ -300,7 +316,27 @@ M.FIGHTERS = {
 };
 
 M.LADDER = ['bboy', 'kkokko', 'boxer', 'tkd', 'sumo', 'ninja', 'wrestler', 'sensei'];
-M.PLAYER = 'mogu';
+M.PLAYER = 'mogu';                       // 기본 플레이어
+M.player = 'mogu';                       // 선택된 플레이어 (타이틀에서 고른다 · 저장)
+M.PLAYABLE = ['mogu', 'bboy', 'kkokko', 'boxer', 'tkd', 'sumo', 'ninja', 'wrestler', 'sensei'];
+M.INK_P = '#18181c';                     // 플레이어 = 검은 잉크
+M.INK_O = '#d6282e';                     // 도전자 = 빨간 잉크
+
+// 플레이어가 도전자 중 하나면 그 자리는 빨간 잉크의 모구가 대신 채운다 (거울전)
+M.ladderFor = function (playerId) {
+  return M.LADDER.map((id) => (id === playerId ? 'mogu' : id));
+};
+
+// 캐릭터별 커맨드 안내 (타이틀 힌트용) — sp1 ↓↘→+Z · sp2 →↓↘+X · sp3 ↓↙←+X
+M.cmdHint = function (id) {
+  const d = M.FIGHTERS[id];
+  const out = [];
+  if (d.sp1) out.push(`↓↘→+Z ${d.sp1.name}`);
+  if (d.sp2) out.push(`→↓↘+X ${d.sp2.name}`);
+  if (d.sp3) out.push(`↓↙←+X ${d.sp3.name}`);
+  out.push(`게이지 100 C ${M.superOf(d).name}`);
+  return out.join(' · ');
+};
 
 // 도전자 초필살 = 대표 필살기의 강화판 (대미지 ×2.4, 시작 무적). 사범은 지우개 폭풍 강화
 M.superOf = function (def) {
@@ -504,7 +540,8 @@ const BLOCKABLE_STATE = { idle: 1, walk: 1, crouch: 1, blockstun: 1 };
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 function mkFighter(id, side) {
-  const def = M.FIGHTERS[id];
+  // 잉크는 캐릭터가 아니라 진영이 정한다 — 플레이어는 검정, 도전자는 빨강 (모구가 도전자로 나와도 빨강)
+  const def = Object.assign({}, M.FIGHTERS[id], { ink: side === 0 ? M.INK_P : M.INK_O });
   return {
     id, def, side,
     x: M.START_X[side], y: 0, vx: 0, vy: 0, pushV: 0,
@@ -539,15 +576,19 @@ function matchCmd(f, t, seq) {
 }
 const CMD_FIREBALL = [['d', 'df', 'db'], ['f', 'df']];
 const CMD_CLAW = [['f'], ['d', 'df'], ['f', 'df']];
+const CMD_ERASER = [['d', 'df', 'db'], ['b', 'db']];       // ↓↙← + 강 = 세 번째 필살 (연필 사범 지우개 폭풍)
 
 M.Logic = {
-  create(seed, diff, stage) {
+  create(seed, diff, stage, playerId) {
     const idx = clamp(stage | 0, 0, M.LADDER.length - 1);
+    const pid = M.FIGHTERS[playerId || M.player] ? (playerId || M.player) : M.PLAYER;
+    const ladder = M.ladderFor(pid);
     const st = {
       rng: M.makeRng((seed >>> 0) || 20260915),
       diff: M.DIFFS[diff] ? diff : 'normal',
-      stage: idx, oppId: M.LADDER[idx],
-      p: [mkFighter(M.PLAYER, 0), mkFighter(M.LADDER[idx], 1)],
+      playerId: pid, ladder,
+      stage: idx, oppId: ladder[idx],
+      p: [mkFighter(pid, 0), mkFighter(ladder[idx], 1)],
       phase: 'intro', phaseT: 0, introLen: M.INTRO_FIRST,
       round: 1, wins: [0, 0], roundWinner: null, winner: null,
       timer: M.ROUND_TIME, t: 0, hitstop: 0,
@@ -712,6 +753,7 @@ M.Logic = {
         if (pressed.sp1 && f.def.sp1) { this.startSpecial(st, f, o, 'sp1', ev); return; }
         if (pressed.grab) { this.startMove(st, f, o, 'grab', ev); return; }
         // 커맨드 필살
+        if (pressed.hp && f.def.sp3 && matchCmd(f, t, CMD_ERASER)) { this.startSpecial(st, f, o, 'sp3', ev); return; }
         if (pressed.hp && f.def.sp2 && matchCmd(f, t, CMD_CLAW)) { this.startSpecial(st, f, o, 'sp2', ev); return; }
         if (pressed.lp && f.def.sp1 && matchCmd(f, t, CMD_FIREBALL)) { this.startSpecial(st, f, o, 'sp1', ev); return; }
         if (pressed.lp && pressed.hp) { this.startMove(st, f, o, 'grab', ev); return; }
@@ -2054,33 +2096,36 @@ M.Render = {
     for (let k = 0; k < 2; k++) { line(c, 210, 60 + k * 26, -10, 110 + k * 40, 1.8, 3); line(c, 210, 60 + k * 26, 430, 110 + k * 40, 1.8, 3); }
     line(c, 210, 132, -10, 196, 2, 3); line(c, 210, 132, 430, 196, 2, 3);
     c.globalAlpha = 1;
-    const mk = (id, x, face, side) => ({ id, def: M.FIGHTERS[id], x, y: 0, face, side, state: 'idle', stT: now, inp: {}, vy: 0, vx: 0, invuln: 0 });
-    const a = mk('mogu', 130, 1, 0), b = mk('bboy', 290, -1, 1);
+    const mk = (id, x, face, side) => ({ id, def: Object.assign({}, M.FIGHTERS[id], { ink: side === 0 ? M.INK_P : M.INK_O }), x, y: 0, face, side, state: 'idle', stT: now, inp: {}, vy: 0, vx: 0, invuln: 0 });
+    const a = mk(M.player, 130, 1, 0), b = mk(M.ladderFor(M.player)[0], 290, -1, 1);
     beginBoil(boil * 11 + 1);
     this.drawFighter(c, a, M.poseOf(a, now), { floor: 196, scale: 0.9 });
     beginBoil(boil * 11 + 7);
     this.drawFighter(c, b, M.poseOf(b, now), { floor: 196, scale: 0.9 });
   },
 
-  // ── 엔딩: 모구가 연필을 빼앗아 사범을 그린다 ──
-  drawEnding(now, t) {
+  // ── 엔딩: 승자(플레이어)가 연필을 빼앗아 마지막 도전자를 그린다 ──
+  drawEnding(now, t, st) {
     const c = this.ctx;
     const boil = Math.floor(now * BOIL_HZ);
+    const pid = st ? st.playerId : M.player;
+    const lastId = st ? st.ladder[st.ladder.length - 1] : M.ladderFor(pid)[M.LADDER.length - 1];
+    const me = M.FIGHTERS[pid], last = M.FIGHTERS[lastId];
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.drawImage(this.bg[boil % 3], 0, 0);
     c.setTransform(this.res, 0, 0, this.res, 0, 0);
     c.fillStyle = PAPER; c.globalAlpha = 0.75; c.fillRect(0, 0, W, H); c.globalAlpha = 1;
-    const mogu = { id: 'mogu', def: M.FIGHTERS.mogu, x: 310, y: 0, face: 1, side: 0, state: 'idle', stT: t, inp: {}, vy: 0, invuln: 0 };
+    const hero = { id: pid, def: Object.assign({}, me, { ink: M.INK_P }), x: 310, y: 0, face: 1, side: 0, state: 'idle', stT: t, inp: {}, vy: 0, invuln: 0 };
     beginBoil(boil * 3 + 1);
     const drawingPose = M.lerpPose(M.POSES.draw, M.POSES.push, 0.5 + 0.5 * Math.sin(t * 9));
-    this.drawFighter(c, mogu, t < 1.2 ? M.POSES.win : drawingPose, { pencil: true });
-    const sensei = { id: 'sensei', def: M.FIGHTERS.sensei, x: 640, y: 0, face: -1, side: 1, state: 'idle', stT: t, inp: {}, vy: 0, invuln: 0 };
+    this.drawFighter(c, hero, t < 1.2 ? M.POSES.win : drawingPose, { pencil: true });
+    const loser = { id: lastId, def: Object.assign({}, last, { ink: M.INK_O }), x: 640, y: 0, face: -1, side: 1, state: 'idle', stT: t, inp: {}, vy: 0, invuln: 0 };
     beginBoil(boil * 3 + 9);
     const limit = t < 1.2 ? 0 : Math.floor((t - 1.2) * 16);
-    this.drawFighter(c, sensei, M.POSES.hit, { limit, noShadow: true });
+    this.drawFighter(c, loser, M.POSES.hit, { limit, noShadow: true });
     beginBoil(boil * 7 + 4);
-    if (t > 0.2) sketchText(c, '연필은 이제 모구의 것!', W / 2, 110, 44, '#18181c', -0.03, 2.2);
-    if (t > 3.2) sketchText(c, '도전자 8명 격파 — 스케치 마스터 모구', W / 2, 160, 26, '#d6282e', 0, 1.6);
+    if (t > 0.2) sketchText(c, `연필은 이제 ${me.name}의 것!`, W / 2, 110, 44, '#18181c', -0.03, 2.2);
+    if (t > 3.2) sketchText(c, `도전자 8명 격파 — 스케치 마스터 ${me.name}`, W / 2, 160, 26, '#d6282e', 0, 1.6);
   },
 };
 
@@ -2175,19 +2220,25 @@ const $ = (id) => document.getElementById(id);
 
 M.save = {
   KEY: 'mogusketch-save-v1',
-  data: { diff: 'normal', stage: {}, cleared: {}, wins: 0, plays: 0 },
+  data: { diff: 'normal', player: 'mogu', stage: {}, cleared: {}, charCleared: {}, wins: 0, plays: 0 },
   load() {
     try { const raw = localStorage.getItem(this.KEY); if (raw) this.data = Object.assign(this.data, JSON.parse(raw)); } catch (e) {}
     if (M.DIFFS[this.data.diff]) M.diff = this.data.diff;
+    if (M.FIGHTERS[this.data.player]) M.player = this.data.player;
     return this.data;
   },
   store() { try { localStorage.setItem(this.KEY, JSON.stringify(this.data)); } catch (e) {} },
   setDiff(d) { if (!M.DIFFS[d]) return; M.diff = d; this.data.diff = d; this.store(); },
+  setPlayer(id) { if (!M.FIGHTERS[id]) return; M.player = id; this.data.player = id; this.store(); },
   stageOf(d) { return Math.min(M.LADDER.length - 1, this.data.stage[d] || 0); },
-  beat(d, stage) {
+  beat(d, stage, playerId) {
     this.data.wins = (this.data.wins || 0) + 1;
     this.data.stage[d] = Math.max(this.data.stage[d] || 0, Math.min(M.LADDER.length - 1, stage + 1));
-    if (stage === M.LADDER.length - 1) { this.data.cleared[d] = true; this.data.stage[d] = 0; }
+    if (stage === M.LADDER.length - 1) {
+      this.data.cleared[d] = true; this.data.stage[d] = 0;
+      if (!this.data.charCleared) this.data.charCleared = {};
+      this.data.charCleared[playerId || M.player] = true;
+    }
     this.store();
   },
   resetStage(d) { this.data.stage[d] = 0; this.store(); },
@@ -2205,8 +2256,27 @@ M.ui = {
         this.refreshTitle();
       });
     });
+    document.querySelectorAll('.char-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        M.audio.resume(); M.audio.select();
+        M.save.setPlayer(btn.dataset.char);
+        this.updateCharBtns();
+        this.refreshTitle();
+      });
+    });
     this.updateDiffBtns();
+    this.updateCharBtns();
     this.refreshTitle();
+  },
+
+  // 플레이어 캐릭터 9종 — 선택한 캐릭터는 검은 잉크, 격파한 적 있는 캐릭터엔 ✎
+  updateCharBtns() {
+    document.querySelectorAll('.char-btn').forEach((btn) => {
+      const id = btn.dataset.char, def = M.FIGHTERS[id];
+      btn.classList.toggle('selected', id === M.player);
+      const done = (M.save.data.charCleared || {})[id];
+      btn.textContent = def.name + (done ? ' ✎' : '');
+    });
   },
 
   updateDiffBtns() {
@@ -2219,12 +2289,21 @@ M.ui = {
 
   refreshTitle() {
     const s = M.save.stageOf(M.diff);
-    const def = M.FIGHTERS[M.LADDER[s]];
+    const me = M.FIGHTERS[M.player];
+    const def = M.FIGHTERS[M.ladderFor(M.player)[s]];
     $('btn-start').textContent = s > 0 ? `도전자 ${s + 1} ${def.name}부터 (Enter)` : '도전 시작 (Enter)';
     $('btn-fresh').classList.toggle('hidden', s === 0);
-    $('title-hi').textContent = M.save.data.cleared[M.diff]
+    $('title-hi').textContent = (M.save.data.cleared[M.diff]
       ? `${M.DIFFS[M.diff].name} 격파 완료 ✎ — 다시 처음부터 도전할 수 있어요`
-      : `${M.DIFFS[M.diff].name} · 도전자 ${s + 1} / ${M.LADDER.length}`;
+      : `${M.DIFFS[M.diff].name} · 도전자 ${s + 1} / ${M.LADDER.length}`) + ` · ${me.name} — ${me.trait}`;
+    const hint = $('title-hint');
+    if (hint.dataset.touch === '1') {
+      hint.innerHTML = '왼쪽 패드로 이동·점프·앉기 · 약·강·잡기·필살 버튼<br>' +
+        `필살 버튼 = ${me.sp1 ? me.sp1.name : '없음'}${me.sp2 ? ` · 패드 위+필살 = ${me.sp2.name}` : ''}${me.sp3 ? ` · 패드 아래+필살 = ${me.sp3.name}` : ''} · 게이지가 차면 초필살`;
+    } else {
+      hint.innerHTML = '←→ 이동 · ↑ 점프 · ↓ 앉기 · Z 약 · X 강 · Z+X 잡기 · C 초필살 · Esc 일시정지<br>' +
+        `${M.cmdHint(M.player)} · 뒤로 누르면 가드(앉아서 뒤 = 하단 가드)`;
+    }
   },
 
   show(id) {
@@ -2235,7 +2314,7 @@ M.ui = {
   showWin(st) {
     const def = st.p[1].def;
     $('win-title').textContent = `${def.name} 격파!`;
-    const next = M.FIGHTERS[M.LADDER[st.stage + 1]];
+    const next = M.FIGHTERS[st.ladder[st.stage + 1]];
     $('win-stats').innerHTML =
       `라운드 ${st.wins[0]} : ${st.wins[1]} · 최대 콤보 ${st.stats.maxCombo[0]}히트<br>` +
       (next ? `다음 도전자 — <b>${next.name}</b>` : '');
@@ -2273,7 +2352,7 @@ M.ui.show('title-screen');
 
 function startMatch(stage) {
   const s = stage != null ? stage : M.save.stageOf(M.diff);
-  st = M.Logic.create((Date.now() & 0x7fffffff) || 1, M.diff, s);
+  st = M.Logic.create((Date.now() & 0x7fffffff) || 1, M.diff, s, M.player);
   ai = M.AI.create(M.diff, (Date.now() * 7) & 0x7fffffff);
   M.Render.reset();
   for (const k of Object.keys(held)) held[k] = false;
@@ -2286,6 +2365,7 @@ function startMatch(stage) {
 function toTitle() {
   mode = 'title';
   M.ui.updateDiffBtns();
+  M.ui.updateCharBtns();
   M.ui.refreshTitle();
   M.ui.show('title-screen');
 }
@@ -2309,7 +2389,7 @@ function handleEvents(evs) {
       case 'ko': case 'timeup': M.audio.ko(); break;
       case 'matchEnd':
         resultT = 0;
-        if (e.winner === 0) { M.save.beat(st.diff, st.stage); M.audio.win(); }
+        if (e.winner === 0) { M.save.beat(st.diff, st.stage, st.playerId); M.audio.win(); }
         else M.audio.lose();
         break;
     }
@@ -2369,7 +2449,8 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 const vpad = $('vpad');
 if (isTouch) {
   document.body.classList.add('touch');
-  $('title-hint').innerHTML = '왼쪽 패드로 이동·점프·앉기 · 약·강·잡기·필살 버튼<br>필살 버튼 = 냥파동, 패드 위+필살 = 발톱 연무 · 게이지가 차면 초필살';
+  $('title-hint').dataset.touch = '1';
+  M.ui.refreshTitle();
   const pad = $('vdpad'), knob = $('vdpad-knob');
   let padId = null;
   const setDir = (e) => {
@@ -2405,7 +2486,7 @@ if (isTouch) {
   bindHold('vb-lp', () => { press('lp'); }, () => { held.lp = false; });
   bindHold('vb-hp', () => { press('hp'); }, () => { held.hp = false; });
   bindHold('vb-grab', () => { press('grab'); }, () => { held.grab = false; });
-  bindHold('vb-sp', () => { if (held.up) press('sp2'); else press('sp1'); }, () => { held.sp1 = held.sp2 = false; });
+  bindHold('vb-sp', () => { if (held.down && st && st.p[0].def.sp3) press('sp3'); else if (held.up) press('sp2'); else press('sp1'); }, () => { held.sp1 = held.sp2 = held.sp3 = false; });
   bindHold('vb-su', () => { press('su'); }, () => { held.su = false; });
   $('vb-pause').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); pause(); });
   document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
@@ -2415,7 +2496,7 @@ if (isTouch) {
 
 // ── 디버그 훅 (테스트 자동화용) ──
 M._dbg = () => ({
-  mode, diff: st ? st.diff : M.diff, phase: st ? st.phase : null,
+  mode, diff: st ? st.diff : M.diff, player: st ? st.playerId : M.player, phase: st ? st.phase : null,
   stage: st ? st.stage : null, round: st ? st.round : 0, wins: st ? st.wins.slice() : [0, 0],
   timer: st ? +st.timer.toFixed(2) : 0, segments: M.Render.stats.segments,
   p: st ? st.p.map((f) => ({ id: f.id, hp: f.hp, state: f.state, x: +f.x.toFixed(1), y: +f.y.toFixed(1), gauge: f.gauge, face: f.face, mv: f.mv ? f.mv.key : null })) : [],
@@ -2465,7 +2546,7 @@ function frame(now) {
   }
   if (mode === 'ending') {
     endingT += dt;
-    M.Render.drawEnding(tsec, endingT);
+    M.Render.drawEnding(tsec, endingT, st);
     if (endingT > 4.5 && $('ending-screen').classList.contains('hidden')) M.ui.show('ending-screen');
     return;
   }
