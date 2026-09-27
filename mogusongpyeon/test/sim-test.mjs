@@ -63,7 +63,7 @@ M.STAGES.forEach((S, i) => {
   grab(st);
   check('덜 익은 송편은 꺼낼 수 없다', !st.p.held && stm.steam.length === 1);
   const evs = run(st, M.COOK_T);
-  check('7초 찌면 익음 이벤트', evs.some((e) => e.type === 'cooked'));
+  check(`${M.COOK_T}초 찌면 익음 이벤트`, evs.some((e) => e.type === 'cooked'));
   place(st, 1, 3, -1, 0); grab(st);                       // (0,3) 접시
   check('접시를 든다', st.p.held && st.p.held.t === 'plate');
   place(st, 14, 1, 0, -1); grab(st);
@@ -233,10 +233,12 @@ for (let i = 0; i < M.STAGES.length; i++) {
     const avg = Math.round(scores.reduce((a, b) => a + b) / scores.length);
     const th = L.thresholds(i, d);
     console.log(`  S${i + 1} ${d.padEnd(6)} 평균 ${String(avg).padStart(4)}  [${scores.join(',')}]  완료 ${served} 놓침 ${missed}  별 ${th.join('/')}`);
+    // 9월 27일 June 요청으로 전체 난이도를 절반쯤 낮춤 — 노말 직렬 봇이 별 2개, 이지는 별 2개 이상
     if (d === 'normal') {
-      check(`S${i + 1} 노말: 직렬 봇도 별 1개 이상`, avg >= th[0], `${avg} ≥ ${th[0]}`);
+      check(`S${i + 1} 노말: 직렬 봇도 별 2개`, avg >= th[1], `${avg} ≥ ${th[1]}`);
       check(`S${i + 1} 노말: 직렬 봇은 별 3개 미만 (사람 몫을 남긴다)`, avg < th[2], `${avg} < ${th[2]}`);
     }
+    if (d === 'easy') check(`S${i + 1} 이지: 직렬 봇 별 2개 이상`, avg >= th[1], `${avg} ≥ ${th[1]}`);
   }
 }
 

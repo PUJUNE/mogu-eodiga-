@@ -32,7 +32,7 @@ function create(seed, stageIdx, diff) {
     p: { x: (S.sx + 0.5) * T, y: (S.sy + 0.5) * T, fx: 0, fy: 1, held: null,
          dashT: 0, dashCd: 0, vx: 0, vy: 0, working: false, workTick: 0 },
     orders: [], nextOrderAt: 1.5, orderSeq: 0,
-    kiwis: [], nextKiwiAt: S.kiwi ? 24 / D.kiwi : Infinity,
+    kiwis: [], nextKiwiAt: S.kiwi ? 40 / D.kiwi : Infinity,
     score: 0, served: 0, songsServed: 0, missed: 0, wrong: 0, shooed: 0, pecked: 0, combo: 0, bestCombo: 0,
     events: [],
   };
@@ -42,12 +42,12 @@ function create(seed, stageIdx, diff) {
 function makeOrder(st) {
   const { rng, S, D } = st;
   const roll = rng.next();
-  let n = roll < 0.55 ? 1 : roll < 0.9 ? 2 : 3;
+  let n = roll < 0.7 ? 1 : roll < 0.95 ? 2 : 3;
   n = Math.min(n, S.maxItems);
   const items = [];
   for (let i = 0; i < n; i++) items.push({ c: rng.pick(S.doughs), f: rng.pick(S.fillings) });
   items.sort((a, b) => key(a) < key(b) ? -1 : 1);
-  const max = (40 + 20 * n) * D.time;
+  const max = (70 + 30 * n) * D.time;
   return { id: ++st.orderSeq, items, t: max, max, cust: rng.pick(M.CUSTOMERS) };
 }
 
@@ -301,7 +301,7 @@ function stepKiwis(st, dt) {
       life: 16 + st.rng.range(0, 6), dir: 1, id: st.t });
     kiwiRetarget(st, st.kiwis[st.kiwis.length - 1]);
     st.events.push({ type: 'kiwi-in' });
-    st.nextKiwiAt = st.t + st.rng.range(22, 34) / D.kiwi;
+    st.nextKiwiAt = st.t + st.rng.range(40, 60) / D.kiwi;
   }
   const p = st.p;
   for (const k of st.kiwis) {
@@ -405,7 +405,7 @@ function step(st, dt, input) {
     st.orders.push(makeOrder(st));
     st.events.push({ type: 'order' });
     const ramp = Math.max(0.7, 1 - st.t / st.S.time * 0.3);  // 뒤로 갈수록 조금 잦아진다
-    st.nextOrderAt = st.t + 26 * st.D.gap * ramp;
+    st.nextOrderAt = st.t + 36 * st.D.gap * ramp;
   }
 
   stepKiwis(st, dt);

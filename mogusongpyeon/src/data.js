@@ -12,19 +12,19 @@ M.H = M.HUD + M.ROWS * M.TILE;               // 624
 
 // ── 모구 ──
 M.PR = 19;                                   // 몸 반지름 (충돌)
-M.PSPD = 236;                                // 걷기 속도 px/s
+M.PSPD = 270;                                // 걷기 속도 px/s
 M.DASH_SPD = 560; M.DASH_T = 0.16; M.DASH_CD = 0.7;
 M.REACH = 44;                                // 바라보는 방향으로 이만큼 앞 칸을 만진다
 
 // ── 공정 시간(초) ──
-M.KNEAD_T = 1.2;                             // 반죽 → 송편피 (도마에서 꾹꾹)
-M.FOLD_T = 0.9;                              // 소 넣은 피 → 생송편 (반달 접기)
-M.COOK_T = 7;                                // 솔잎 찜
-M.BURN_T = 11;                               // 다 익은 뒤 이만큼 더 두면 탄다
+M.KNEAD_T = 0.8;                             // 반죽 → 송편피 (도마에서 꾹꾹)
+M.FOLD_T = 0.6;                              // 소 넣은 피 → 생송편 (반달 접기)
+M.COOK_T = 5;                                // 솔잎 찜
+M.BURN_T = 18;                               // 다 익은 뒤 이만큼 더 두면 탄다
 M.STEAM_CAP = 3;                             // 찜기 한 대에 들어가는 생송편 수
 M.PLATE_CAP = 3;                             // 접시 하나에 담는 송편 수
 M.BELT_T = 0.9;                              // 컨베이어가 한 칸 옮기는 시간
-M.PECK_T = 2.2;                              // 키위가 송편에 구멍 내는 시간
+M.PECK_T = 3.5;                              // 키위가 송편에 구멍 내는 시간
 
 // ── 재료 ──
 M.DOUGHS = {
@@ -59,7 +59,7 @@ M.STAGES = [
   {
     name: '첫 출근', sub: '흰 반죽 · 깨', time: 150,
     doughs: ['white'], fillings: ['sesame'], maxItems: 2, kiwi: 0,
-    stars: [60, 160, 260], sx: 7, sy: 5,
+    stars: [90, 220, 350], sx: 7, sy: 5,
     map: [
       '#w##e####B##B#S#',
       '#..............#',
@@ -77,7 +77,7 @@ M.STAGES = [
   {
     name: '쑥 향기', sub: '흰·쑥 반죽 · 깨·콩', time: 170,
     doughs: ['white', 'ssuk'], fillings: ['sesame', 'bean'], maxItems: 2, kiwi: 0,
-    stars: [70, 190, 310], sx: 8, sy: 4,
+    stars: [100, 260, 420], sx: 8, sy: 4,
     map: [
       '##w#g##e#b##SS##',
       '#..............#',
@@ -93,7 +93,7 @@ M.STAGES = [
   {
     name: '키위 출몰', sub: '뒷문으로 키위가 들어와요', time: 180,
     doughs: ['white', 'ssuk'], fillings: ['sesame', 'bean'], maxItems: 3, kiwi: 1,
-    stars: [80, 210, 340], sx: 8, sy: 4,
+    stars: [120, 300, 480], sx: 8, sy: 4,
     map: [
       '#w#g####e##b#SS#',
       '#..............#',
@@ -109,7 +109,7 @@ M.STAGES = [
   {
     name: '컨베이어 공장', sub: '벨트 위에 올리면 옆방으로', time: 190,
     doughs: ['white', 'ssuk', 'pink'], fillings: ['sesame', 'bean'], maxItems: 3, kiwi: 0,
-    stars: [40, 150, 270], sx: 3, sy: 4,
+    stars: [40, 105, 170], sx: 3, sy: 4,
     map: [
       '#w#g#k#Xe#b#SS##',
       '#......X.......#',
@@ -125,7 +125,7 @@ M.STAGES = [
   {
     name: '추석 대목', sub: '분홍·밤까지 · 키위 떼', time: 210,
     doughs: ['white', 'ssuk', 'pink'], fillings: ['sesame', 'bean', 'chestnut'], maxItems: 3, kiwi: 2,
-    stars: [60, 200, 340], sx: 8, sy: 4,
+    stars: [120, 300, 480], sx: 8, sy: 4,
     map: [
       '#w#g#k##e#b#n###',
       '#..............#',
@@ -143,9 +143,9 @@ M.STAGES = [
 // ── 난이도 (시리즈 공통 4단계) ──
 //  time = 주문 제한시간 배율, gap = 주문 간격 배율, kiwi = 키위 출몰 빈도 배율, burn = 타기까지 배율
 M.DIFFS = {
-  easy:   { name: '이지',     time: 1.45, gap: 1.25, kiwi: 0.6, burn: 1.5, star: 1.1 },
+  easy:   { name: '이지',     time: 1.8,  gap: 1.4,  kiwi: 0.6, burn: 1.5, star: 0.9 },
   normal: { name: '노말',     time: 1.0,  gap: 1.0,  kiwi: 1.0, burn: 1.0, star: 1.0 },
-  hard:   { name: '하드',     time: 0.8,  gap: 0.85, kiwi: 1.3, burn: 0.8, star: 0.95 },
+  hard:   { name: '하드',     time: 0.8,  gap: 0.85, kiwi: 1.3, burn: 0.8, star: 1.0 },
   crazy:  { name: '크레이지', time: 0.64, gap: 0.72, kiwi: 1.7, burn: 0.62, star: 0.9 },
 };
 M.diff = 'normal';
@@ -158,8 +158,8 @@ M.nextDiff = function (d) {
 // ── 점수 ──
 M.PTS_EACH = 20;                             // 송편 하나당
 M.TIP_EACH = 8;                              // 남은 시간 비율 × 개수 × 이만큼 (콤보 배율 곱)
-M.PENALTY_MISS = 10;                         // 주문 시간 초과
-M.PENALTY_WRONG = 10;                        // 주문에 없는 접시를 냄
+M.PENALTY_MISS = 5;                          // 주문 시간 초과
+M.PENALTY_WRONG = 5;                         // 주문에 없는 접시를 냄
 M.SHOO_BONUS = 5;                            // 키위 쫓아내기
 M.COMBO_MAX = 4;
 
