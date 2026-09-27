@@ -69,7 +69,7 @@ function handleEvents(evs) {
       case 'burnt': A.burnt(); break;
       case 'serve': A.serve(); break;
       case 'wrong': A.wrong(); break;
-      case 'serve-hint': A.bump(); break;
+      case 'serve-hint': case 'plate-hint': A.bump(); break;
       case 'miss': A.miss(); break;
       case 'order': A.order(); break;
       case 'kiwi-in': A.kiwiIn(); break;

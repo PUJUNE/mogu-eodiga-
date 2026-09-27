@@ -144,6 +144,31 @@ M.STAGES.forEach((S, i) => {
   check('출하구 쪽으로 기울면 출하구가 잡힌다', L.facingTile(st)?.kind === 'serve');
 }
 
+// ══ 3-3. 접시에 송편 올리기 — 더미 · 조리대 위 접시 · 안 되는 이유 ══
+{
+  const st = L.create(8, 0, 'normal');
+  st.nextOrderAt = 999;
+  st.p.held = { t: 'song', c: 'white', f: 'sesame', hole: false };
+  place(st, 1, 3, -1, 0); grab(st);                      // (0,3) 접시 더미
+  check('송편을 들고 접시 더미 → 새 접시에 얹혀 든다', st.p.held?.t === 'plate' && st.p.held.songs.length === 1);
+  place(st, 5, 4, 0, -1); grab(st);                      // (5,3) 조리대에 접시 내려놓기
+  const ctr = L.tileAt(st, 5, 3);
+  check('접시를 조리대에 내려놓는다', ctr.item?.t === 'plate' && !st.p.held);
+  st.p.held = { t: 'song', c: 'white', f: 'sesame', hole: false }; grab(st);
+  check('조리대 위 접시에 송편을 더 올린다', ctr.item.songs.length === 2 && !st.p.held);
+  st.p.held = { t: 'raw', c: 'white', f: 'sesame' };
+  const ev = grab(st);
+  check('안 찐 송편을 접시에 → "아직 안 쪘어요"', ev.some((e) => e.type === 'plate-hint' && e.why === 'not-cooked') && st.p.held);
+  ctr.item.songs.push({ c: 'white', f: 'sesame', hole: false });
+  st.p.held = { t: 'song', c: 'white', f: 'sesame', hole: false };
+  const ev2 = grab(st);
+  check('꽉 찬 접시 → "3개까지" 안내', ev2.some((e) => e.type === 'plate-hint' && e.why === 'plate-full'));
+  place(st, 1, 3, -1, 0);
+  st.p.held = { t: 'raw', c: 'white', f: 'sesame' };
+  const ev3 = grab(st);
+  check('안 찐 송편을 접시 더미에 → 안내', ev3.some((e) => e.type === 'plate-hint' && e.why === 'not-cooked'));
+}
+
 // ══ 4. 주문 시간 초과 · 콤보 ══
 {
   const st = L.create(5, 1, 'normal');

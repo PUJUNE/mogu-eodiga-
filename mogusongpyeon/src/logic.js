@@ -152,7 +152,8 @@ function interact(st) {
     case 'plates':
       if (!held) { p.held = { t: 'plate', songs: [] }; ev('pick'); }
       else if (held.t === 'plate' && held.songs.length === 0) { p.held = null; ev('place'); }
-      else ev('bump');
+      else if (held.t === 'song') { p.held = { t: 'plate', songs: [held] }; ev('pick'); }   // 접시 더미에 대면 새 접시에 얹어 든다
+      else ev('plate-hint', { why: held.t === 'raw' ? 'not-cooked' : held.t === 'burnt' ? 'burnt' : held.t === 'plate' ? 'full-hands' : 'not-song' });
       return;
     case 'trash':
       if (!held) return;
@@ -198,7 +199,11 @@ function interact(st) {
       if (tile.item) {
         const m = combine(held, tile.item);
         if (m) { p.held = m.hand; tile.item = m.tile; tile.work = 0; ev(m.tile && m.tile.t === 'skin' ? 'fill' : 'pick'); }
-        else ev('bump');
+        else if ((held.t === 'plate') !== (tile.item.t === 'plate')) {     // 접시와 다른 것 — 왜 안 담기는지 알려 준다
+          const other = held.t === 'plate' ? tile.item : held, plate = held.t === 'plate' ? held : tile.item;
+          ev('plate-hint', { why: other.t === 'song' && plate.songs.length >= M.PLATE_CAP ? 'plate-full'
+            : other.t === 'raw' ? 'not-cooked' : other.t === 'burnt' ? 'burnt' : 'not-song' });
+        } else ev('bump');
       } else {
         tile.item = held; tile.item.bt = 0; tile.work = 0; p.held = null; ev('place');
       }

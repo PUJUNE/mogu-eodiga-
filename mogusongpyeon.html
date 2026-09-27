@@ -493,7 +493,8 @@ function interact(st) {
     case 'plates':
       if (!held) { p.held = { t: 'plate', songs: [] }; ev('pick'); }
       else if (held.t === 'plate' && held.songs.length === 0) { p.held = null; ev('place'); }
-      else ev('bump');
+      else if (held.t === 'song') { p.held = { t: 'plate', songs: [held] }; ev('pick'); }   // 접시 더미에 대면 새 접시에 얹어 든다
+      else ev('plate-hint', { why: held.t === 'raw' ? 'not-cooked' : held.t === 'burnt' ? 'burnt' : held.t === 'plate' ? 'full-hands' : 'not-song' });
       return;
     case 'trash':
       if (!held) return;
@@ -539,7 +540,11 @@ function interact(st) {
       if (tile.item) {
         const m = combine(held, tile.item);
         if (m) { p.held = m.hand; tile.item = m.tile; tile.work = 0; ev(m.tile && m.tile.t === 'skin' ? 'fill' : 'pick'); }
-        else ev('bump');
+        else if ((held.t === 'plate') !== (tile.item.t === 'plate')) {     // 접시와 다른 것 — 왜 안 담기는지 알려 준다
+          const other = held.t === 'plate' ? tile.item : held, plate = held.t === 'plate' ? held : tile.item;
+          ev('plate-hint', { why: other.t === 'song' && plate.songs.length >= M.PLATE_CAP ? 'plate-full'
+            : other.t === 'raw' ? 'not-cooked' : other.t === 'burnt' ? 'burnt' : 'not-song' });
+        } else ev('bump');
       } else {
         tile.item = held; tile.item.bt = 0; tile.work = 0; p.held = null; ev('place');
       }
@@ -813,6 +818,11 @@ const R = {
         this.pop(M.W - 150, M.HUD + 40, `+${e.pts}` + (e.combo > 1 ? `  콤보 x${e.combo}` : ''), '#ffe45c', 26);
         this.puff(at[0], at[1], '#ffd35c', 12, 120, 0.7, 10); break;
       case 'wrong': this.pop(st.p.x, st.p.y + M.HUD - 50, e.hole ? '구멍 송편은 못 팔아요!' : '주문에 없는 접시!', '#ff8a6a', 18); this.shake = 0.25; break;
+      case 'plate-hint': {
+        const msg = { 'not-cooked': '아직 안 쪘어요 — 솔잎 찜기에 먼저', burnt: '탄 송편은 쓰레기통으로!',
+          'plate-full': '접시가 꽉 찼어요 (3개까지)', 'not-song': '접시엔 다 찐 송편만 올려요', 'full-hands': '손에 접시가 이미 있어요' }[e.why];
+        this.pop(st.p.x, st.p.y + M.HUD - 56, msg, '#fff3d6', 17, 1.6); break;
+      }
       case 'serve-hint': {
         const msg = { 'empty-plate': '빈 접시예요 — 찜기에서 송편을 담아 와요', burnt: '탄 송편은 쓰레기통으로!',
           'not-cooked': '아직 안 쪘어요 — 솔잎 찜기에 먼저 넣어요' }[e.why];
@@ -1476,7 +1486,7 @@ function handleEvents(evs) {
       case 'burnt': A.burnt(); break;
       case 'serve': A.serve(); break;
       case 'wrong': A.wrong(); break;
-      case 'serve-hint': A.bump(); break;
+      case 'serve-hint': case 'plate-hint': A.bump(); break;
       case 'miss': A.miss(); break;
       case 'order': A.order(); break;
       case 'kiwi-in': A.kiwiIn(); break;

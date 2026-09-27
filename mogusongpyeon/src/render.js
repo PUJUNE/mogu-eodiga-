@@ -44,6 +44,11 @@ const R = {
         this.pop(M.W - 150, M.HUD + 40, `+${e.pts}` + (e.combo > 1 ? `  콤보 x${e.combo}` : ''), '#ffe45c', 26);
         this.puff(at[0], at[1], '#ffd35c', 12, 120, 0.7, 10); break;
       case 'wrong': this.pop(st.p.x, st.p.y + M.HUD - 50, e.hole ? '구멍 송편은 못 팔아요!' : '주문에 없는 접시!', '#ff8a6a', 18); this.shake = 0.25; break;
+      case 'plate-hint': {
+        const msg = { 'not-cooked': '아직 안 쪘어요 — 솔잎 찜기에 먼저', burnt: '탄 송편은 쓰레기통으로!',
+          'plate-full': '접시가 꽉 찼어요 (3개까지)', 'not-song': '접시엔 다 찐 송편만 올려요', 'full-hands': '손에 접시가 이미 있어요' }[e.why];
+        this.pop(st.p.x, st.p.y + M.HUD - 56, msg, '#fff3d6', 17, 1.6); break;
+      }
       case 'serve-hint': {
         const msg = { 'empty-plate': '빈 접시예요 — 찜기에서 송편을 담아 와요', burnt: '탄 송편은 쓰레기통으로!',
           'not-cooked': '아직 안 쪘어요 — 솔잎 찜기에 먼저 넣어요' }[e.why];
