@@ -68,7 +68,8 @@ function handleEvents(evs) {
       case 'cooked': A.cooked(); break;
       case 'burnt': A.burnt(); break;
       case 'serve': A.serve(); break;
-      case 'wrong': case 'need-plate': A.wrong(); break;
+      case 'wrong': A.wrong(); break;
+      case 'serve-hint': A.bump(); break;
       case 'miss': A.miss(); break;
       case 'order': A.order(); break;
       case 'kiwi-in': A.kiwiIn(); break;

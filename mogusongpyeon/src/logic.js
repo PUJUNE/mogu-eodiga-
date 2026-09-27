@@ -110,7 +110,17 @@ function facingTile(st) {
   if (t) return t;
   if (Math.abs(p.fx) >= Math.abs(p.fy)) t = probe(Math.sign(p.fx) || 1, 0);
   else t = probe(0, Math.sign(p.fy) || 1);
-  return t;
+  if (t) return t;
+  // 그래도 없으면 지금 선 칸의 상하좌우 설비 중 바라보는 방향에 가장 가까운 것 (등을 진 쪽은 제외)
+  const c = Math.floor(p.x / T), r = Math.floor(p.y / T);
+  let best = null, bd = 0.1;
+  for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const n = tileAt(st, c + dc, r + dr);
+    if (!n || isWalk(n) || n.kind === 'wall') continue;
+    const d = dc * p.fx + dr * p.fy;
+    if (d > bd) { bd = d; best = n; }
+  }
+  return best;
 }
 
 // ── 집기 · 놓기 · 합치기 ──
@@ -151,9 +161,10 @@ function interact(st) {
       return;
     case 'serve':
       if (!held) return;
+      // 접시째 내는 것이 기본이고, 익은 송편 한 개를 손에 들고 와도 한 접시로 쳐 준다
       if (held.t === 'plate' && held.songs.length) { serve(st, held); p.held = null; }
-      else if (held.t === 'song') ev('need-plate');
-      else ev('bump');
+      else if (held.t === 'song') { serve(st, { t: 'plate', songs: [held] }); p.held = null; }
+      else ev('serve-hint', { why: held.t === 'plate' ? 'empty-plate' : held.t === 'burnt' ? 'burnt' : 'not-cooked' });
       return;
     case 'steamer': {
       const s = tile.steam;

@@ -119,6 +119,31 @@ M.STAGES.forEach((S, i) => {
   check('안내는 누른 순간 한 번만', !ev3.some((e) => e.type === 'work-hint'));
 }
 
+// ══ 3-2. 출하구 편의: 송편 한 개를 손에 들고 내도 받는다 · 못 내는 이유 안내 · 비스듬히 서도 닿음 ══
+{
+  const st = L.create(6, 0, 'normal');
+  st.nextOrderAt = 999;
+  st.orders = [{ id: 1, items: [{ c: 'white', f: 'sesame' }], t: 60, max: 60, cust: 'pigeon' }];
+  st.p.held = { t: 'song', c: 'white', f: 'sesame', hole: false };
+  place(st, 14, 3, 1, 0);
+  const ev = grab(st);
+  check('익은 송편 한 개를 손에 들고 출하 → 주문 완료', ev.some((e) => e.type === 'serve') && !st.p.held && st.orders.length === 0);
+  st.p.held = { t: 'raw', c: 'white', f: 'sesame' };
+  const ev2 = grab(st);
+  check('안 찐 송편 출하 → "아직 안 쪘어요" 안내', ev2.some((e) => e.type === 'serve-hint' && e.why === 'not-cooked') && st.p.held);
+  st.p.held = { t: 'song', c: 'white', f: 'sesame', hole: false };
+  st.orders = [{ id: 2, items: [{ c: 'white', f: 'sesame' }], t: 60, max: 60, cust: 'pigeon' }];
+  place(st, 14, 3, 0.3, 0.95);                          // 출하구 옆 칸에서 아래쪽을 보고 있어도
+  const ft = L.facingTile(st);
+  check('출하구 옆에서 거의 아래를 봐도 앞이 비면 출하구를 잡는다', ft && ft.kind === 'serve', ft ? ft.kind : 'null');
+  const ev3 = grab(st);
+  check('그 자세로 집기 → 출하', ev3.some((e) => e.type === 'serve'));
+  place(st, 14, 3, -1, 0);
+  check('등진 쪽 설비는 잡지 않는다', L.facingTile(st) === null || L.facingTile(st).kind !== 'serve');
+  place(st, 14, 3, 0.9, 0.4);
+  check('출하구 쪽으로 기울면 출하구가 잡힌다', L.facingTile(st)?.kind === 'serve');
+}
+
 // ══ 4. 주문 시간 초과 · 콤보 ══
 {
   const st = L.create(5, 1, 'normal');
