@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구 송편공장</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#2a1d16;
+    font-family:'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  #app { position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
+  canvas#game { display:block; border-radius:10px; box-shadow:0 6px 30px rgba(0,0,0,.45); }
+
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    z-index:10; color:#fff8ea; text-align:center; overflow-y:auto; }
+  .hidden { display:none !important; }
+
+  /* ── 타이틀: 보름달 밤 ── */
+  #title-screen { background:radial-gradient(circle at 50% 18%, #fff3c4 0, #ffe28a 7%, rgba(255,226,138,0) 8.5%),
+      radial-gradient(ellipse at 50% 120%, #3c5a3a 0, #22321f 40%, #151d2b 75%); }
+  #title-screen .logo { font-size:min(58px, 11vw); font-weight:900; letter-spacing:2px; margin-top:6vh;
+    color:#fff; text-shadow:0 4px 0 #b3472f, 0 7px 14px rgba(0,0,0,.5); }
+  #title-screen .logo b { color:#a8cf7a; }
+  #title-screen .sub { margin-top:6px; font-size:16px; font-weight:800; color:#ffe7ae; }
+  #title-row { display:flex; align-items:center; gap:14px; margin-top:10px; }
+  #title-icon { width:112px; height:auto; filter:drop-shadow(0 4px 6px rgba(0,0,0,.4)); }
+  #title-songs { font-size:30px; }
+  #title-hi { margin-top:6px; font-size:14px; font-weight:800; color:#ffe7ae; min-height:19px; }
+
+  .menu-buttons { display:flex; gap:9px; margin-top:10px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
+  .btn { pointer-events:auto; padding:10px 22px; font-size:16px; font-weight:900; color:#4a2a14;
+    background:#fff3d6; border:none; border-radius:14px; cursor:pointer; font-family:inherit;
+    box-shadow:0 4px 0 #b58a54; }
+  .btn:active { transform:translateY(3px); box-shadow:0 1px 0 #b58a54; }
+  .btn.primary { background:#e8553c; color:#fff; box-shadow:0 4px 0 #8f2c1c; }
+  .btn.series { padding:7px 16px; font-size:13px; background:rgba(255,243,214,.2); color:#fff3d6; box-shadow:none; }
+  .diff-btn { padding:7px 14px; font-size:14px; opacity:.6; }
+  .diff-btn.selected { opacity:1; outline:3px solid #ffd35c; }
+  .diff-btn.crazy.selected { outline-color:#ff6a4d; }
+  #stage-list { display:grid; grid-template-columns:repeat(5, minmax(0, 118px)); gap:8px; margin-top:10px; padding:0 10px; }
+  .stage-btn { pointer-events:auto; padding:8px 4px; border-radius:12px; border:none; cursor:pointer; font-family:inherit;
+    background:rgba(255,243,214,.14); color:#fff3d6; font-weight:900; font-size:13px; line-height:1.35; }
+  .stage-btn .no { font-size:11px; opacity:.7; }
+  .stage-btn .st { color:#ffd35c; letter-spacing:1px; }
+  .stage-btn.selected { background:#fff3d6; color:#4a2a14; }
+  .stage-btn.selected .st { color:#e0a100; }
+  .stage-btn.locked { opacity:.35; cursor:not-allowed; }
+  #title-hint { margin-top:10px; font-size:12.5px; line-height:1.7; color:#f3e2c0; padding:0 14px 16px; }
+  #title-hint b { color:#ffd35c; }
+
+  /* ── 결과 · 일시정지 ── */
+  #result-screen, #pause-screen { background:rgba(30,20,14,.78); z-index:20; }
+  .big { font-size:min(44px, 9vw); font-weight:900; color:#fff; text-shadow:0 3px 0 #b3472f; }
+  #result-stars { font-size:52px; letter-spacing:6px; margin:6px 0 2px; }
+  #result-stars .off { filter:grayscale(1); opacity:.28; }
+  #result-score { font-size:34px; font-weight:900; color:#ffd35c; }
+  #result-stats { margin-top:6px; font-size:15px; line-height:1.8; color:#f3e2c0; padding:0 14px; }
+  #result-msg { margin-top:4px; font-size:15px; font-weight:800; color:#a8e08a; min-height:20px; }
+
+  /* ── 터치: 조이스틱 + 버튼 ── */
+  #vpad { position:fixed; inset:0; pointer-events:none; z-index:8; display:none; }
+  body.touch #vpad.on { display:block; }
+  #vstick { position:absolute; pointer-events:auto; width:140px; height:140px; border-radius:50%;
+    left:calc(16px + env(safe-area-inset-left)); bottom:calc(16px + env(safe-area-inset-bottom));
+    background:rgba(255,243,214,.16); border:3px solid rgba(255,243,214,.45); touch-action:none; }
+  #vstick-knob { position:absolute; left:50%; top:50%; width:58px; height:58px; margin:-29px 0 0 -29px;
+    border-radius:50%; background:rgba(255,243,214,.55); border:3px solid rgba(255,255,255,.8); }
+  .vbtn { position:absolute; pointer-events:auto; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-weight:900; color:#4a2a14; background:rgba(255,243,214,.78); border:3px solid rgba(255,255,255,.9);
+    touch-action:none; user-select:none; font-size:16px; }
+  .vbtn.pressed { background:#ffd35c; }
+  #vb-grab { width:84px; height:84px; right:calc(20px + env(safe-area-inset-right)); bottom:calc(26px + env(safe-area-inset-bottom)); font-size:18px; }
+  #vb-work { width:74px; height:74px; right:calc(114px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom)); background:rgba(168,207,122,.85); }
+  #vb-dash { width:60px; height:60px; right:calc(40px + env(safe-area-inset-right)); bottom:calc(122px + env(safe-area-inset-bottom)); font-size:14px; }
+  #vb-pause { width:44px; height:44px; border-radius:12px; right:calc(10px + env(safe-area-inset-right)); top:calc(8px + env(safe-area-inset-top)); font-size:15px; }
+  #rotate-hint { position:fixed; inset:0; z-index:50; background:#22321f; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; color:#fff3d6; font-size:20px; font-weight:900; gap:10px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="game" width="960" height="624"></canvas>
+
+  <div id="title-screen" class="screen">
+    <div class="logo">모구 <b>송편</b>공장</div>
+    <div class="sub">~ 추석 대목, 주문이 밀려 들어온다 ~</div>
+    <div id="title-row"><span id="title-songs">🌕</span><img id="title-icon" alt="모구"><span id="title-songs2">🥟</span></div>
+    <div id="title-hi"></div>
+    <div id="stage-list"></div>
+    <div class="menu-buttons">
+      <button class="btn diff-btn" data-diff="easy">이지</button>
+      <button class="btn diff-btn" data-diff="normal">노말</button>
+      <button class="btn diff-btn" data-diff="hard">하드</button>
+      <button class="btn diff-btn crazy" data-diff="crazy">크레이지</button>
+    </div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-start">영업 시작 (Enter)</button>
+      <button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button>
+    </div>
+    <div id="title-hint">
+      <b>반죽</b> 집기 → <b>도마</b>에서 빚기 → <b>소</b> 얹기 → 다시 빚어 반달 접기 → <b>솔잎 찜기</b> → <b>접시</b>에 담아 <b>출하</b><br>
+      ←↑↓→ / WASD 이동 · Space·J 집기/놓기 · K·X 꾹 누르면 빚기 · Shift·L 대시 · Esc 일시정지<br>
+      뒷문으로 들어오는 🥝 키위는 송편에 구멍을 내요 — 몸으로 부딪쳐 쫓아내요!
+    </div>
+  </div>
+
+  <div id="result-screen" class="screen hidden">
+    <div class="big" id="result-title">영업 종료!</div>
+    <div id="result-stars"></div>
+    <div id="result-score">0</div>
+    <div id="result-stats"></div>
+    <div id="result-msg"></div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-next">다음 가게 → (Enter)</button>
+      <button class="btn" id="btn-retry">다시 (R)</button>
+      <button class="btn" id="btn-res-title">타이틀로</button>
+    </div>
+  </div>
+
+  <div id="pause-screen" class="screen hidden">
+    <div class="big">잠깐 쉬는 중</div>
+    <div class="menu-buttons">
+      <button class="btn primary" id="btn-resume">계속</button>
+      <button class="btn" id="btn-restart">처음부터</button>
+      <button class="btn" id="btn-title">타이틀로</button>
+    </div>
+  </div>
+
+  <div id="vpad">
+    <div id="vstick"><div id="vstick-knob"></div></div>
+    <div class="vbtn" id="vb-grab">집기</div>
+    <div class="vbtn" id="vb-work">빚기</div>
+    <div class="vbtn" id="vb-dash">대시</div>
+    <div class="vbtn" id="vb-pause">⏸</div>
+  </div>
+  <div id="rotate-hint" class="hidden">📱↻<div>가로로 돌려서 빚어 주세요</div></div>
+</div>
+
+<script>window.MSP = { ASSETS: { mogu: "assets/mogu-face.png" } };</script>
+<script src="src/rng.js"></script>
+<script src="src/data.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/render.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
