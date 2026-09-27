@@ -99,6 +99,25 @@ const before = await page.evaluate(() => window.MSP._st().score);
 await stand(14, 3, 1, 0); await press(' ');
 check('출하 → 점수 오름', await page.evaluate((b) => window.MSP._st().score > b && window.MSP._st().served === 1, before));
 
+// ══ 2-1. 한글 입력 상태 (key 가 'ㅏ'·'ㅌ', code 는 KeyK·KeyX) 에서도 빚기 ══
+await page.evaluate(() => { const st = window.MSP._st(); st.p.held = { t: 'dough', c: 'white' }; st.grid[0][9].item = null; });
+await stand(9, 1, 0, -1);
+const kor = (type, key, code) => page.evaluate(([type, key, code]) => window.dispatchEvent(new KeyboardEvent(type, { key, code })), [type, key, code]);
+await kor('keydown', 'ㅏ', 'KeyK'); await page.waitForTimeout(1500); await kor('keyup', 'ㅏ', 'KeyK');
+check('한글 자판 K(ㅏ) 꾹 → 들고 있던 반죽이 도마에서 피로', await page.evaluate(() => window.MSP._st().grid[0][9].item?.t === 'skin' && !window.MSP._st().p.held));
+await page.evaluate(() => { window.MSP._st().grid[0][9].item.fill = 'sesame'; });
+await kor('keydown', 'ㅌ', 'KeyX'); await page.waitForTimeout(1200); await kor('keyup', 'ㅌ', 'KeyX');
+check('한글 자판 X(ㅌ) 꾹 → 반달 접기', await page.evaluate(() => window.MSP._st().grid[0][9].item?.t === 'raw'));
+await page.evaluate(() => { window.MSP._st().grid[0][9].item = null; });
+await stand(1, 1, 0, -1);
+await kor('keydown', ' ', 'Space'); await kor('keyup', ' ', 'Space'); await page.waitForTimeout(80);
+check('한글 상태 Space 집기', (await held()) === 'dough');
+await page.evaluate(() => { window.MSP._st().p.held = null; });
+await stand(7, 5, 0, 1);
+await kor('keydown', 'ㅏ', 'KeyK'); await page.waitForTimeout(120);
+await page.screenshot({ path: join(shots, 'shot-hint.png') });
+await kor('keyup', 'ㅏ', 'KeyK');
+
 // ══ 3. 이동 · 대시 (키 입력) ══
 await stand(7, 5, 0, 1);
 const x0 = await page.evaluate(() => window.MSP._st().p.x);

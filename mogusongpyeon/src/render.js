@@ -36,7 +36,7 @@ const R = {
   event(e, st) {
     const at = e.c !== undefined ? this.tileCenter(e.c, e.r) : [st.p.x, st.p.y + M.HUD];
     switch (e.type) {
-      case 'knead': this.puff(at[0], at[1] - 6, 'rgba(255,255,255,.8)', 2, 40, 0.4, 20); break;
+      case 'knead': this.puff(at[0], at[1] - 6, 'rgba(255,255,255,.8)', 3, 50, 0.4, 20); if (Math.random() < 0.5) this.pop(at[0] + 18, at[1] - 22, '꾹', '#fff3d6', 15, 0.5); break;
       case 'skin-done': case 'fold-done': this.puff(at[0], at[1] - 8, 'rgba(255,255,255,.9)', 7, 60, 0.5, 20); break;
       case 'cooked': this.pop(at[0], at[1] - 30, '익었다!', '#fff6b0', 17); break;
       case 'burnt': this.pop(at[0], at[1] - 30, '탔다…', '#ff7a5c', 18); this.puff(at[0], at[1] - 10, 'rgba(40,40,40,.7)', 10, 30, 1.2, 40); break;
@@ -50,6 +50,11 @@ const R = {
       case 'shoo': this.pop(e.x, e.y + M.HUD - 40, '훠이! +' + M.SHOO_BONUS, '#bff28a', 20); this.puff(e.x, e.y + M.HUD, '#b98b5c', 8, 90, 0.5, 0); break;
       case 'kiwi-in': if (st.door) { const d = this.tileCenter(st.door.c, st.door.r); this.pop(d[0] + 40, d[1] - 34, '키위 출몰!', '#ffe0b0', 17); } break;
       case 'dash': this.puff(st.p.x - st.p.fx * 16, st.p.y + M.HUD + 12, 'rgba(255,255,255,.6)', 5, 30, 0.35, 0); break;
+      case 'work-hint': {
+        const msg = { 'no-board': '빚기는 도마 앞에서! (도마를 바라보기)', 'face-board': '도마 쪽을 바라보고 빚어요',
+          empty: '도마에 반죽을 먼저 올려요', 'need-fill': '소를 먼저 얹어야 접을 수 있어요', done: '다 빚었어요 — 집어서 다음 단계로' }[e.why];
+        this.pop(st.p.x, st.p.y + M.HUD - 56, msg, '#fff3d6', 17, 1.6); break;
+      }
       case 'trash': this.puff(at[0], at[1] - 10, 'rgba(120,120,120,.6)', 5, 40, 0.5, 20); break;
     }
   },
@@ -254,8 +259,8 @@ const R = {
     if (t.item) this.item(g, t.item, cx, cy, 1, now);
     if (t.kind === 'board' && t.work > 0 && t.item) {
       const need = t.item.t === 'dough' ? M.KNEAD_T : M.FOLD_T;
-      g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x + 8, y - 4, T - 16, 7);
-      g.fillStyle = '#6fd36a'; g.fillRect(x + 9, y - 3, (T - 18) * Math.min(1, t.work / need), 5);
+      g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.roundRect(x + 2, y - 10, T - 4, 12, 5); g.fill();
+      g.fillStyle = '#6fd36a'; g.beginPath(); g.roundRect(x + 4, y - 8, (T - 8) * Math.min(1, t.work / need), 8, 4); g.fill();
     }
   },
 

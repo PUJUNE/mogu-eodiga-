@@ -241,7 +241,7 @@ M.STAGES = [
       '#..............#',
       '####S###########',
     ],
-    tips: ['반죽 통에서 반죽을 집어 도마에 올려요', '도마 앞에서 빚기 키를 꾹 → 송편피', '깨 소를 피에 얹고 다시 빚기 → 반달 접기',
+    tips: ['반죽 통에서 반죽을 집어 도마로 가요', '도마를 바라보고 빚기 키(K·X)를 꾹 → 송편피', '깨 소를 피에 얹고 다시 빚기 → 반달 접기',
       '솔잎 찜기에 넣고 익으면 접시에 담아 출하!'],
   },
   {
@@ -536,15 +536,22 @@ function interact(st) {
 }
 
 // 도마 작업 — 반죽을 꾹꾹 눌러 피로, 소 넣은 피를 반달로 접는다
-function work(st, dt) {
-  const tile = facingTile(st);
-  st.p.working = false;
-  if (!tile || tile.kind !== 'board' || !tile.item) return;
+// 누른 순간(edge)에 빚을 게 없으면 이유를 알려 준다. 반죽·소 넣은 피를 든 채 빈 도마를 보면 올려놓고 바로 빚는다.
+const kneadable = (it) => it && (it.t === 'dough' || (it.t === 'skin' && it.fill));
+function work(st, dt, edge) {
+  const tile = facingTile(st), p = st.p;
+  p.working = false;
+  const hint = (why) => { if (edge) st.events.push({ type: 'work-hint', why }); };
+  if (!tile || tile.kind !== 'board') { hint(p.held && kneadable(p.held) ? 'face-board' : 'no-board'); return; }
+  if (!tile.item && kneadable(p.held)) {
+    tile.item = p.held; tile.work = 0; p.held = null;
+    st.events.push({ type: 'place', c: tile.c, r: tile.r });
+  }
   const it = tile.item;
   let need = 0;
-  if (it.t === 'dough') need = M.KNEAD_T;
-  else if (it.t === 'skin' && it.fill) need = M.FOLD_T;
-  if (!need) return;
+  if (it && it.t === 'dough') need = M.KNEAD_T;
+  else if (it && it.t === 'skin' && it.fill) need = M.FOLD_T;
+  if (!need) { hint(!it ? 'empty' : it.t === 'skin' ? 'need-fill' : 'done'); return; }
   st.p.working = true;
   tile.work += dt;
   st.p.workTick -= dt;
@@ -684,7 +691,7 @@ function step(st, dt, input) {
   collide(st, p);
 
   if (input.grab) interact(st);
-  if (input.work) work(st, dt); else p.working = false;
+  if (input.work) work(st, dt, !!input.workEdge); else p.working = false;
 
   // 찜기
   const burnAt = M.COOK_T + M.BURN_T * st.D.burn;
@@ -787,7 +794,7 @@ const R = {
   event(e, st) {
     const at = e.c !== undefined ? this.tileCenter(e.c, e.r) : [st.p.x, st.p.y + M.HUD];
     switch (e.type) {
-      case 'knead': this.puff(at[0], at[1] - 6, 'rgba(255,255,255,.8)', 2, 40, 0.4, 20); break;
+      case 'knead': this.puff(at[0], at[1] - 6, 'rgba(255,255,255,.8)', 3, 50, 0.4, 20); if (Math.random() < 0.5) this.pop(at[0] + 18, at[1] - 22, '꾹', '#fff3d6', 15, 0.5); break;
       case 'skin-done': case 'fold-done': this.puff(at[0], at[1] - 8, 'rgba(255,255,255,.9)', 7, 60, 0.5, 20); break;
       case 'cooked': this.pop(at[0], at[1] - 30, '익었다!', '#fff6b0', 17); break;
       case 'burnt': this.pop(at[0], at[1] - 30, '탔다…', '#ff7a5c', 18); this.puff(at[0], at[1] - 10, 'rgba(40,40,40,.7)', 10, 30, 1.2, 40); break;
@@ -801,6 +808,11 @@ const R = {
       case 'shoo': this.pop(e.x, e.y + M.HUD - 40, '훠이! +' + M.SHOO_BONUS, '#bff28a', 20); this.puff(e.x, e.y + M.HUD, '#b98b5c', 8, 90, 0.5, 0); break;
       case 'kiwi-in': if (st.door) { const d = this.tileCenter(st.door.c, st.door.r); this.pop(d[0] + 40, d[1] - 34, '키위 출몰!', '#ffe0b0', 17); } break;
       case 'dash': this.puff(st.p.x - st.p.fx * 16, st.p.y + M.HUD + 12, 'rgba(255,255,255,.6)', 5, 30, 0.35, 0); break;
+      case 'work-hint': {
+        const msg = { 'no-board': '빚기는 도마 앞에서! (도마를 바라보기)', 'face-board': '도마 쪽을 바라보고 빚어요',
+          empty: '도마에 반죽을 먼저 올려요', 'need-fill': '소를 먼저 얹어야 접을 수 있어요', done: '다 빚었어요 — 집어서 다음 단계로' }[e.why];
+        this.pop(st.p.x, st.p.y + M.HUD - 56, msg, '#fff3d6', 17, 1.6); break;
+      }
       case 'trash': this.puff(at[0], at[1] - 10, 'rgba(120,120,120,.6)', 5, 40, 0.5, 20); break;
     }
   },
@@ -1005,8 +1017,8 @@ const R = {
     if (t.item) this.item(g, t.item, cx, cy, 1, now);
     if (t.kind === 'board' && t.work > 0 && t.item) {
       const need = t.item.t === 'dough' ? M.KNEAD_T : M.FOLD_T;
-      g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(x + 8, y - 4, T - 16, 7);
-      g.fillStyle = '#6fd36a'; g.fillRect(x + 9, y - 3, (T - 18) * Math.min(1, t.work / need), 5);
+      g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.roundRect(x + 2, y - 10, T - 4, 12, 5); g.fill();
+      g.fillStyle = '#6fd36a'; g.beginPath(); g.roundRect(x + 4, y - 8, (T - 8) * Math.min(1, t.work / need), 8, 4); g.fill();
     }
   },
 
@@ -1386,7 +1398,7 @@ let mode = 'title';            // title | play | pause | result
 let st = null;
 let tipIdx = 0, tipAt = 0;
 const held = { up: false, down: false, left: false, right: false, work: false };
-const edge = { grab: false, dash: false };
+const edge = { grab: false, dash: false, work: false };
 const stick = { x: 0, y: 0 };
 
 M.save.load();
@@ -1456,6 +1468,7 @@ function handleEvents(evs) {
       case 'shoo': A.shoo(); break;
       case 'dash': A.dash(); break;
       case 'trash': A.trash(); break;
+      case 'work-hint': A.bump(); break;
       case 'hurry': A.hurry(); M.Render.pop(M.W / 2, M.HUD + 250, '마감 30초 전!', '#ff9a6a', 30); break;
       case 'end': A.end(); M.Render.pop(M.W / 2, M.HUD + 250, '영업 종료!', '#fff3d6', 40); finish(); break;
     }
@@ -1463,16 +1476,24 @@ function handleEvents(evs) {
 }
 
 // ── 키보드 ──
+// 글자 키는 e.code(자판 위치)로 읽는다 — 한글 입력 상태면 e.key 가 'ㅏ'·'ㅌ' 로 들어와 K·X 가 안 먹는다
+const keyOf = (e) => {
+  if (/^Key[A-Z]$/.test(e.code)) return e.code.slice(3).toLowerCase();
+  if (e.code === 'Space') return ' ';
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') return 'Shift';
+  if (e.code === 'ControlLeft' || e.code === 'ControlRight') return 'Control';
+  return e.key;
+};
 const KEYMAP = {
-  ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down',
-  ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right',
-  k: 'work', K: 'work', x: 'work', X: 'work', Control: 'work',
+  ArrowUp: 'up', w: 'up', ArrowDown: 'down', s: 'down',
+  ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right',
+  k: 'work', x: 'work', Control: 'work',
 };
 window.addEventListener('keydown', (e) => {
   M.audio.resume();
-  const k = e.key;
+  const k = keyOf(e);
   if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
-  if (KEYMAP[k]) held[KEYMAP[k]] = true;
+  if (KEYMAP[k]) { if (KEYMAP[k] === 'work' && !held.work) edge.work = true; held[KEYMAP[k]] = true; }
 
   if (mode === 'title') {
     if (k === 'Enter' || k === ' ') startRun();
@@ -1498,7 +1519,7 @@ window.addEventListener('keydown', (e) => {
     if (k === 'Escape') toTitle();
   }
 });
-window.addEventListener('keyup', (e) => { if (KEYMAP[e.key]) held[KEYMAP[e.key]] = false; });
+window.addEventListener('keyup', (e) => { const k = keyOf(e); if (KEYMAP[k]) held[KEYMAP[k]] = false; });
 window.addEventListener('blur', () => { for (const k in held) held[k] = false; });
 
 $('btn-start').onclick = () => startRun();
@@ -1543,7 +1564,7 @@ if (isTouch) {
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('pointerleave', up);
   };
   bind('vb-grab', () => { edge.grab = true; });
-  bind('vb-work', () => { held.work = true; }, () => { held.work = false; });
+  bind('vb-work', () => { edge.work = true; held.work = true; }, () => { held.work = false; });
   bind('vb-dash', () => { edge.dash = true; });
   $('vb-pause').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); pause(); });
   document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
@@ -1572,8 +1593,8 @@ function frame(now) {
   if (st && mode === 'play') {
     const mx = (held.right ? 1 : 0) - (held.left ? 1 : 0) + stick.x;
     const my = (held.down ? 1 : 0) - (held.up ? 1 : 0) + stick.y;
-    handleEvents(M.Logic.step(st, dt, { mx, my, grab: edge.grab, dash: edge.dash, work: held.work }));
-    edge.grab = edge.dash = false;
+    handleEvents(M.Logic.step(st, dt, { mx, my, grab: edge.grab, dash: edge.dash, work: held.work, workEdge: edge.work }));
+    edge.grab = edge.dash = edge.work = false;
     // 1호점 안내 — 처음 몇 번은 공정을 순서대로 띄운다
     if (st.S.tips && tipIdx < st.S.tips.length && st.t >= tipAt) {
       M.Render.pop(M.W / 2, M.HUD + 200, st.S.tips[tipIdx], '#fff3d6', 22, 3.4);

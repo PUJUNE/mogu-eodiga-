@@ -195,15 +195,22 @@ function interact(st) {
 }
 
 // 도마 작업 — 반죽을 꾹꾹 눌러 피로, 소 넣은 피를 반달로 접는다
-function work(st, dt) {
-  const tile = facingTile(st);
-  st.p.working = false;
-  if (!tile || tile.kind !== 'board' || !tile.item) return;
+// 누른 순간(edge)에 빚을 게 없으면 이유를 알려 준다. 반죽·소 넣은 피를 든 채 빈 도마를 보면 올려놓고 바로 빚는다.
+const kneadable = (it) => it && (it.t === 'dough' || (it.t === 'skin' && it.fill));
+function work(st, dt, edge) {
+  const tile = facingTile(st), p = st.p;
+  p.working = false;
+  const hint = (why) => { if (edge) st.events.push({ type: 'work-hint', why }); };
+  if (!tile || tile.kind !== 'board') { hint(p.held && kneadable(p.held) ? 'face-board' : 'no-board'); return; }
+  if (!tile.item && kneadable(p.held)) {
+    tile.item = p.held; tile.work = 0; p.held = null;
+    st.events.push({ type: 'place', c: tile.c, r: tile.r });
+  }
   const it = tile.item;
   let need = 0;
-  if (it.t === 'dough') need = M.KNEAD_T;
-  else if (it.t === 'skin' && it.fill) need = M.FOLD_T;
-  if (!need) return;
+  if (it && it.t === 'dough') need = M.KNEAD_T;
+  else if (it && it.t === 'skin' && it.fill) need = M.FOLD_T;
+  if (!need) { hint(!it ? 'empty' : it.t === 'skin' ? 'need-fill' : 'done'); return; }
   st.p.working = true;
   tile.work += dt;
   st.p.workTick -= dt;
@@ -343,7 +350,7 @@ function step(st, dt, input) {
   collide(st, p);
 
   if (input.grab) interact(st);
-  if (input.work) work(st, dt); else p.working = false;
+  if (input.work) work(st, dt, !!input.workEdge); else p.working = false;
 
   // 찜기
   const burnAt = M.COOK_T + M.BURN_T * st.D.burn;

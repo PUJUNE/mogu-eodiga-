@@ -99,6 +99,26 @@ M.STAGES.forEach((S, i) => {
   check('구멍 난 송편은 주문으로 안 받는다', ev.some((e) => e.type === 'wrong' && e.hole) && st.orders.length === 1);
 }
 
+// ══ 3-1. 빚기 키 편의: 반죽을 든 채 빈 도마 → 올리고 바로 빚기 · 못 빚으면 이유 안내 ══
+{
+  const st = L.create(4, 0, 'normal');
+  st.nextOrderAt = 999;
+  st.p.held = { t: 'dough', c: 'white' };
+  place(st, 9, 1, 0, -1);
+  const ev0 = L.step(st, 1 / 60, { mx: 0, my: 0, work: true, workEdge: true });
+  const board = L.tileAt(st, 9, 0);
+  check('반죽을 든 채 빚기 → 도마에 올라감', !st.p.held && board.item && board.item.t === 'dough' && ev0.some((e) => e.type === 'place'));
+  run(st, 1.3, { mx: 0, my: 0, work: true });
+  check('그대로 꾹 누르면 송편피', board.item.t === 'skin');
+  const ev1 = L.step(st, 1 / 60, { mx: 0, my: 0, work: true, workEdge: true });
+  check('소 없는 피에 빚기 → "소를 먼저" 안내', ev1.some((e) => e.type === 'work-hint' && e.why === 'need-fill'));
+  place(st, 7, 5, 0, 1);
+  const ev2 = L.step(st, 1 / 60, { mx: 0, my: 0, work: true, workEdge: true });
+  check('도마 아닌 곳에서 빚기 → 안내', ev2.some((e) => e.type === 'work-hint' && e.why === 'no-board'));
+  const ev3 = L.step(st, 1 / 60, { mx: 0, my: 0, work: true });
+  check('안내는 누른 순간 한 번만', !ev3.some((e) => e.type === 'work-hint'));
+}
+
 // ══ 4. 주문 시간 초과 · 콤보 ══
 {
   const st = L.create(5, 1, 'normal');

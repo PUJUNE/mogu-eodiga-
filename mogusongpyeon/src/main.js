@@ -6,7 +6,7 @@ let mode = 'title';            // title | play | pause | result
 let st = null;
 let tipIdx = 0, tipAt = 0;
 const held = { up: false, down: false, left: false, right: false, work: false };
-const edge = { grab: false, dash: false };
+const edge = { grab: false, dash: false, work: false };
 const stick = { x: 0, y: 0 };
 
 M.save.load();
@@ -76,6 +76,7 @@ function handleEvents(evs) {
       case 'shoo': A.shoo(); break;
       case 'dash': A.dash(); break;
       case 'trash': A.trash(); break;
+      case 'work-hint': A.bump(); break;
       case 'hurry': A.hurry(); M.Render.pop(M.W / 2, M.HUD + 250, '마감 30초 전!', '#ff9a6a', 30); break;
       case 'end': A.end(); M.Render.pop(M.W / 2, M.HUD + 250, '영업 종료!', '#fff3d6', 40); finish(); break;
     }
@@ -83,16 +84,24 @@ function handleEvents(evs) {
 }
 
 // ── 키보드 ──
+// 글자 키는 e.code(자판 위치)로 읽는다 — 한글 입력 상태면 e.key 가 'ㅏ'·'ㅌ' 로 들어와 K·X 가 안 먹는다
+const keyOf = (e) => {
+  if (/^Key[A-Z]$/.test(e.code)) return e.code.slice(3).toLowerCase();
+  if (e.code === 'Space') return ' ';
+  if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') return 'Shift';
+  if (e.code === 'ControlLeft' || e.code === 'ControlRight') return 'Control';
+  return e.key;
+};
 const KEYMAP = {
-  ArrowUp: 'up', w: 'up', W: 'up', ArrowDown: 'down', s: 'down', S: 'down',
-  ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right',
-  k: 'work', K: 'work', x: 'work', X: 'work', Control: 'work',
+  ArrowUp: 'up', w: 'up', ArrowDown: 'down', s: 'down',
+  ArrowLeft: 'left', a: 'left', ArrowRight: 'right', d: 'right',
+  k: 'work', x: 'work', Control: 'work',
 };
 window.addEventListener('keydown', (e) => {
   M.audio.resume();
-  const k = e.key;
+  const k = keyOf(e);
   if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(k)) e.preventDefault();
-  if (KEYMAP[k]) held[KEYMAP[k]] = true;
+  if (KEYMAP[k]) { if (KEYMAP[k] === 'work' && !held.work) edge.work = true; held[KEYMAP[k]] = true; }
 
   if (mode === 'title') {
     if (k === 'Enter' || k === ' ') startRun();
@@ -118,7 +127,7 @@ window.addEventListener('keydown', (e) => {
     if (k === 'Escape') toTitle();
   }
 });
-window.addEventListener('keyup', (e) => { if (KEYMAP[e.key]) held[KEYMAP[e.key]] = false; });
+window.addEventListener('keyup', (e) => { const k = keyOf(e); if (KEYMAP[k]) held[KEYMAP[k]] = false; });
 window.addEventListener('blur', () => { for (const k in held) held[k] = false; });
 
 $('btn-start').onclick = () => startRun();
@@ -163,7 +172,7 @@ if (isTouch) {
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('pointerleave', up);
   };
   bind('vb-grab', () => { edge.grab = true; });
-  bind('vb-work', () => { held.work = true; }, () => { held.work = false; });
+  bind('vb-work', () => { edge.work = true; held.work = true; }, () => { held.work = false; });
   bind('vb-dash', () => { edge.dash = true; });
   $('vb-pause').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); pause(); });
   document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
@@ -192,8 +201,8 @@ function frame(now) {
   if (st && mode === 'play') {
     const mx = (held.right ? 1 : 0) - (held.left ? 1 : 0) + stick.x;
     const my = (held.down ? 1 : 0) - (held.up ? 1 : 0) + stick.y;
-    handleEvents(M.Logic.step(st, dt, { mx, my, grab: edge.grab, dash: edge.dash, work: held.work }));
-    edge.grab = edge.dash = false;
+    handleEvents(M.Logic.step(st, dt, { mx, my, grab: edge.grab, dash: edge.dash, work: held.work, workEdge: edge.work }));
+    edge.grab = edge.dash = edge.work = false;
     // 1호점 안내 — 처음 몇 번은 공정을 순서대로 띄운다
     if (st.S.tips && tipIdx < st.S.tips.length && st.t >= tipAt) {
       M.Render.pop(M.W / 2, M.HUD + 200, st.S.tips[tipIdx], '#fff3d6', 22, 3.4);
