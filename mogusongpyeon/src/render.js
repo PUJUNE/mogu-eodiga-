@@ -20,7 +20,34 @@ const R = {
     };
     window.addEventListener('resize', fit); fit();
   },
-  reset() { this.pops = []; this.parts = []; this.shake = 0; },
+  reset() { this.pops = []; this.parts = []; this.shake = 0; this.note = null; },
+
+  // 안내 알림판 — 주방 위쪽 가운데에 큼직하게, 같은 문구를 또 누르면 시간만 늘린다
+  note: null,
+  notice(text, bad = false) {
+    if (this.note && this.note.text === text) { this.note.t = Math.min(this.note.t, 0.25); return; }
+    this.note = { text, bad, t: 0, life: 2.6 };
+  },
+  drawNotice(g, dt) {
+    const n = this.note;
+    if (!n) return;
+    n.t += dt;
+    if (n.t >= n.life) { this.note = null; return; }
+    const a = Math.min(1, n.t / 0.12, (n.life - n.t) / 0.35);
+    const pop = n.t < 0.15 ? 1 + (0.15 - n.t) * 1.2 : 1;
+    g.save(); g.globalAlpha = a;
+    g.font = '900 26px sans-serif';
+    const w = g.measureText(n.text).width + 70, h = 50, x = M.W / 2, y = M.HUD + 44;
+    g.translate(x, y); g.scale(pop, pop);
+    g.fillStyle = n.bad ? 'rgba(120,28,18,.93)' : 'rgba(40,24,14,.92)';
+    g.beginPath(); g.roundRect(-w / 2, -h / 2, w, h, 14); g.fill();
+    g.lineWidth = 3; g.strokeStyle = n.bad ? '#ff8a6a' : '#ffd35c'; g.stroke();
+    g.fillStyle = n.bad ? '#ff8a6a' : '#ffd35c';
+    g.beginPath(); g.arc(-w / 2 + 26, 0, 12, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#2a1a10'; g.font = '900 18px sans-serif'; g.textAlign = 'center'; g.fillText('!', -w / 2 + 26, 6);
+    g.fillStyle = '#fff'; g.font = '900 26px sans-serif'; g.fillText(n.text, 14, 9);
+    g.restore();
+  },
 
   // ── 효과 ──
   pop(x, y, text, col = '#fff', size = 22, life = 1.3) { this.pops.push({ x, y, text, col, size, t: 0, life }); },
@@ -43,16 +70,16 @@ const R = {
       case 'serve':
         this.pop(M.W - 150, M.HUD + 40, `+${e.pts}` + (e.combo > 1 ? `  콤보 x${e.combo}` : ''), '#ffe45c', 26);
         this.puff(at[0], at[1], '#ffd35c', 12, 120, 0.7, 10); break;
-      case 'wrong': this.pop(st.p.x, st.p.y + M.HUD - 50, e.hole ? '구멍 송편은 못 팔아요!' : '주문에 없는 접시!', '#ff8a6a', 18); this.shake = 0.25; break;
+      case 'wrong': this.notice(e.hole ? '구멍 난 송편은 못 팔아요 — 버리고 다시!' : '주문에 없는 접시예요 — 주문표를 확인해요', true); this.shake = 0.25; break;
       case 'plate-hint': {
         const msg = { 'not-cooked': '아직 안 쪘어요 — 솔잎 찜기에 먼저', burnt: '탄 송편은 쓰레기통으로!',
           'plate-full': '접시가 꽉 찼어요 (3개까지)', 'not-song': '접시엔 다 찐 송편만 올려요', 'full-hands': '손에 접시가 이미 있어요' }[e.why];
-        this.pop(st.p.x, st.p.y + M.HUD - 56, msg, '#fff3d6', 17, 1.6); break;
+        this.notice(msg); break;
       }
       case 'serve-hint': {
         const msg = { 'empty-plate': '빈 접시예요 — 찜기에서 송편을 담아 와요', burnt: '탄 송편은 쓰레기통으로!',
           'not-cooked': '아직 안 쪘어요 — 솔잎 찜기에 먼저 넣어요' }[e.why];
-        this.pop(st.p.x, st.p.y + M.HUD - 56, msg, '#fff3d6', 17, 1.6); break;
+        this.notice(msg); break;
       }
       case 'miss': this.pop(480, M.HUD + 30, '주문을 놓쳤어요 -' + M.PENALTY_MISS, '#ff8a6a', 20); this.shake = 0.2; break;
       case 'peck': this.pop(at[0], at[1] - 30, '콕! 구멍', '#ffb08a', 17); break;
@@ -62,7 +89,7 @@ const R = {
       case 'work-hint': {
         const msg = { 'no-board': '빚기는 도마 앞에서! (도마를 바라보기)', 'face-board': '도마 쪽을 바라보고 빚어요',
           empty: '도마에 반죽을 먼저 올려요', 'need-fill': '소를 먼저 얹어야 접을 수 있어요', done: '다 빚었어요 — 집어서 다음 단계로' }[e.why];
-        this.pop(st.p.x, st.p.y + M.HUD - 56, msg, '#fff3d6', 17, 1.6); break;
+        this.notice(msg); break;
       }
       case 'trash': this.puff(at[0], at[1] - 10, 'rgba(120,120,120,.6)', 5, 40, 0.5, 20); break;
     }
@@ -108,11 +135,20 @@ const R = {
         }
         break;
       }
-      case 'raw': {
+      case 'raw': {                          // 찌기 전 — 흐리고 가루 묻은, 점선 테두리
         const D = M.DOUGHS[it.c];
+        g.save(); g.globalAlpha = 0.72;
         this.songShape(g, x, y, s, D.col, D.edge);
-        g.beginPath(); g.moveTo(x - 9 * s, y - 3 * s); g.quadraticCurveTo(x, y - 9 * s, x + 9 * s, y - 3 * s);
-        g.strokeStyle = D.edge; g.lineWidth = 1 * s; g.stroke();
+        g.restore();
+        g.save(); g.setLineDash([3 * s, 2.5 * s]);
+        this.songShape(g, x, y, s, 'rgba(255,255,255,.35)', '#7a6a55');
+        g.restore();
+        g.fillStyle = 'rgba(255,255,255,.9)';
+        for (const [ox, oy] of [[-6, -2], [-1, -5], [5, -1], [2, 3], [-4, 3]]) { g.beginPath(); g.arc(x + ox * s, y + oy * s, 1.1 * s, 0, TAU); g.fill(); }
+        if (s >= 0.9) {                             // 들고 있거나 조리대 위면 '생' 꼬리표
+          g.fillStyle = 'rgba(90,70,55,.9)'; g.beginPath(); g.roundRect(x - 22, y - 22, 17, 15, 4); g.fill();
+          g.fillStyle = '#fff'; g.font = 'bold 11px sans-serif'; g.textAlign = 'center'; g.fillText('생', x - 13.5, y - 11);
+        }
         this.badge(g, x + 12 * s, y + 6 * s, it.f, s * 0.9);
         break;
       }
@@ -122,6 +158,13 @@ const R = {
         g.beginPath(); g.ellipse(x - 4 * s, y - 4 * s, 5 * s, 2.2 * s, -0.4, 0, TAU); g.fillStyle = 'rgba(255,255,255,.55)'; g.fill();
         g.strokeStyle = 'rgba(70,110,50,.55)'; g.lineWidth = 0.9 * s;       // 솔잎 자국
         for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(x - 6 * s + i * 5 * s, y + 3 * s); g.lineTo(x - 2 * s + i * 5 * s, y - 2 * s); g.stroke(); }
+        if (s >= 0.9 && !it.hole) {                 // 갓 쪄서 김이 오른다
+          g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = 1.6;
+          for (const ox of [-5, 4]) {
+            const w = Math.sin(now * 5 + ox) * 2;
+            g.beginPath(); g.moveTo(x + ox * s, y - 10 * s); g.quadraticCurveTo(x + (ox + 4) * s + w, y - 15 * s, x + ox * s, y - 20 * s); g.stroke();
+          }
+        }
         if (it.hole) {
           g.beginPath(); g.arc(x + 3 * s, y - 2 * s, 3.2 * s, 0, TAU); g.fillStyle = '#3a2418'; g.fill();
           g.lineWidth = 1; g.strokeStyle = D.edge; g.stroke();
@@ -439,6 +482,7 @@ const R = {
     this.pops = this.pops.filter((q) => q.t < q.life);
     g.restore();
     this.hud(g, st, now);
+    this.drawNotice(g, dt);
   },
 };
 

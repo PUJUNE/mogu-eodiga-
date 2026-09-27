@@ -118,6 +118,19 @@ await kor('keydown', 'ㅏ', 'KeyK'); await page.waitForTimeout(120);
 await page.screenshot({ path: join(shots, 'shot-hint.png') });
 await kor('keyup', 'ㅏ', 'KeyK');
 
+// ══ 2-2. 안 찐 송편을 접시 더미에 → 큰 알림판 · 생송편/찐 송편 구분 ══
+await page.evaluate(() => {
+  const st = window.MSP._st();
+  st.grid[3][5].item = { t: 'raw', c: 'white', f: 'sesame' };
+  st.grid[3][6].item = { t: 'song', c: 'white', f: 'sesame', hole: false };
+  st.p.held = { t: 'raw', c: 'white', f: 'sesame' };
+});
+await stand(1, 3, -1, 0); await press(' ');
+await page.waitForTimeout(250);
+check('안 찐 송편 → 알림판 표시', await page.evaluate(() => window.MSP.Render.note && window.MSP.Render.note.text.includes('안 쪘어요')));
+await page.screenshot({ path: join(shots, 'shot-notice.png') });
+await page.evaluate(() => { const st = window.MSP._st(); st.p.held = null; st.grid[3][5].item = null; st.grid[3][6].item = null; });
+
 // ══ 3. 이동 · 대시 (키 입력) ══
 await stand(7, 5, 0, 1);
 const x0 = await page.evaluate(() => window.MSP._st().p.x);
