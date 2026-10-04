@@ -666,32 +666,35 @@ M.Render = {
     for (let k = 0; k < 2; k++) { line(c, 210, 60 + k * 26, -10, 110 + k * 40, 1.8, 3); line(c, 210, 60 + k * 26, 430, 110 + k * 40, 1.8, 3); }
     line(c, 210, 132, -10, 196, 2, 3); line(c, 210, 132, 430, 196, 2, 3);
     c.globalAlpha = 1;
-    const mk = (id, x, face, side) => ({ id, def: M.FIGHTERS[id], x, y: 0, face, side, state: 'idle', stT: now, inp: {}, vy: 0, vx: 0, invuln: 0 });
-    const a = mk('mogu', 130, 1, 0), b = mk('bboy', 290, -1, 1);
+    const mk = (id, x, face, side) => ({ id, def: Object.assign({}, M.FIGHTERS[id], { ink: side === 0 ? M.INK_P : M.INK_O }), x, y: 0, face, side, state: 'idle', stT: now, inp: {}, vy: 0, vx: 0, invuln: 0 });
+    const a = mk(M.player, 130, 1, 0), b = mk(M.ladderFor(M.player)[0], 290, -1, 1);
     beginBoil(boil * 11 + 1);
     this.drawFighter(c, a, M.poseOf(a, now), { floor: 196, scale: 0.9 });
     beginBoil(boil * 11 + 7);
     this.drawFighter(c, b, M.poseOf(b, now), { floor: 196, scale: 0.9 });
   },
 
-  // ── 엔딩: 모구가 연필을 빼앗아 사범을 그린다 ──
-  drawEnding(now, t) {
+  // ── 엔딩: 승자(플레이어)가 연필을 빼앗아 마지막 도전자를 그린다 ──
+  drawEnding(now, t, st) {
     const c = this.ctx;
     const boil = Math.floor(now * BOIL_HZ);
+    const pid = st ? st.playerId : M.player;
+    const lastId = st ? st.ladder[st.ladder.length - 1] : M.ladderFor(pid)[M.LADDER.length - 1];
+    const me = M.FIGHTERS[pid], last = M.FIGHTERS[lastId];
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.drawImage(this.bg[boil % 3], 0, 0);
     c.setTransform(this.res, 0, 0, this.res, 0, 0);
     c.fillStyle = PAPER; c.globalAlpha = 0.75; c.fillRect(0, 0, W, H); c.globalAlpha = 1;
-    const mogu = { id: 'mogu', def: M.FIGHTERS.mogu, x: 310, y: 0, face: 1, side: 0, state: 'idle', stT: t, inp: {}, vy: 0, invuln: 0 };
+    const hero = { id: pid, def: Object.assign({}, me, { ink: M.INK_P }), x: 310, y: 0, face: 1, side: 0, state: 'idle', stT: t, inp: {}, vy: 0, invuln: 0 };
     beginBoil(boil * 3 + 1);
     const drawingPose = M.lerpPose(M.POSES.draw, M.POSES.push, 0.5 + 0.5 * Math.sin(t * 9));
-    this.drawFighter(c, mogu, t < 1.2 ? M.POSES.win : drawingPose, { pencil: true });
-    const sensei = { id: 'sensei', def: M.FIGHTERS.sensei, x: 640, y: 0, face: -1, side: 1, state: 'idle', stT: t, inp: {}, vy: 0, invuln: 0 };
+    this.drawFighter(c, hero, t < 1.2 ? M.POSES.win : drawingPose, { pencil: true });
+    const loser = { id: lastId, def: Object.assign({}, last, { ink: M.INK_O }), x: 640, y: 0, face: -1, side: 1, state: 'idle', stT: t, inp: {}, vy: 0, invuln: 0 };
     beginBoil(boil * 3 + 9);
     const limit = t < 1.2 ? 0 : Math.floor((t - 1.2) * 16);
-    this.drawFighter(c, sensei, M.POSES.hit, { limit, noShadow: true });
+    this.drawFighter(c, loser, M.POSES.hit, { limit, noShadow: true });
     beginBoil(boil * 7 + 4);
-    if (t > 0.2) sketchText(c, '연필은 이제 모구의 것!', W / 2, 110, 44, '#18181c', -0.03, 2.2);
-    if (t > 3.2) sketchText(c, '도전자 8명 격파 — 스케치 마스터 모구', W / 2, 160, 26, '#d6282e', 0, 1.6);
+    if (t > 0.2) sketchText(c, `연필은 이제 ${me.name}의 것!`, W / 2, 110, 44, '#18181c', -0.03, 2.2);
+    if (t > 3.2) sketchText(c, `도전자 8명 격파 — 스케치 마스터 ${me.name}`, W / 2, 160, 26, '#d6282e', 0, 1.6);
   },
 };

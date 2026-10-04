@@ -8,7 +8,8 @@ const BLOCKABLE_STATE = { idle: 1, walk: 1, crouch: 1, blockstun: 1 };
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 function mkFighter(id, side) {
-  const def = M.FIGHTERS[id];
+  // 잉크는 캐릭터가 아니라 진영이 정한다 — 플레이어는 검정, 도전자는 빨강 (모구가 도전자로 나와도 빨강)
+  const def = Object.assign({}, M.FIGHTERS[id], { ink: side === 0 ? M.INK_P : M.INK_O });
   return {
     id, def, side,
     x: M.START_X[side], y: 0, vx: 0, vy: 0, pushV: 0,
@@ -43,15 +44,19 @@ function matchCmd(f, t, seq) {
 }
 const CMD_FIREBALL = [['d', 'df', 'db'], ['f', 'df']];
 const CMD_CLAW = [['f'], ['d', 'df'], ['f', 'df']];
+const CMD_ERASER = [['d', 'df', 'db'], ['b', 'db']];       // ↓↙← + 강 = 세 번째 필살 (연필 사범 지우개 폭풍)
 
 M.Logic = {
-  create(seed, diff, stage) {
+  create(seed, diff, stage, playerId) {
     const idx = clamp(stage | 0, 0, M.LADDER.length - 1);
+    const pid = M.FIGHTERS[playerId || M.player] ? (playerId || M.player) : M.PLAYER;
+    const ladder = M.ladderFor(pid);
     const st = {
       rng: M.makeRng((seed >>> 0) || 20260915),
       diff: M.DIFFS[diff] ? diff : 'normal',
-      stage: idx, oppId: M.LADDER[idx],
-      p: [mkFighter(M.PLAYER, 0), mkFighter(M.LADDER[idx], 1)],
+      playerId: pid, ladder,
+      stage: idx, oppId: ladder[idx],
+      p: [mkFighter(pid, 0), mkFighter(ladder[idx], 1)],
       phase: 'intro', phaseT: 0, introLen: M.INTRO_FIRST,
       round: 1, wins: [0, 0], roundWinner: null, winner: null,
       timer: M.ROUND_TIME, t: 0, hitstop: 0,
@@ -216,6 +221,7 @@ M.Logic = {
         if (pressed.sp1 && f.def.sp1) { this.startSpecial(st, f, o, 'sp1', ev); return; }
         if (pressed.grab) { this.startMove(st, f, o, 'grab', ev); return; }
         // 커맨드 필살
+        if (pressed.hp && f.def.sp3 && matchCmd(f, t, CMD_ERASER)) { this.startSpecial(st, f, o, 'sp3', ev); return; }
         if (pressed.hp && f.def.sp2 && matchCmd(f, t, CMD_CLAW)) { this.startSpecial(st, f, o, 'sp2', ev); return; }
         if (pressed.lp && f.def.sp1 && matchCmd(f, t, CMD_FIREBALL)) { this.startSpecial(st, f, o, 'sp1', ev); return; }
         if (pressed.lp && pressed.hp) { this.startMove(st, f, o, 'grab', ev); return; }

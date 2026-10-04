@@ -261,5 +261,56 @@ const idle = (st, sec, a, b) => play(st, [[a || {}, b || {}, Math.round(sec / DT
   check('크레이지 AI끼리 세 경기를 예외 없이 끝낸다', ok && ended);
 }
 
+// 19) 플레이어 캐릭터 선택 — 도전자 8명 중 누구로든 싸울 수 있고, 그 자리는 빨간 모구가 대신한다
+{
+  check('플레이 가능 캐릭터 9종 (모구 + 도전자 8)', M.PLAYABLE.length === 9 && M.PLAYABLE.every((id) => M.FIGHTERS[id]));
+  const st = L.create(1, 'normal', 0, 'ninja');
+  check('닌자 쥐를 고르면 플레이어가 닌자 쥐 · 첫 도전자는 그대로 후드 비보이 쥐', st.playerId === 'ninja' && st.p[0].id === 'ninja' && st.p[1].id === 'bboy');
+  check('잉크는 진영이 정한다 — 플레이어 검정, 도전자 빨강', st.p[0].def.ink === M.INK_P && st.p[1].def.ink === M.INK_O);
+  const lad = M.ladderFor('ninja');
+  check('닌자 쥐의 자리(6번째)는 모구가 대신 채운다', lad[5] === 'mogu' && lad.filter((id) => id === 'ninja').length === 0 && lad.length === 8);
+  check('모구를 고르면 사다리는 원래대로', M.ladderFor('mogu').join() === M.LADDER.join());
+  const mirror = L.create(2, 'normal', 5, 'ninja');
+  check('6번째 경기 = 빨간 잉크 모구와 거울전', mirror.p[1].id === 'mogu' && mirror.p[1].def.ink === M.INK_O && mirror.p[0].def.ink === M.INK_P);
+  check('잘못된 캐릭터 id는 모구로', L.create(3, 'normal', 0, 'nope').playerId === 'mogu');
+
+  // 닌자 쥐 플레이어: ↓→+약 = 수리검 3연 (플레이어도 도전자 필살 커맨드를 그대로 쓴다)
+  const s2 = L.create(4, 'normal', 0, 'ninja'); s2.phase = 'fight'; place(s2, 300, 620);
+  const ev2 = play(s2, [[{ down: true }, {}, 3], [{ down: true, right: true }, {}, 3], [{ right: true, lp: true }, {}, 2], [{}, {}, 40]]);
+  check('닌자 쥐 플레이어: ↓→+약 = 수리검 3연 발사', ev2.filter((e) => e.type === 'projectile' && e.side === 0 && e.kind === 'shuriken').length === 3);
+  // →↓↘+강 = 순간이동
+  const s3 = L.create(5, 'normal', 0, 'ninja'); s3.phase = 'fight'; place(s3, 300, 620);
+  const ev3 = play(s3, [[{ right: true }, {}, 3], [{ down: true }, {}, 3], [{ down: true, right: true }, {}, 2], [{ right: true, hp: true }, {}, 2], [{}, {}, 40]]);
+  check('닌자 쥐 플레이어: →↓↘+강 = 순간이동', ev3.some((e) => e.type === 'teleport' && e.side === 0));
+  // 연필 사범 플레이어: ↓↙←+강 = 지우개 폭풍 (세 번째 필살)
+  const s4 = L.create(6, 'normal', 0, 'sensei'); s4.phase = 'fight'; place(s4, 300, 620);
+  const ev4 = play(s4, [[{ down: true }, {}, 3], [{ down: true, left: true }, {}, 3], [{ left: true, hp: true }, {}, 2], [{}, {}, 40]]);
+  check('연필 사범 플레이어: ↓↙←+강 = 지우개 폭풍', ev4.some((e) => e.type === 'special' && e.side === 0 && e.kind === 'eraser'));
+  // 레슬러 쥐 플레이어: ↓→+약 = 파일 드라이버(커맨드 잡기), 근접 적중 대미지 180
+  const s5 = L.create(7, 'normal', 0, 'wrestler'); s5.phase = 'fight'; place(s5, 400, 456);
+  const ev5 = play(s5, [[{ down: true }, {}, 3], [{ down: true, right: true }, {}, 3], [{ right: true, lp: true }, {}, 2], [{}, {}, 60]]);
+  check('레슬러 쥐 플레이어: ↓→+약 = 파일 드라이버 (대미지 180)', ev5.some((e) => e.type === 'grab' && e.command && e.side === 0) && s5.p[1].hp === 900 - 180, `hp=${s5.p[1].hp}`);
+  // 초필살은 어느 캐릭터든 게이지 100에서 C
+  const s6 = L.create(8, 'normal', 0, 'sumo'); s6.phase = 'fight'; place(s6, 400, 470); s6.p[0].gauge = 100;
+  const ev6 = play(s6, [[{ su: true }, {}, 2], [{}, {}, 60]]);
+  check('스모 쥐 플레이어: 게이지 100 + C = 초필살 백 핸드 밀치기', ev6.some((e) => e.type === 'super' && e.side === 0) && s6.p[0].gauge < 100);
+
+  // 모든 캐릭터로 AI 대 AI 완주 (플레이어 자리도 AI가 조작) — 거울전 포함 예외 없이 끝난다
+  let ok = true, ended = 0;
+  try {
+    M.PLAYABLE.forEach((pid, k) => {
+      const idx = pid === 'mogu' ? 7 : M.LADDER.indexOf(pid);              // 자기 자리 = 모구와 거울전
+      const st2 = L.create(200 + k, 'hard', idx, pid);
+      const a0 = M.AI.create('hard', 11 + k), a1 = M.AI.create('hard', 12 + k);
+      for (let i = 0; i < 60 * 60 * 6 && st2.phase !== 'matchEnd'; i++) {
+        L.step(st2, DT, [M.AI.think(a0, st2, 0, DT), M.AI.think(a1, st2, 1, DT)]);
+        for (const f of st2.p) if (!Number.isFinite(f.x) || !Number.isFinite(f.y) || f.hp < 0) ok = false;
+      }
+      if (st2.phase === 'matchEnd') ended++; else ok = false;
+    });
+  } catch (e) { ok = false; console.log(e); }
+  check(`9종 플레이어 거울전을 AI끼리 예외 없이 끝낸다 (${ended}/9)`, ok && ended === 9);
+}
+
 console.log(fail === 0 ? '\n모든 시뮬레이션 테스트 통과' : `\n실패 ${fail}건`);
 process.exit(fail ? 1 : 0);

@@ -117,7 +117,27 @@ M.FIGHTERS = {
 };
 
 M.LADDER = ['bboy', 'kkokko', 'boxer', 'tkd', 'sumo', 'ninja', 'wrestler', 'sensei'];
-M.PLAYER = 'mogu';
+M.PLAYER = 'mogu';                       // 기본 플레이어
+M.player = 'mogu';                       // 선택된 플레이어 (타이틀에서 고른다 · 저장)
+M.PLAYABLE = ['mogu', 'bboy', 'kkokko', 'boxer', 'tkd', 'sumo', 'ninja', 'wrestler', 'sensei'];
+M.INK_P = '#18181c';                     // 플레이어 = 검은 잉크
+M.INK_O = '#d6282e';                     // 도전자 = 빨간 잉크
+
+// 플레이어가 도전자 중 하나면 그 자리는 빨간 잉크의 모구가 대신 채운다 (거울전)
+M.ladderFor = function (playerId) {
+  return M.LADDER.map((id) => (id === playerId ? 'mogu' : id));
+};
+
+// 캐릭터별 커맨드 안내 (타이틀 힌트용) — sp1 ↓↘→+Z · sp2 →↓↘+X · sp3 ↓↙←+X
+M.cmdHint = function (id) {
+  const d = M.FIGHTERS[id];
+  const out = [];
+  if (d.sp1) out.push(`↓↘→+Z ${d.sp1.name}`);
+  if (d.sp2) out.push(`→↓↘+X ${d.sp2.name}`);
+  if (d.sp3) out.push(`↓↙←+X ${d.sp3.name}`);
+  out.push(`게이지 100 C ${M.superOf(d).name}`);
+  return out.join(' · ');
+};
 
 // 도전자 초필살 = 대표 필살기의 강화판 (대미지 ×2.4, 시작 무적). 사범은 지우개 폭풍 강화
 M.superOf = function (def) {
