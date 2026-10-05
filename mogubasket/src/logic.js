@@ -218,7 +218,7 @@ function stepPlayer(st, p, inp, dt) {
   if (p.state !== 'cross' && p.state !== 'reach') {
     const tvx = mx * top, tvy = my * top;
     const ax = tvx - p.vx, ay = tvy - p.vy, am = hyp(ax, ay), lim = M.ACCEL * dt;
-    if (am > lim) { p.vx += ax / am * lim; p.vy += ay / am * lim; } else { p.vx = tvx; p.vy = tvy; }
+    if (am > lim && am > 1e-9) { p.vx += ax / am * lim; p.vy += ay / am * lim; } else { p.vx = tvx; p.vy = tvy; }
   }
   if (mm > 0.2) { const k = hyp(mx, my); p.fx = mx / k; p.fy = my / k; }
   if (p.state === 'idle' || p.state === 'run') p.state = hyp(p.vx, p.vy) > 0.5 ? 'run' : 'idle';
