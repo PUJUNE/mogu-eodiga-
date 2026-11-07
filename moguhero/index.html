@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구 히어로</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#bfe0f4;
+    font-family:'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  canvas#game { position:fixed; inset:0; display:block; }
+  .hidden { display:none !important; }
+  .card { background:rgba(255,255,255,.94); border-radius:16px; box-shadow:0 6px 20px rgba(30,40,70,.25); color:#2a2f45; }
+
+  /* ── 상단 바 (마을) ── */
+  #topbar { position:fixed; left:50%; top:calc(8px + env(safe-area-inset-top)); transform:translateX(-50%); display:flex; align-items:center; gap:12px;
+    padding:6px 12px; z-index:5; font-weight:800; font-size:14px; white-space:nowrap; }
+  #topbar .day { font-size:16px; color:#e8702a; }
+  #clockwrap { display:flex; align-items:center; gap:6px; }
+  #daybar { width:90px; height:8px; border-radius:4px; background:#e4e8f0; overflow:hidden; }
+  #daybar i { display:block; height:100%; background:linear-gradient(90deg,#8ac8f0,#f4b48a,#4a5a8a); }
+  #expbar { width:60px; height:6px; border-radius:3px; background:#e4e8f0; overflow:hidden; display:inline-block; vertical-align:middle; }
+  #expbar i { display:block; height:100%; background:#6ac86a; }
+  .tbtn { pointer-events:auto; border:none; background:#eef1f7; border-radius:10px; padding:5px 9px; font:inherit; font-size:13px; cursor:pointer; color:#2a2f45; }
+  #card-today { font-size:13px; color:#7a4bb8; }
+
+  #prompt { position:fixed; left:50%; bottom:calc(22px + env(safe-area-inset-bottom)); transform:translateX(-50%); padding:9px 18px; font-weight:800; font-size:16px; z-index:5; white-space:nowrap; pointer-events:auto; cursor:pointer; }
+  #prompt b { color:#e8702a; }
+  #ctl-hint { position:fixed; left:12px; bottom:calc(10px + env(safe-area-inset-bottom)); font-size:12px; color:rgba(30,40,60,.6); font-weight:700; z-index:4; pointer-events:none; }
+
+  /* ── 큰 알림 · 토스트 · 피해 숫자 ── */
+  #msg { position:fixed; left:50%; top:38%; transform:translate(-50%,-50%); font-size:min(50px, 10vw); font-weight:900; color:#fff; text-align:center;
+    text-shadow:0 4px 0 #c85a1a, 0 8px 18px rgba(0,0,0,.35); pointer-events:none; z-index:30; white-space:nowrap; opacity:0; transition:opacity .2s; }
+  #msg.red { text-shadow:0 4px 0 #9a2418, 0 8px 18px rgba(0,0,0,.4); }
+  #msg.purple { text-shadow:0 4px 0 #5a2a9a, 0 8px 18px rgba(0,0,0,.4); }
+  #msg .s { display:block; font-size:.4em; margin-top:4px; }
+  #toast { position:fixed; left:50%; top:calc(12px + env(safe-area-inset-top)); transform:translateX(-50%); padding:8px 16px; font-weight:800; font-size:15px; z-index:31; opacity:0; transition:opacity .2s; pointer-events:none; white-space:nowrap; }
+  .dmg { position:fixed; font-weight:900; font-size:20px; color:#fff; text-shadow:0 2px 0 #333, 0 0 6px rgba(0,0,0,.4); pointer-events:none; z-index:7; transform:translate(-50%,-50%); white-space:nowrap; }
+  .dmg.crit { color:#ffd83d; font-size:27px; }
+  .dmg.hurt { color:#ff6a5a; }
+  .dmg.heal { color:#6ae07a; }
+
+  /* ── 패널 (건물 안) ── */
+  #panel-wrap { position:fixed; inset:0; z-index:20; display:flex; align-items:center; justify-content:center; background:rgba(30,40,60,.35); }
+  #panel { width:min(560px, 94vw); max-height:86vh; overflow-y:auto; padding:16px 18px 18px; position:relative; }
+  #panel h2 { margin:0 0 2px; font-size:22px; }
+  #panel .who { display:flex; gap:10px; align-items:center; margin:6px 0 10px; background:#f4f6fa; border-radius:12px; padding:8px; font-size:14px; line-height:1.5; }
+  #panel .who canvas { width:52px; height:52px; border-radius:50%; flex:none; background:#fff; }
+  #panel-close { position:absolute; right:12px; top:10px; width:34px; height:34px; border-radius:50%; border:none; background:#eef1f7; font-size:18px; cursor:pointer; }
+  .row { display:flex; align-items:center; gap:10px; padding:9px 10px; border:2px solid #e8ecf3; border-radius:12px; margin-top:7px; }
+  .row .ic { font-size:24px; width:32px; text-align:center; flex:none; }
+  .row .tx { flex:1; min-width:0; font-size:13px; line-height:1.45; color:#5a6075; }
+  .row .tx b { font-size:15px; color:#2a2f45; }
+  .row.lock { opacity:.45; }
+  .row.cur { border-color:#6ac86a; }
+  .pbtn { pointer-events:auto; border:none; border-radius:10px; padding:8px 14px; font:inherit; font-weight:900; font-size:14px; cursor:pointer; background:#2a2f45; color:#fff; white-space:nowrap; }
+  .pbtn.alt { background:#eef1f7; color:#2a2f45; }
+  .pbtn.go { background:#e8702a; }
+  .pbtn:disabled { background:#c8ccd6; cursor:not-allowed; }
+  .tabs { display:flex; gap:6px; margin:6px 0 2px; }
+  .tabs button { flex:1; }
+  .note { font-size:12.5px; color:#7a8095; margin-top:8px; line-height:1.5; }
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:6px 14px; font-size:14px; margin-top:8px; }
+  .stats div { background:#f4f6fa; border-radius:10px; padding:6px 10px; }
+  .tarot-card { width:130px; height:190px; margin:10px auto; border-radius:14px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(160deg,#7a4bb8,#3a2a6a); color:#fff; font-weight:900; font-size:18px; box-shadow:0 6px 14px rgba(60,30,120,.4); transition:transform .4s; }
+  .tarot-card .big { font-size:54px; }
+  .tarot-card.flip { transform:rotateY(360deg); }
+
+  /* ── 대화 상자 ── */
+  #talk { position:fixed; left:50%; bottom:calc(16px + env(safe-area-inset-bottom)); transform:translateX(-50%); width:min(680px, 94vw); display:flex; gap:12px; padding:12px 14px; z-index:22; cursor:pointer; pointer-events:auto; }
+  #talk canvas { width:92px; height:92px; border-radius:14px; flex:none; background:#f4f6fa; }
+  #talk .nm { display:inline-block; background:#2a2f45; color:#fff; font-weight:900; font-size:13px; padding:2px 10px; border-radius:8px; }
+  #talk .tx { margin-top:6px; font-size:16px; line-height:1.55; font-weight:700; }
+  #talk .nx { position:absolute; right:14px; bottom:8px; font-size:12px; color:#9aa0b5; }
+
+  /* ── 전투 HUD ── */
+  #bhud { position:fixed; inset:0; pointer-events:none; z-index:6; }
+  #bcard { position:absolute; left:50%; top:calc(8px + env(safe-area-inset-top)); transform:translateX(-50%); width:min(440px, 92vw); padding:8px 12px; }
+  #bcard .r1 { display:flex; justify-content:space-between; font-weight:900; font-size:15px; }
+  #btimer.low { color:#e83a2a; }
+  #bboss { margin-top:4px; font-size:12px; font-weight:800; color:#5a6075; display:flex; justify-content:space-between; }
+  #bbar { height:10px; border-radius:5px; background:#eceff4; overflow:hidden; margin-top:3px; }
+  #bbar i { display:block; height:100%; background:linear-gradient(90deg,#e84a3a,#ff8a5a); width:0; transition:width .15s; }
+  #bbar.boss i { background:linear-gradient(90deg,#7a4bb8,#b48cff); }
+  #bbtns { display:flex; gap:6px; margin-top:6px; justify-content:flex-end; align-items:center; }
+  #bbtns span { flex:1; font-size:13px; font-weight:800; color:#5a6075; }
+  #bbtns button { pointer-events:auto; }
+  #b-auto.on { background:#2a2f45; color:#fff; }
+  #bhp { position:absolute; left:calc(12px + env(safe-area-inset-left)); bottom:calc(12px + env(safe-area-inset-bottom)); width:min(300px, 46vw); padding:8px 12px; }
+  #bhp .r1 { display:flex; justify-content:space-between; font-weight:900; font-size:13px; }
+  #hpbar { height:12px; border-radius:6px; background:#eceff4; overflow:hidden; margin-top:4px; }
+  #hpbar i { display:block; height:100%; background:#5ac86a; transition:width .12s; }
+  #bskills { position:absolute; right:calc(14px + env(safe-area-inset-right)); bottom:calc(14px + env(safe-area-inset-bottom)); display:flex; gap:10px; align-items:flex-end; }
+  .sk { pointer-events:auto; position:relative; width:64px; height:64px; border-radius:50%; background:rgba(255,255,255,.94); box-shadow:0 4px 12px rgba(0,0,0,.2);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:900; font-size:12px; color:#2a2f45; border:none; font-family:inherit; cursor:pointer; overflow:hidden; touch-action:none; }
+  .sk .ico { font-size:22px; line-height:1; }
+  .sk .cd { position:absolute; inset:0; background:conic-gradient(rgba(40,50,80,.55) var(--p,0%), transparent 0); pointer-events:none; }
+  .sk .key { position:absolute; top:3px; right:9px; font-size:10px; color:#9aa0b5; }
+  #sk-atk { width:84px; height:84px; background:rgba(232,112,42,.95); color:#fff; display:none; }
+  body.touch #sk-atk { display:flex; }
+  body.touch .sk .key { display:none; }
+
+  /* ── 화면 ── */
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:40; text-align:center; overflow-y:auto; padding:10px 0; box-sizing:border-box; }
+  #title-screen { background:linear-gradient(180deg, rgba(255,255,255,0) 30%, rgba(30,40,70,.55)); color:#fff; }
+  .logo { font-size:min(64px, 13vw); font-weight:900; letter-spacing:2px; color:#fff; text-shadow:0 5px 0 #c85a1a, 0 10px 22px rgba(0,0,0,.35); }
+  .logo b { color:#ffd83d; }
+  .sub { margin-top:2px; font-size:15px; font-weight:800; text-shadow:0 2px 6px rgba(0,0,0,.4); }
+  .menu-buttons { display:flex; gap:9px; margin-top:12px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
+  .btn { pointer-events:auto; padding:11px 24px; font-size:17px; font-weight:900; color:#2a2f45; background:#fff; border:none; border-radius:14px; cursor:pointer; font-family:inherit; box-shadow:0 4px 0 #8aa0c0; }
+  .btn:active { transform:translateY(3px); box-shadow:0 1px 0 #8aa0c0; }
+  .btn.primary { background:#ffd83d; box-shadow:0 4px 0 #b8901a; }
+  .btn.series { background:rgba(255,255,255,.25); color:#fff; box-shadow:none; font-size:13px; padding:7px 16px; }
+  .diff-btn { padding:7px 14px; font-size:14px; opacity:.6; }
+  .diff-btn.selected { opacity:1; outline:3px solid #ffd83d; }
+  #title-hint { margin-top:12px; font-size:13px; line-height:1.75; padding:0 14px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+  #title-hint b { color:#ffd83d; }
+  #save-line { margin-top:6px; font-size:13px; font-weight:800; min-height:18px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+  #result-screen, #pause-screen, #choice-screen, #ending-screen { background:rgba(30,40,60,.6); }
+  .rcard { padding:18px 22px; width:min(460px, 92vw); }
+  .rcard h1 { margin:0; font-size:34px; }
+  .rcard .lines { margin-top:10px; font-size:15px; line-height:1.85; }
+  .rcard .lines b { color:#e8702a; }
+  #dayfade { position:fixed; inset:0; z-index:45; background:#1a2238; color:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center; font-weight:900; opacity:0; pointer-events:none; transition:opacity .5s; }
+  #dayfade.on { opacity:1; }
+  #dayfade .d { font-size:58px; color:#ffd83d; }
+  #dayfade .s { font-size:16px; margin-top:6px; }
+  #rotate-hint { position:fixed; inset:0; z-index:60; background:#2a2f45; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; font-size:20px; font-weight:900; gap:10px; }
+  @media (max-width:640px) { #topbar { gap:7px; font-size:12px; padding:5px 8px; } #daybar { width:50px; } #expbar { width:36px; } #ctl-hint { display:none; } }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="topbar" class="card hidden">
+  <span class="day" id="tb-day">1일째</span>
+  <span id="clockwrap">🕗 <span id="tb-clock">08:00</span><span id="daybar"><i id="tb-daybar"></i></span></span>
+  <span>💰 <span id="tb-gold">0</span></span>
+  <span>Lv <span id="tb-lv">1</span> <span id="expbar"><i id="tb-exp"></i></span></span>
+  <span id="card-today"></span>
+  <button class="tbtn" id="tb-status">📋 상태 (C)</button>
+  <button class="tbtn" id="tb-pause">⏸</button>
+</div>
+<div id="prompt" class="card hidden"></div>
+<div id="ctl-hint" class="hidden">클릭·WASD 이동 · 건물/사람 클릭 · E 들어가기 · 드래그 회전 · 휠 확대</div>
+
+<div id="bhud" class="hidden">
+  <div id="bcard" class="card">
+    <div class="r1"><span id="bname">뒷산 털뭉치 숲</span><span id="btimer">⏱ 2:30</span></div>
+    <div id="bboss"><span id="bboss-nm">잡은 수</span><span id="bboss-v">0 / 6</span></div>
+    <div id="bbar"><i id="bbar-i"></i></div>
+    <div id="bbtns"><span id="bpot">🍥 회복약 1 (H)</span><button class="tbtn" id="b-auto">자동 (T)</button><button class="tbtn" id="b-retreat">후퇴</button></div>
+  </div>
+  <div id="bhp" class="card"><div class="r1"><span>❤ 모구 Lv<span id="bhp-lv">1</span></span><span id="bhp-v">120 / 120</span></div><div id="hpbar"><i id="hpbar-i"></i></div></div>
+  <div id="bskills">
+    <button class="sk" id="sk-skill"><span class="key">Q</span><span class="ico">🌀</span>회오리<span class="cd" id="cd-skill"></span></button>
+    <button class="sk" id="sk-dash"><span class="key">Space</span><span class="ico">💨</span>냥보<span class="cd" id="cd-dash"></span></button>
+    <button class="sk" id="sk-atk"><span class="ico">🐾</span>공격</button>
+  </div>
+</div>
+
+<div id="msg"></div>
+<div id="toast" class="card"></div>
+<div id="dmg-layer"></div>
+
+<div id="panel-wrap" class="hidden"><div id="panel" class="card"><button id="panel-close">✕</button><div id="panel-body"></div></div></div>
+
+<div id="talk" class="card hidden"><canvas id="talk-face" width="184" height="184"></canvas><div><span class="nm" id="talk-nm"></span><div class="tx" id="talk-tx"></div></div><div class="nx">클릭 · Space ▶</div></div>
+
+<div id="title-screen" class="screen">
+  <div class="logo">모구 <b>히어로</b></div>
+  <div class="sub">~ 30일 동안 마을을 지켜라, 복셀 마을 육성 RPG ~</div>
+  <div id="save-line"></div>
+  <div class="menu-buttons">
+    <button class="btn diff-btn" data-diff="easy">이지</button>
+    <button class="btn diff-btn" data-diff="normal">노말</button>
+    <button class="btn diff-btn" data-diff="hard">하드</button>
+    <button class="btn diff-btn" data-diff="crazy">크레이지</button>
+  </div>
+  <div class="menu-buttons">
+    <button class="btn primary" id="btn-continue">이어하기 (Enter)</button>
+    <button class="btn" id="btn-new">새로 시작</button>
+    <button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button>
+  </div>
+  <div id="title-hint">
+    낮에는 <b>🥋 도장 수련 · 🐟 생선가게 알바 · ⚔️ 던전</b>, 밤엔 🏠 집에서 자기 — 하루는 08시~22시<br>
+    무기·옷은 🛒 잡화점, 하루 한 장 🔮 키위 점집 · 8일마다 들개 깡패, <b>30일째 밤 그림자 고양이</b><br>
+    전투: 클릭/WASD 이동 · <b>J·클릭 공격(3타 콤보)</b> · <b>Space 냥보</b>(피하기) · <b>Q 회오리</b> · H 회복약 · 지면 그날 아침으로 되감기
+  </div>
+</div>
+
+<div id="result-screen" class="screen hidden"><div class="rcard card"><h1 id="res-title">클리어!</h1><div class="lines" id="res-lines"></div>
+  <div class="menu-buttons"><button class="btn primary" id="btn-res-ok">마을로 (Enter)</button></div></div></div>
+
+<div id="choice-screen" class="screen hidden"><div class="rcard card"><h1 id="ch-title">쓰러졌다…</h1><div class="lines" id="ch-lines"></div>
+  <div class="menu-buttons"><button class="btn primary" id="btn-rewind">⏪ 오늘 아침으로 되감기 (Enter)</button><button class="btn" id="btn-concede">물러서기</button></div></div></div>
+
+<div id="ending-screen" class="screen hidden"><div class="rcard card"><h1>🏆 모구 히어로!</h1><div class="lines" id="end-lines"></div>
+  <div class="menu-buttons"><button class="btn primary" id="btn-free">계속 마을에서 놀기</button><button class="btn" id="btn-end-title">타이틀로</button></div></div></div>
+
+<div id="pause-screen" class="screen hidden"><div class="rcard card"><h1>잠깐 휴식</h1><div class="lines">진행은 행동할 때마다 저장돼요.</div>
+  <div class="menu-buttons"><button class="btn primary" id="btn-resume">계속 (Esc)</button><button class="btn" id="btn-mute">🔊 소리</button><button class="btn" id="btn-title">타이틀로</button></div></div></div>
+
+<div id="dayfade"><div class="d" id="df-d">2일째</div><div class="s" id="df-s"></div></div>
+<div id="rotate-hint" class="hidden">📱↻<div>가로로 돌려서 플레이해 주세요</div></div>
+
+<script src="vendor/three.min.js"></script>
+<script>window.MHR = { ASSETS: { mogu: "assets/mogu-face.png" } };</script>
+<script src="src/rng.js"></script>
+<script src="src/data.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/ai.js"></script>
+<script src="src/render3d.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
