@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구 슬로프</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#bfe4f6;
+    font-family:'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  canvas#game { position:fixed; inset:0; display:block; }
+  .hidden { display:none !important; }
+  .card { background:rgba(255,255,255,.94); border-radius:16px; box-shadow:0 6px 20px rgba(30,40,70,.25); color:#2a2f45; }
+
+  /* ── 주행 HUD ── */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:6; }
+  #hud-top { position:absolute; left:calc(10px + env(safe-area-inset-left)); right:calc(10px + env(safe-area-inset-right)); top:calc(8px + env(safe-area-inset-top));
+    display:flex; align-items:center; gap:10px; }
+  #hearts { font-size:20px; letter-spacing:1px; padding:5px 10px; white-space:nowrap; }
+  #prog { flex:1; padding:7px 12px; min-width:0; }
+  #prog .r1 { display:flex; justify-content:space-between; font-weight:900; font-size:13px; white-space:nowrap; gap:8px; }
+  #prog .r1 span { overflow:hidden; text-overflow:ellipsis; }
+  #pbar { position:relative; height:9px; border-radius:5px; background:#e4e8f0; margin-top:4px; }
+  #pbar i { position:absolute; left:0; top:0; bottom:0; border-radius:5px; background:linear-gradient(90deg,#ff9a5a,#e8702a); }
+  #pbar b { position:absolute; top:-6px; width:20px; height:20px; margin-left:-10px; border-radius:50%; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.3); font-size:12px; line-height:20px; text-align:center; }
+  #fishbox { padding:5px 12px; font-weight:900; font-size:16px; white-space:nowrap; text-align:right; }
+  #fishbox .sc { display:block; font-size:12px; color:#7a8095; }
+  #fishbox.pop { transform:scale(1.12); }
+  #btn-pause { pointer-events:auto; border:none; width:38px; height:38px; border-radius:12px; font-size:16px; cursor:pointer; }
+  #speed { position:absolute; left:calc(12px + env(safe-area-inset-left)); bottom:calc(12px + env(safe-area-inset-bottom)); padding:5px 12px; font-weight:900; font-size:15px; }
+  #speed.boost { color:#e8702a; }
+  #btn-jump { position:absolute; right:calc(16px + env(safe-area-inset-right)); bottom:calc(18px + env(safe-area-inset-bottom)); width:92px; height:92px; border-radius:50%; border:none;
+    background:rgba(232,112,42,.92); color:#fff; font:inherit; font-weight:900; font-size:15px; box-shadow:0 5px 14px rgba(0,0,0,.25); pointer-events:auto; display:none; touch-action:none; }
+  #btn-jump .ico { display:block; font-size:28px; line-height:1.1; }
+  body.touch #btn-jump { display:block; }
+  #ctl-hint { position:absolute; left:50%; bottom:calc(12px + env(safe-area-inset-bottom)); transform:translateX(-50%); font-size:12.5px; color:rgba(30,40,60,.75); font-weight:800;
+    background:rgba(255,255,255,.7); border-radius:10px; padding:4px 10px; white-space:nowrap; }
+  body.touch #ctl-hint { bottom:calc(120px + env(safe-area-inset-bottom)); }
+
+  #msg { position:fixed; left:50%; top:30%; transform:translate(-50%,-50%); font-size:min(54px, 11vw); font-weight:900; color:#fff; text-align:center;
+    text-shadow:0 4px 0 #c85a1a, 0 8px 18px rgba(0,0,0,.35); pointer-events:none; z-index:30; white-space:nowrap; opacity:0; transition:opacity .2s; }
+  #msg.red { text-shadow:0 4px 0 #9a2418, 0 8px 18px rgba(0,0,0,.4); }
+  #msg.blue { text-shadow:0 4px 0 #1a5ab8, 0 8px 18px rgba(0,0,0,.4); }
+  #msg .s { display:block; font-size:.42em; margin-top:4px; }
+  #count { position:fixed; left:50%; top:42%; transform:translate(-50%,-50%); font-size:min(110px, 24vw); font-weight:900; color:#ffd83d; z-index:31;
+    text-shadow:0 6px 0 #c85a1a, 0 12px 24px rgba(0,0,0,.35); pointer-events:none; }
+
+  /* ── 화면 ── */
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:40; text-align:center; overflow-y:auto; padding:12px 0; box-sizing:border-box; }
+  #title-screen { background:linear-gradient(180deg, rgba(255,255,255,0) 20%, rgba(30,40,70,.6)); color:#fff; justify-content:flex-start; padding-top:calc(4vh + env(safe-area-inset-top)); }
+  .logo { font-size:min(64px, 13vw); font-weight:900; letter-spacing:2px; color:#fff; text-shadow:0 5px 0 #c85a1a, 0 10px 22px rgba(0,0,0,.35); }
+  .logo b { color:#ffd83d; }
+  .sub { margin-top:2px; font-size:15px; font-weight:800; text-shadow:0 2px 6px rgba(0,0,0,.45); padding:0 12px; }
+  .menu-buttons { display:flex; gap:9px; margin-top:12px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
+  .btn { pointer-events:auto; padding:11px 24px; font-size:17px; font-weight:900; color:#2a2f45; background:#fff; border:none; border-radius:14px; cursor:pointer; font-family:inherit; box-shadow:0 4px 0 #8aa0c0; }
+  .btn:active { transform:translateY(3px); box-shadow:0 1px 0 #8aa0c0; }
+  .btn.primary { background:#ffd83d; box-shadow:0 4px 0 #b8901a; }
+  .btn.series { background:rgba(255,255,255,.25); color:#fff; box-shadow:none; font-size:13px; padding:7px 16px; }
+  .diff-btn { padding:7px 14px; font-size:14px; opacity:.6; }
+  .diff-btn.selected { opacity:1; outline:3px solid #ffd83d; }
+  #courses { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; width:min(640px, 94vw); margin-top:12px; }
+  .course { pointer-events:auto; border:none; border-radius:14px; background:rgba(255,255,255,.94); color:#2a2f45; font-family:inherit; cursor:pointer; padding:9px 8px 8px;
+    box-shadow:0 4px 0 #8aa0c0; text-align:center; position:relative; }
+  .course .ic { font-size:26px; line-height:1.2; }
+  .course .nm { font-weight:900; font-size:14px; }
+  .course .st { font-size:13px; letter-spacing:1px; color:#e8a020; min-height:17px; }
+  .course .ds { font-size:11px; color:#7a8095; line-height:1.35; margin-top:2px; }
+  .course .no { position:absolute; left:8px; top:6px; font-size:11px; font-weight:900; color:#9aa0b5; }
+  .course.sel { outline:3px solid #ffd83d; }
+  .course.lock { opacity:.5; cursor:not-allowed; }
+  .course.endless { background:linear-gradient(160deg,#fff,#ffe9c8); }
+  #title-hint { margin-top:12px; font-size:13px; line-height:1.75; padding:0 14px; text-shadow:0 1px 4px rgba(0,0,0,.6); }
+  #title-hint b { color:#ffd83d; }
+  #result-screen, #pause-screen { background:rgba(30,40,60,.55); }
+  .rcard { padding:18px 22px; width:min(440px, 90vw); }
+  .rcard h1 { margin:0; font-size:32px; }
+  .rcard .stars { font-size:40px; letter-spacing:4px; color:#e8a020; margin-top:4px; }
+  .rcard .stars i { font-style:normal; color:#d8dce6; }
+  .rcard .lines { margin-top:8px; font-size:15px; line-height:1.85; }
+  .rcard .lines b { color:#e8702a; }
+  .rcard .best { font-size:13px; color:#7a8095; }
+  @media (max-width:640px) { #courses { grid-template-columns:repeat(2, minmax(0, 1fr)); } #ctl-hint { display:none; } #hearts { font-size:16px; padding:5px 8px; } #fishbox { font-size:14px; } }
+  @media (max-height:520px) { #title-screen { padding-top:8px; } .logo { font-size:40px; } #courses { grid-template-columns:repeat(6, minmax(0,1fr)); width:96vw; } .course .ds { display:none; } #title-hint { display:none; } }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="hud-top">
+    <div id="hearts" class="card">❤❤❤</div>
+    <div id="prog" class="card"><div class="r1"><span id="zone-name">🌸 벚꽃 수로</span><span id="dist">0 m</span></div><div id="pbar"><i id="pbar-i"></i></div></div>
+    <div id="fishbox" class="card">🐟 <span id="fish">0</span><span class="sc" id="score">0점</span></div>
+    <button id="btn-pause" class="card">⏸</button>
+  </div>
+  <div id="speed" class="card">0 km/h</div>
+  <div id="ctl-hint">←→ 조향 · Space 점프 · 공중에서 ←→ 빙글</div>
+  <button id="btn-jump"><span class="ico">⤴</span>점프</button>
+</div>
+
+<div id="msg"></div>
+<div id="count" class="hidden"></div>
+
+<div id="title-screen" class="screen">
+  <div class="logo">모구 <b>슬로프</b></div>
+  <div class="sub">~ 썰매 타고 벚꽃 수로부터 눈꽃 산까지, 신나는 내리막 ~</div>
+  <div class="menu-buttons">
+    <button class="btn diff-btn" data-diff="easy">이지</button>
+    <button class="btn diff-btn" data-diff="normal">노말</button>
+    <button class="btn diff-btn" data-diff="hard">하드</button>
+    <button class="btn diff-btn" data-diff="crazy">크레이지</button>
+  </div>
+  <div id="courses"></div>
+  <div class="menu-buttons">
+    <button class="btn primary" id="btn-start">출발! (Enter)</button>
+    <button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button>
+  </div>
+  <div id="title-hint">
+    <b>←→ / A D</b> 조향 · <b>Space</b> 점프 · 공중에서 <b>←→ 빙글 회전</b> (착지 전에 한 바퀴를 끝내야 해요)<br>
+    터치: 화면을 좌우로 끌어 조향 · 톡 치거나 ⤴ 버튼으로 점프 · 굽은 길에선 바깥 벽으로 밀려 올라가요<br>
+    ★ 완주 · ★ 생선 70% · ★ 한 번도 안 부딪히기
+  </div>
+</div>
+
+<div id="result-screen" class="screen hidden"><div class="rcard card">
+  <h1 id="res-title">완주!</h1><div class="stars" id="res-stars"></div>
+  <div class="lines" id="res-lines"></div><div class="best" id="res-best"></div>
+  <div class="menu-buttons"><button class="btn primary" id="btn-retry">다시 (Enter)</button><button class="btn" id="btn-next">다음 코스 ▶</button><button class="btn" id="btn-menu">코스 고르기</button></div>
+</div></div>
+
+<div id="pause-screen" class="screen hidden"><div class="rcard card"><h1>잠깐 쉬기</h1>
+  <div class="menu-buttons"><button class="btn primary" id="btn-resume">계속 (Esc)</button><button class="btn" id="btn-mute">🔊 소리</button><button class="btn" id="btn-quit">코스 고르기</button></div>
+</div></div>
+
+<script src="vendor/three.min.js"></script>
+<script>window.MSL = { ASSETS: { mogu: "assets/mogu-face.png" } };</script>
+<script src="src/rng.js"></script>
+<script src="src/data.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/ai.js"></script>
+<script src="src/render3d.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
