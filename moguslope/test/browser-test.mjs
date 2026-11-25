@@ -57,8 +57,14 @@ await shot('shot-title.png');
 
 // ══ 2. 1코스 출발 → 3·2·1 → 조향 · 점프 ══
 await key('Enter', 'Enter');
-check('Enter → 3·2·1 카운트다운', await until(page, () => window.MSL._dbg().mode === 'ready' && !document.getElementById('count').classList.contains('hidden')));
-check('카운트다운 끝 → 출발', await until(page, () => window.MSL._dbg().mode === 'play', 15000));
+check('Enter → 출발 로프 대기 · 게이지', await until(page, () => window.MSL._dbg().mode === 'ready' && !document.getElementById('launch').classList.contains('hidden')));
+const s0 = (await D()).s;
+await key('Space', ' ');
+check('Space 를 누르고 있으면 게이지가 차고 뒤로 당겨진다', await until(page, () => window.MSL._dbg().power > 0.9, 8000) && (await D()).s < s0 - 1.5);
+await shot('shot-launch.png');
+await key('Space', ' ', 'keyup');
+check('놓으면 튕겨 나간다 (90% 넘게 당김 → 빠른 출발)', await until(page, () => window.MSL._dbg().mode === 'play', 3000) && (await D()).v > 14, `${(await D()).v.toFixed(1)} m/s`);
+await page.waitForTimeout(400);
 const u0 = (await D()).u;
 await key('KeyD', 'ㅇ'); await page.waitForTimeout(700); await key('KeyD', 'ㅇ', 'keyup');
 check('한글 입력 상태 D(ㅇ) 키로 오른쪽 조향', (await D()).u > u0 + 0.5, `${u0.toFixed(2)} → ${(await D()).u.toFixed(2)}`);
@@ -84,6 +90,8 @@ await shot('shot-result.png');
 
 // ══ 4. 다음 코스 (수로 → 물미끄럼 터널) ══
 await page.click('#btn-next');
+const launch = async (pg) => { await pg.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ' }))); await pg.waitForTimeout(500); await pg.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'Space', key: ' ' }))); };
+await until(page, () => window.MSL._dbg().mode === 'ready', 10000); await launch(page);
 check('다음 코스 → 2코스 출발', await until(page, () => window.MSL._dbg().mode === 'play' && window.MSL._dbg().sel === 1, 15000));
 await S(() => { const r = window.MSL._run(); r.s = 200; });
 check('터널 구역에 들어서면 구역 이름이 바뀐다', await until(page, () => /물미끄럼/.test(document.getElementById('zone-name').textContent), 20000));
@@ -99,6 +107,7 @@ check('코스 고르기 → 타이틀 · 1코스 별 표시', await until(page, 
 // ══ 6. 끝없는 슬로프 ══
 await S(() => { document.querySelector('.course[data-c="endless"]').click(); });
 await S(() => document.getElementById('btn-start').click());
+await until(page, () => window.MSL._dbg().mode === 'ready', 10000); await launch(page);
 check('끝없는 슬로프 출발', await until(page, () => window.MSL._dbg().mode === 'play' && window.MSL._dbg().sel === 'endless', 15000));
 await S(() => window.MSL._autopilot(true));
 await page.waitForTimeout(3000);
@@ -112,7 +121,13 @@ await mp.goto('http://localhost:8779/moguslope.html'); await mp.waitForTimeout(2
 check('모바일: 터치 모드 · 점프 버튼', await mp.evaluate(() => document.body.classList.contains('touch')));
 await mp.screenshot({ path: join(shots, 'shot-mobile-title.png') });
 await mp.evaluate(() => document.getElementById('btn-start').click());
-await until(mp, () => window.MSL._dbg().mode === 'play', 15000);
+await until(mp, () => window.MSL._dbg().mode === 'ready', 10000);
+await mp.evaluate(() => document.getElementById('game').dispatchEvent(new PointerEvent('pointerdown', { pointerId: 5, clientX: 200, clientY: 500, bubbles: true, pointerType: 'touch' })));
+await mp.waitForTimeout(600);
+await mp.screenshot({ path: join(shots, 'shot-mobile-launch.png') });
+await mp.evaluate(() => window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 5, clientX: 200, clientY: 500, bubbles: true, pointerType: 'touch' })));
+check('모바일: 화면을 꾹 눌렀다 떼면 로프 출발', await until(mp, () => window.MSL._dbg().mode === 'play', 5000));
+await mp.waitForTimeout(300);
 const mu0 = await mp.evaluate(() => window.MSL._dbg().u);
 const drag = async (x0, x1) => mp.evaluate(([a, b]) => {
   const cv = document.getElementById('game'), y = 500;

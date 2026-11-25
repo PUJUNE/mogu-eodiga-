@@ -89,6 +89,15 @@ const steps = (r, n, inp = {}) => { const ev = []; for (let i = 0; i < n; i++) e
   check('트랙터는 좌우로 움직인다', Run.moverU(r8.obst[0], 0) !== Run.moverU(r8.obst[0], 0.7));
 }
 
+// ══ 출발 로프 ══
+{
+  check('로프 게이지: 0 → 100% → 0 을 오간다', Run.chargePower(0) === 0 && Math.abs(Run.chargePower(PH.launch.period / 2) - 1) < 1e-9 && Run.chargePower(PH.launch.period) < 0.01);
+  const a = Run.create('normal', 0), b = Run.create('normal', 0);
+  const ea = Run.launch(a, 0.3), eb = Run.launch(b, 1);
+  check('세게 당길수록 빠르게 튕겨 나간다', b.v > a.v * 1.5, `${a.v.toFixed(1)} → ${b.v.toFixed(1)} m/s`);
+  check('93% 이상 = 완벽한 출발 · 부스트', eb[0].perfect && b.boostT > 0 && !ea[0].perfect && a.boostT <= 0);
+}
+
 // ══ 5. 결승 · 별 · 끝없는 모드 ══
 {
   const r = bare(); r.s = r.L - 5;

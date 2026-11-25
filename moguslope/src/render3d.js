@@ -404,6 +404,28 @@ const R = {
     return { g, s: 0 };
   },
 
+  // 출발 로프: 분홍 기둥 둘 + 썰매 뒤를 감는 밧줄 세 토막
+  makeLaunch(run) {
+    const T = run.track, L = M.PHYS.launch, g = new THREE.Group(), tops = [];
+    for (const sd of [-1, 1]) {
+      const [x, y, z] = W(T, L.postS, sd * L.postU, 0);
+      const post = new THREE.Group(); post.position.set(x, y, z); g.add(post);
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 1.3, 12), lam(0xf4c8c8)); col.position.y = 0.65; post.add(col);
+      for (const yy of [0.08, 1.32]) { const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.16, 12), lam(0xfbe4e4)); cap.position.y = yy; post.add(cap); }
+      for (let i = 0; i < 8; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), lam(i % 2 ? 0x3a6ae8 : 0xe83a5a)); const a = i / 8 * Math.PI * 2; b.position.set(Math.cos(a) * 0.3, 1.05, Math.sin(a) * 0.3); post.add(b); }
+      tops.push(new THREE.Vector3(x, y + 1.05, z));
+    }
+    const ropes = [];
+    for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 6), lam(0xd8b07a)); g.add(m); ropes.push(m); }
+    return { g, tops, ropes, on: true };
+  },
+  ropeOff() { if (this.launch) { this.launch.on = false; this.launch.ropes.forEach((r) => { r.visible = false; }); } this.charge = 0; },
+  seg(m, a, b) {
+    _v.subVectors(b, a); const len = _v.length();
+    m.position.addVectors(a, b).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(UP, _v.normalize()); m.scale.set(1, len, 1);
+  },
+
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h, false);
@@ -418,6 +440,9 @@ const R = {
     this.chunks.clear();
     this.run = run; this.zone = null; this.shake = 0; this.sprayP = [];
     this.train.s = run.s + 160;
+    this.charge = 0;
+    if (this.launch) { this.scene.remove(this.launch.g); this.launch = null; }
+    this.launch = this.makeLaunch(run); this.scene.add(this.launch.g);
     this.update(run, 0, [], true);
   },
   dropChunk(c) {
@@ -473,7 +498,7 @@ const R = {
     mg.root.quaternion.copy(this.basis(T, run.s, run.u, run.air));
     if (run.spin) { _q2.setFromAxisAngle(UP, -run.spin); mg.root.quaternion.multiply(_q2); }
     const lean = run.air ? 0 : -run.uv * 0.05;
-    mg.body.rotation.set(run.air ? -0.15 : 0, 0, run.phase === 'over' ? this.t * 9 : lean);
+    mg.body.rotation.set((run.air ? -0.15 : 0) + this.charge * 0.35, 0, run.phase === 'over' ? this.t * 9 : lean);
     mg.tail.rotation.x = 0.7 + Math.sin(this.t * 10) * 0.15 * Math.min(1, run.v / 10);
     mg.scarf.rotation.y = Math.sin(this.t * 14) * 0.25;
     mg.root.visible = !(run.invuln > 0 && Math.floor(run.invuln * 10) % 2 === 0) || run.phase !== 'run';
@@ -481,6 +506,16 @@ const R = {
     mg.shadow.position.set(sx, sy + 0.04, sz);
     const sc = Math.max(0.3, 1 - run.z * 0.12); mg.shadow.scale.set(sc, sc, sc); mg.shadow.material.opacity = 0.25 * sc;
     mg.shadow.rotation.set(-Math.PI / 2, 0, 0);
+
+    // ── 출발 로프 ──
+    if (this.launch) {
+      if (this.launch.on) {
+        const back = (sd) => new THREE.Vector3(...W(T, run.s + 0.85, sd * 0.45, 0.42));
+        const l = back(-1), r = back(1), [A, B] = this.launch.tops, rp = this.launch.ropes;
+        this.seg(rp[0], A, l); this.seg(rp[1], l, r); this.seg(rp[2], r, B);
+      }
+      if (run.s > M.PHYS.launch.postS + 50) { this.scene.remove(this.launch.g); this.launch = null; }
+    }
 
     // ── 생선 · 하트 ──
     let nf = 0, nh = 0;

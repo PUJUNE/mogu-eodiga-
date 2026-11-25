@@ -20,6 +20,8 @@ M.PHYS = {
   invuln: 1.6,
   boost: 1.35, boostT: 1.5, trickBoostT: 1.0,
   startV: 4,
+  // 출발 로프: 꾹 누르면 뒤로 당겨지고 게이지가 0→100→0 을 오간다. 놓는 순간의 힘으로 튕겨 나간다
+  launch: { pull: 2.6, period: 1.5, min: 0.45, gain: 0.75, perfect: 0.93, postS: 12.6, postU: 2.1 },
 };
 
 // 구역 — 바닥 단면은 평평한 가운데 f + 반지름 r 의 둥근 벽(최대 각도 tm)

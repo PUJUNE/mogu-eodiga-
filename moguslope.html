@@ -43,6 +43,13 @@
   #msg.red { text-shadow:0 4px 0 #9a2418, 0 8px 18px rgba(0,0,0,.4); }
   #msg.blue { text-shadow:0 4px 0 #1a5ab8, 0 8px 18px rgba(0,0,0,.4); }
   #msg .s { display:block; font-size:.42em; margin-top:4px; }
+  #launch { position:fixed; left:50%; top:calc(78px + env(safe-area-inset-top)); transform:translateX(-50%); z-index:31; text-align:center; pointer-events:none; }
+  #launch svg { width:min(240px, 60vw); display:block; margin:0 auto; overflow:visible; }
+  #lg-pct { margin-top:-46px; font-size:30px; font-weight:900; color:#fff; text-shadow:0 2px 0 #2a6a9a, 0 4px 10px rgba(0,0,0,.35); }
+  #launch.perfect #lg-pct { color:#ffd83d; text-shadow:0 2px 0 #c85a1a, 0 4px 10px rgba(0,0,0,.35); }
+  #lg-hint { margin-top:14px; font-size:15px; font-weight:900; color:#2a2f45; background:rgba(255,255,255,.88); border-radius:12px; padding:6px 14px; display:inline-block; }
+  #lg-hint.pulse { animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform:scale(1.08); } }
   #count { position:fixed; left:50%; top:42%; transform:translate(-50%,-50%); font-size:min(110px, 24vw); font-weight:900; color:#ffd83d; z-index:31;
     text-shadow:0 6px 0 #c85a1a, 0 12px 24px rgba(0,0,0,.35); pointer-events:none; }
 
@@ -101,6 +108,12 @@
 
 <div id="msg"></div>
 <div id="count" class="hidden"></div>
+<div id="launch" class="hidden">
+  <svg viewBox="0 0 200 108"><path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="18" stroke-linecap="round"/>
+    <path id="lg-fg" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#3ad8f0" stroke-width="18" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/></svg>
+  <div id="lg-pct">0%</div>
+  <div id="lg-hint" class="pulse">꾹 눌러 로프를 당기고, 놓으면 출발!</div>
+</div>
 
 <div id="title-screen" class="screen">
   <div class="logo">모구 <b>슬로프</b></div>
@@ -117,6 +130,7 @@
     <button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button>
   </div>
   <div id="title-hint">
+    출발: <b>꾹 눌러 로프를 당기고</b> 게이지가 꽉 찼을 때 놓으면 부스트 출발<br>
     <b>←→ / A D</b> 조향 · <b>Space</b> 점프 · 공중에서 <b>←→ 빙글 회전</b> (착지 전에 한 바퀴를 끝내야 해요)<br>
     터치: 화면을 좌우로 끌어 조향 · 톡 치거나 ⤴ 버튼으로 점프 · 굽은 길에선 바깥 벽으로 밀려 올라가요<br>
     ★ 완주 · ★ 생선 70% · ★ 한 번도 안 부딪히기
@@ -195,6 +209,8 @@ M.PHYS = {
   invuln: 1.6,
   boost: 1.35, boostT: 1.5, trickBoostT: 1.0,
   startV: 4,
+  // 출발 로프: 꾹 누르면 뒤로 당겨지고 게이지가 0→100→0 을 오간다. 놓는 순간의 힘으로 튕겨 나간다
+  launch: { pull: 2.6, period: 1.5, min: 0.45, gain: 0.75, perfect: 0.93, postS: 12.6, postU: 2.1 },
 };
 
 // 구역 — 바닥 단면은 평평한 가운데 f + 반지름 r 의 둥근 벽(최대 각도 tm)
@@ -502,6 +518,21 @@ const Run = {
   zoneAt(run, s) { return run.track.frame(s).zone; },
   progress(run) { return run.endless ? 0 : clamp(run.s / run.L, 0, 1); },
 };
+// 출발 로프를 놓는다 — power 0~1 에 따라 첫 속도, 93% 이상이면 부스트
+Run.launch = function (run, power) {
+  const L = PH.launch, p = clamp(power, 0, 1);
+  run.v = run.D.vcap * run.vmul * (L.min + L.gain * p);
+  const perfect = p >= L.perfect;
+  if (perfect) run.boostT = PH.boostT;
+  run.launchPower = p;
+  return [{ type: 'launch', power: p, perfect }];
+};
+// 당긴 힘: 누른 시간 t 에 따라 0→1→0 을 오간다
+Run.chargePower = function (t) {
+  const x = (t / PH.launch.period) % 1;
+  return x < 0.5 ? x * 2 : 2 - x * 2;
+};
+
 M.Run = Run;
 M.ensure = ensure;
 
@@ -1108,6 +1139,28 @@ const R = {
     return { g, s: 0 };
   },
 
+  // 출발 로프: 분홍 기둥 둘 + 썰매 뒤를 감는 밧줄 세 토막
+  makeLaunch(run) {
+    const T = run.track, L = M.PHYS.launch, g = new THREE.Group(), tops = [];
+    for (const sd of [-1, 1]) {
+      const [x, y, z] = W(T, L.postS, sd * L.postU, 0);
+      const post = new THREE.Group(); post.position.set(x, y, z); g.add(post);
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 1.3, 12), lam(0xf4c8c8)); col.position.y = 0.65; post.add(col);
+      for (const yy of [0.08, 1.32]) { const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.16, 12), lam(0xfbe4e4)); cap.position.y = yy; post.add(cap); }
+      for (let i = 0; i < 8; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 4), lam(i % 2 ? 0x3a6ae8 : 0xe83a5a)); const a = i / 8 * Math.PI * 2; b.position.set(Math.cos(a) * 0.3, 1.05, Math.sin(a) * 0.3); post.add(b); }
+      tops.push(new THREE.Vector3(x, y + 1.05, z));
+    }
+    const ropes = [];
+    for (let i = 0; i < 3; i++) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1, 6), lam(0xd8b07a)); g.add(m); ropes.push(m); }
+    return { g, tops, ropes, on: true };
+  },
+  ropeOff() { if (this.launch) { this.launch.on = false; this.launch.ropes.forEach((r) => { r.visible = false; }); } this.charge = 0; },
+  seg(m, a, b) {
+    _v.subVectors(b, a); const len = _v.length();
+    m.position.addVectors(a, b).multiplyScalar(0.5);
+    m.quaternion.setFromUnitVectors(UP, _v.normalize()); m.scale.set(1, len, 1);
+  },
+
   resize() {
     const w = window.innerWidth, h = window.innerHeight;
     this.renderer.setSize(w, h, false);
@@ -1122,6 +1175,9 @@ const R = {
     this.chunks.clear();
     this.run = run; this.zone = null; this.shake = 0; this.sprayP = [];
     this.train.s = run.s + 160;
+    this.charge = 0;
+    if (this.launch) { this.scene.remove(this.launch.g); this.launch = null; }
+    this.launch = this.makeLaunch(run); this.scene.add(this.launch.g);
     this.update(run, 0, [], true);
   },
   dropChunk(c) {
@@ -1177,7 +1233,7 @@ const R = {
     mg.root.quaternion.copy(this.basis(T, run.s, run.u, run.air));
     if (run.spin) { _q2.setFromAxisAngle(UP, -run.spin); mg.root.quaternion.multiply(_q2); }
     const lean = run.air ? 0 : -run.uv * 0.05;
-    mg.body.rotation.set(run.air ? -0.15 : 0, 0, run.phase === 'over' ? this.t * 9 : lean);
+    mg.body.rotation.set((run.air ? -0.15 : 0) + this.charge * 0.35, 0, run.phase === 'over' ? this.t * 9 : lean);
     mg.tail.rotation.x = 0.7 + Math.sin(this.t * 10) * 0.15 * Math.min(1, run.v / 10);
     mg.scarf.rotation.y = Math.sin(this.t * 14) * 0.25;
     mg.root.visible = !(run.invuln > 0 && Math.floor(run.invuln * 10) % 2 === 0) || run.phase !== 'run';
@@ -1185,6 +1241,16 @@ const R = {
     mg.shadow.position.set(sx, sy + 0.04, sz);
     const sc = Math.max(0.3, 1 - run.z * 0.12); mg.shadow.scale.set(sc, sc, sc); mg.shadow.material.opacity = 0.25 * sc;
     mg.shadow.rotation.set(-Math.PI / 2, 0, 0);
+
+    // ── 출발 로프 ──
+    if (this.launch) {
+      if (this.launch.on) {
+        const back = (sd) => new THREE.Vector3(...W(T, run.s + 0.85, sd * 0.45, 0.42));
+        const l = back(-1), r = back(1), [A, B] = this.launch.tops, rp = this.launch.ropes;
+        this.seg(rp[0], A, l); this.seg(rp[1], l, r); this.seg(rp[2], r, B);
+      }
+      if (run.s > M.PHYS.launch.postS + 50) { this.scene.remove(this.launch.g); this.launch = null; }
+    }
 
     // ── 생선 · 하트 ──
     let nf = 0, nh = 0;
@@ -1353,6 +1419,8 @@ const A = {
   trick(n) { [523, 659, 784, 1047, 1319].slice(0, 2 + n).forEach((f, i) => this.tone(f, 0.12, 'square', 0.09, null, i * 0.06)); },
   crash() { this.noise(0.3, 0.25, 400, 0.6); this.tone(200, 0.3, 'sawtooth', 0.12, 70); },
   boost() { for (let i = 0; i < 5; i++) this.tone(440 + i * 150, 0.07, 'square', 0.06, null, i * 0.035); this.noise(0.4, 0.08, 3000, 0.5); },
+  creak(p) { this.tone(180 + p * 260, 0.07, 'sawtooth', 0.025); },
+  twang(perfect) { this.tone(110, 0.35, 'triangle', 0.2, 55); this.noise(0.4, 0.14, 2600, 0.6); if (perfect) [784, 1047, 1319].forEach((f, i) => this.tone(f, 0.12, 'square', 0.09, null, 0.05 + i * 0.06)); },
   beep(hi) { this.tone(hi ? 1047 : 523, hi ? 0.4 : 0.16, 'square', 0.1); },
   click() { this.tone(700, 0.04, 'triangle', 0.08); },
   finish() { this.stopBgm(); [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.18, 'square', 0.11, null, i * 0.1)); },
@@ -1497,7 +1565,8 @@ const $ = (id) => document.getElementById(id);
 const R = M.R3, A = M.audio, U = M.ui, S = M.save;
 const DT = 1 / 60;
 
-let mode = 'title', run = null, bot = null, demo = null, demoBot = null, countT = 0, lastBeep = 0;
+let mode = 'title', run = null, bot = null, demo = null, demoBot = null;
+const charge = { hold: false, t: 0, power: 0, creak: 0 };
 let diff = 'normal';
 const keys = {};
 let jumpEdge = false;
@@ -1520,7 +1589,7 @@ function boot() {
 function startDemo() {
   demo = M.Run.create('normal', 'endless', 77);
   demoBot = M.makeBot(demo, 1);
-  R.setRun(demo);
+  R.setRun(demo); R.ropeOff();
 }
 
 function pickDiff(d) {
@@ -1532,7 +1601,7 @@ function pickDiff(d) {
 
 function showTitle() {
   mode = 'title';
-  for (const id of ['hud', 'result-screen', 'pause-screen', 'count']) $(id).classList.add('hidden');
+  for (const id of ['hud', 'result-screen', 'pause-screen', 'count', 'launch']) $(id).classList.add('hidden');
   $('title-screen').classList.remove('hidden');
   U.courseList(diff);
   startDemo();
@@ -1543,12 +1612,13 @@ function startRun(course) {
   A.resume();
   U.sel = course;
   run = M.Run.create(diff, course);
+  run.v = 0;
   bot = null;
   R.setRun(run);
   for (const id of ['title-screen', 'result-screen', 'pause-screen']) $(id).classList.add('hidden');
   U.hudStart(run);
-  mode = 'ready'; countT = 3; lastBeep = 4;
-  $('count').classList.remove('hidden');
+  mode = 'ready'; Object.assign(charge, { hold: false, t: 0, power: 0 }); R.demoPull = false;
+  showGauge(0); $('lg-hint').classList.add('pulse'); $('launch').classList.remove('hidden');
   A.stopBgm();
   Object.keys(keys).forEach((k) => { keys[k] = false; });
   drag.on = false;
@@ -1565,6 +1635,26 @@ function finishRun() {
 function pause(on) {
   if (on && mode === 'play') { mode = 'pause'; $('pause-screen').classList.remove('hidden'); A.slide(0, true); A.stopBgm(); }
   else if (!on && mode === 'pause') { mode = 'play'; $('pause-screen').classList.add('hidden'); A.bgm('ride'); }
+}
+
+// ══ 출발 로프 ══
+function showGauge(p) {
+  $('lg-fg').setAttribute('stroke-dashoffset', (251.3 * (1 - p)).toFixed(1));
+  $('lg-fg').setAttribute('stroke', p >= M.PHYS.launch.perfect ? '#ffd83d' : '#3ad8f0');
+  $('lg-pct').textContent = Math.round(p * 100) + '%';
+  $('launch').classList.toggle('perfect', p >= M.PHYS.launch.perfect);
+}
+function holdStart() { if (mode !== 'ready' || charge.hold) return; A.resume(); charge.hold = true; charge.t = 0; $('lg-hint').classList.remove('pulse'); }
+function holdEnd() {
+  if (mode !== 'ready' || !charge.hold) return;
+  charge.hold = false;
+  if (charge.t < 0.08) return;
+  const evs = M.Run.launch(run, charge.power), e = evs[0];
+  R.ropeOff();
+  A.twang(e.perfect);
+  U.msg(e.perfect ? '완벽한 출발!<span class="s">100% · 부스트</span>' : `${Math.round(e.power * 100)}% 출발!`, e.perfect ? 'blue' : '', 1000);
+  setTimeout(() => $('launch').classList.add('hidden'), 350);
+  mode = 'play'; acc = 0; A.bgm('ride');
 }
 
 // ══ 이벤트 → 소리 · 글자 ══
@@ -1608,7 +1698,8 @@ window.addEventListener('keydown', (e) => {
   const k = KEYMAP[e.code];
   if (k) { keys[k] = true; e.preventDefault(); }
   if (e.repeat) return;
-  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); if (mode === 'play') jumpEdge = true; }
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); if (mode === 'play') jumpEdge = true; else holdStart(); }
+  if (e.code === 'ArrowDown' || e.code === 'KeyS') holdStart();
   if (e.code === 'Escape' || e.code === 'KeyP') { if (mode === 'play') pause(true); else if (mode === 'pause') pause(false); }
   if (e.code === 'Enter') {
     if (mode === 'title') startSelected();
@@ -1620,11 +1711,15 @@ window.addEventListener('keydown', (e) => {
     if (c === 'endless' || S.unlocked(c)) { U.sel = c; U.courseList(diff); A.resume(); A.click(); }
   }
 });
-window.addEventListener('keyup', (e) => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
+window.addEventListener('keyup', (e) => {
+  const k = KEYMAP[e.code]; if (k) keys[k] = false;
+  if (['Space', 'ArrowUp', 'KeyW', 'ArrowDown', 'KeyS'].includes(e.code)) holdEnd();
+});
 window.addEventListener('blur', () => { Object.keys(keys).forEach((k) => { keys[k] = false; }); drag.on = false; });
 
 const cv = $('game');
 cv.addEventListener('pointerdown', (e) => {
+  if (mode === 'ready') { holdStart(); return; }
   if (mode !== 'play') return;
   drag.on = true; drag.id = e.pointerId; drag.x0 = drag.x = e.clientX; drag.y0 = e.clientY; drag.t0 = performance.now();
   drag.u0 = run.u; drag.moved = false; drag.airX = e.clientX;
@@ -1636,12 +1731,13 @@ window.addEventListener('pointermove', (e) => {
   if (drag.y0 - e.clientY > 50 && performance.now() - drag.t0 < 350 && !run.air) { jumpEdge = true; drag.y0 = -9999; }   // 위로 쓸면 점프
 });
 window.addEventListener('pointerup', (e) => {
+  if (mode === 'ready') { holdEnd(); return; }
   if (!drag.on || e.pointerId !== drag.id) return;
   if (!drag.moved && performance.now() - drag.t0 < 250 && mode === 'play') jumpEdge = true;   // 톡 치면 점프
   drag.on = false;
 });
 window.addEventListener('pointercancel', () => { drag.on = false; });
-$('btn-jump').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); if (mode === 'play') jumpEdge = true; });
+$('btn-jump').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); if (mode === 'play') jumpEdge = true; else holdStart(); });
 
 // 버튼
 document.querySelectorAll('.diff-btn').forEach((b) => b.addEventListener('click', () => { A.resume(); A.click(); pickDiff(b.dataset.diff); }));
@@ -1669,6 +1765,7 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 if (isTouch) {
   document.body.classList.add('touch');
   $('ctl-hint').textContent = '좌우로 끌어 조향 · 톡/⤴ 점프 · 공중에서 끌면 빙글';
+  $('lg-hint').textContent = '꾹 눌렀다 떼면 출발!';
   document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 }
 
@@ -1703,15 +1800,15 @@ function frame(now) {
   }
 
   if (mode === 'ready') {
-    countT -= dt;
-    const c = Math.ceil(countT);
-    if (c !== lastBeep && c >= 1) { lastBeep = c; A.beep(false); $('count').textContent = c; }
-    if (countT <= 0) {
-      mode = 'play'; A.beep(true); $('count').textContent = '출발!';
-      setTimeout(() => $('count').classList.add('hidden'), 600);
-      A.bgm('ride'); acc = 0;
-    }
-    R.update(run, dt * 0, []);
+    // 누르고 있는 동안 뒤로 당겨지고 게이지가 오르내린다
+    if (charge.hold) {
+      charge.t += dt; charge.power = M.Run.chargePower(charge.t);
+      if ((charge.creak -= dt) <= 0) { charge.creak = 0.12; A.creak(charge.power); }
+    } else if (mode === 'ready') charge.power = Math.max(0, charge.power - dt * 3);
+    run.s = 10 - M.PHYS.launch.pull * charge.power;
+    R.charge = charge.power;
+    showGauge(charge.power);
+    R.update(run, 0, []);
     R.render();
     return;
   }
@@ -1733,7 +1830,7 @@ function frame(now) {
 }
 
 // 시험용
-M._dbg = () => ({ mode, sel: U.sel, diff, s: run ? run.s : 0, u: run ? run.u : 0, v: run ? run.v : 0, air: run ? run.air : false, hearts: run ? run.hearts : 0, fish: run ? run.fish : 0, phase: run ? run.phase : null, chunks: R.chunks.size });
+M._dbg = () => ({ power: charge.power, mode, sel: U.sel, diff, s: run ? run.s : 0, u: run ? run.u : 0, v: run ? run.v : 0, air: run ? run.air : false, hearts: run ? run.hearts : 0, fish: run ? run.fish : 0, phase: run ? run.phase : null, chunks: R.chunks.size });
 M._run = () => run;
 M._autopilot = (on) => { bot = on && run ? M.makeBot(run, 1) : null; };
 

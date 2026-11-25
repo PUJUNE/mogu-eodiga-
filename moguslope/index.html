@@ -43,6 +43,13 @@
   #msg.red { text-shadow:0 4px 0 #9a2418, 0 8px 18px rgba(0,0,0,.4); }
   #msg.blue { text-shadow:0 4px 0 #1a5ab8, 0 8px 18px rgba(0,0,0,.4); }
   #msg .s { display:block; font-size:.42em; margin-top:4px; }
+  #launch { position:fixed; left:50%; top:calc(78px + env(safe-area-inset-top)); transform:translateX(-50%); z-index:31; text-align:center; pointer-events:none; }
+  #launch svg { width:min(240px, 60vw); display:block; margin:0 auto; overflow:visible; }
+  #lg-pct { margin-top:-46px; font-size:30px; font-weight:900; color:#fff; text-shadow:0 2px 0 #2a6a9a, 0 4px 10px rgba(0,0,0,.35); }
+  #launch.perfect #lg-pct { color:#ffd83d; text-shadow:0 2px 0 #c85a1a, 0 4px 10px rgba(0,0,0,.35); }
+  #lg-hint { margin-top:14px; font-size:15px; font-weight:900; color:#2a2f45; background:rgba(255,255,255,.88); border-radius:12px; padding:6px 14px; display:inline-block; }
+  #lg-hint.pulse { animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform:scale(1.08); } }
   #count { position:fixed; left:50%; top:42%; transform:translate(-50%,-50%); font-size:min(110px, 24vw); font-weight:900; color:#ffd83d; z-index:31;
     text-shadow:0 6px 0 #c85a1a, 0 12px 24px rgba(0,0,0,.35); pointer-events:none; }
 
@@ -101,6 +108,12 @@
 
 <div id="msg"></div>
 <div id="count" class="hidden"></div>
+<div id="launch" class="hidden">
+  <svg viewBox="0 0 200 108"><path d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="18" stroke-linecap="round"/>
+    <path id="lg-fg" d="M20 100 A80 80 0 0 1 180 100" fill="none" stroke="#3ad8f0" stroke-width="18" stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="251.3"/></svg>
+  <div id="lg-pct">0%</div>
+  <div id="lg-hint" class="pulse">꾹 눌러 로프를 당기고, 놓으면 출발!</div>
+</div>
 
 <div id="title-screen" class="screen">
   <div class="logo">모구 <b>슬로프</b></div>
@@ -117,6 +130,7 @@
     <button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button>
   </div>
   <div id="title-hint">
+    출발: <b>꾹 눌러 로프를 당기고</b> 게이지가 꽉 찼을 때 놓으면 부스트 출발<br>
     <b>←→ / A D</b> 조향 · <b>Space</b> 점프 · 공중에서 <b>←→ 빙글 회전</b> (착지 전에 한 바퀴를 끝내야 해요)<br>
     터치: 화면을 좌우로 끌어 조향 · 톡 치거나 ⤴ 버튼으로 점프 · 굽은 길에선 바깥 벽으로 밀려 올라가요<br>
     ★ 완주 · ★ 생선 70% · ★ 한 번도 안 부딪히기

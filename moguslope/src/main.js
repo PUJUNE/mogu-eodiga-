@@ -5,7 +5,8 @@ const $ = (id) => document.getElementById(id);
 const R = M.R3, A = M.audio, U = M.ui, S = M.save;
 const DT = 1 / 60;
 
-let mode = 'title', run = null, bot = null, demo = null, demoBot = null, countT = 0, lastBeep = 0;
+let mode = 'title', run = null, bot = null, demo = null, demoBot = null;
+const charge = { hold: false, t: 0, power: 0, creak: 0 };
 let diff = 'normal';
 const keys = {};
 let jumpEdge = false;
@@ -28,7 +29,7 @@ function boot() {
 function startDemo() {
   demo = M.Run.create('normal', 'endless', 77);
   demoBot = M.makeBot(demo, 1);
-  R.setRun(demo);
+  R.setRun(demo); R.ropeOff();
 }
 
 function pickDiff(d) {
@@ -40,7 +41,7 @@ function pickDiff(d) {
 
 function showTitle() {
   mode = 'title';
-  for (const id of ['hud', 'result-screen', 'pause-screen', 'count']) $(id).classList.add('hidden');
+  for (const id of ['hud', 'result-screen', 'pause-screen', 'count', 'launch']) $(id).classList.add('hidden');
   $('title-screen').classList.remove('hidden');
   U.courseList(diff);
   startDemo();
@@ -51,12 +52,13 @@ function startRun(course) {
   A.resume();
   U.sel = course;
   run = M.Run.create(diff, course);
+  run.v = 0;
   bot = null;
   R.setRun(run);
   for (const id of ['title-screen', 'result-screen', 'pause-screen']) $(id).classList.add('hidden');
   U.hudStart(run);
-  mode = 'ready'; countT = 3; lastBeep = 4;
-  $('count').classList.remove('hidden');
+  mode = 'ready'; Object.assign(charge, { hold: false, t: 0, power: 0 }); R.demoPull = false;
+  showGauge(0); $('lg-hint').classList.add('pulse'); $('launch').classList.remove('hidden');
   A.stopBgm();
   Object.keys(keys).forEach((k) => { keys[k] = false; });
   drag.on = false;
@@ -73,6 +75,26 @@ function finishRun() {
 function pause(on) {
   if (on && mode === 'play') { mode = 'pause'; $('pause-screen').classList.remove('hidden'); A.slide(0, true); A.stopBgm(); }
   else if (!on && mode === 'pause') { mode = 'play'; $('pause-screen').classList.add('hidden'); A.bgm('ride'); }
+}
+
+// ══ 출발 로프 ══
+function showGauge(p) {
+  $('lg-fg').setAttribute('stroke-dashoffset', (251.3 * (1 - p)).toFixed(1));
+  $('lg-fg').setAttribute('stroke', p >= M.PHYS.launch.perfect ? '#ffd83d' : '#3ad8f0');
+  $('lg-pct').textContent = Math.round(p * 100) + '%';
+  $('launch').classList.toggle('perfect', p >= M.PHYS.launch.perfect);
+}
+function holdStart() { if (mode !== 'ready' || charge.hold) return; A.resume(); charge.hold = true; charge.t = 0; $('lg-hint').classList.remove('pulse'); }
+function holdEnd() {
+  if (mode !== 'ready' || !charge.hold) return;
+  charge.hold = false;
+  if (charge.t < 0.08) return;
+  const evs = M.Run.launch(run, charge.power), e = evs[0];
+  R.ropeOff();
+  A.twang(e.perfect);
+  U.msg(e.perfect ? '완벽한 출발!<span class="s">100% · 부스트</span>' : `${Math.round(e.power * 100)}% 출발!`, e.perfect ? 'blue' : '', 1000);
+  setTimeout(() => $('launch').classList.add('hidden'), 350);
+  mode = 'play'; acc = 0; A.bgm('ride');
 }
 
 // ══ 이벤트 → 소리 · 글자 ══
@@ -116,7 +138,8 @@ window.addEventListener('keydown', (e) => {
   const k = KEYMAP[e.code];
   if (k) { keys[k] = true; e.preventDefault(); }
   if (e.repeat) return;
-  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); if (mode === 'play') jumpEdge = true; }
+  if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') { e.preventDefault(); if (mode === 'play') jumpEdge = true; else holdStart(); }
+  if (e.code === 'ArrowDown' || e.code === 'KeyS') holdStart();
   if (e.code === 'Escape' || e.code === 'KeyP') { if (mode === 'play') pause(true); else if (mode === 'pause') pause(false); }
   if (e.code === 'Enter') {
     if (mode === 'title') startSelected();
@@ -128,11 +151,15 @@ window.addEventListener('keydown', (e) => {
     if (c === 'endless' || S.unlocked(c)) { U.sel = c; U.courseList(diff); A.resume(); A.click(); }
   }
 });
-window.addEventListener('keyup', (e) => { const k = KEYMAP[e.code]; if (k) keys[k] = false; });
+window.addEventListener('keyup', (e) => {
+  const k = KEYMAP[e.code]; if (k) keys[k] = false;
+  if (['Space', 'ArrowUp', 'KeyW', 'ArrowDown', 'KeyS'].includes(e.code)) holdEnd();
+});
 window.addEventListener('blur', () => { Object.keys(keys).forEach((k) => { keys[k] = false; }); drag.on = false; });
 
 const cv = $('game');
 cv.addEventListener('pointerdown', (e) => {
+  if (mode === 'ready') { holdStart(); return; }
   if (mode !== 'play') return;
   drag.on = true; drag.id = e.pointerId; drag.x0 = drag.x = e.clientX; drag.y0 = e.clientY; drag.t0 = performance.now();
   drag.u0 = run.u; drag.moved = false; drag.airX = e.clientX;
@@ -144,12 +171,13 @@ window.addEventListener('pointermove', (e) => {
   if (drag.y0 - e.clientY > 50 && performance.now() - drag.t0 < 350 && !run.air) { jumpEdge = true; drag.y0 = -9999; }   // 위로 쓸면 점프
 });
 window.addEventListener('pointerup', (e) => {
+  if (mode === 'ready') { holdEnd(); return; }
   if (!drag.on || e.pointerId !== drag.id) return;
   if (!drag.moved && performance.now() - drag.t0 < 250 && mode === 'play') jumpEdge = true;   // 톡 치면 점프
   drag.on = false;
 });
 window.addEventListener('pointercancel', () => { drag.on = false; });
-$('btn-jump').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); if (mode === 'play') jumpEdge = true; });
+$('btn-jump').addEventListener('pointerdown', (e) => { e.stopPropagation(); e.preventDefault(); if (mode === 'play') jumpEdge = true; else holdStart(); });
 
 // 버튼
 document.querySelectorAll('.diff-btn').forEach((b) => b.addEventListener('click', () => { A.resume(); A.click(); pickDiff(b.dataset.diff); }));
@@ -177,6 +205,7 @@ const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart'
 if (isTouch) {
   document.body.classList.add('touch');
   $('ctl-hint').textContent = '좌우로 끌어 조향 · 톡/⤴ 점프 · 공중에서 끌면 빙글';
+  $('lg-hint').textContent = '꾹 눌렀다 떼면 출발!';
   document.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 }
 
@@ -211,15 +240,15 @@ function frame(now) {
   }
 
   if (mode === 'ready') {
-    countT -= dt;
-    const c = Math.ceil(countT);
-    if (c !== lastBeep && c >= 1) { lastBeep = c; A.beep(false); $('count').textContent = c; }
-    if (countT <= 0) {
-      mode = 'play'; A.beep(true); $('count').textContent = '출발!';
-      setTimeout(() => $('count').classList.add('hidden'), 600);
-      A.bgm('ride'); acc = 0;
-    }
-    R.update(run, dt * 0, []);
+    // 누르고 있는 동안 뒤로 당겨지고 게이지가 오르내린다
+    if (charge.hold) {
+      charge.t += dt; charge.power = M.Run.chargePower(charge.t);
+      if ((charge.creak -= dt) <= 0) { charge.creak = 0.12; A.creak(charge.power); }
+    } else if (mode === 'ready') charge.power = Math.max(0, charge.power - dt * 3);
+    run.s = 10 - M.PHYS.launch.pull * charge.power;
+    R.charge = charge.power;
+    showGauge(charge.power);
+    R.update(run, 0, []);
     R.render();
     return;
   }
@@ -241,6 +270,6 @@ function frame(now) {
 }
 
 // 시험용
-M._dbg = () => ({ mode, sel: U.sel, diff, s: run ? run.s : 0, u: run ? run.u : 0, v: run ? run.v : 0, air: run ? run.air : false, hearts: run ? run.hearts : 0, fish: run ? run.fish : 0, phase: run ? run.phase : null, chunks: R.chunks.size });
+M._dbg = () => ({ power: charge.power, mode, sel: U.sel, diff, s: run ? run.s : 0, u: run ? run.u : 0, v: run ? run.v : 0, air: run ? run.air : false, hearts: run ? run.hearts : 0, fish: run ? run.fish : 0, phase: run ? run.phase : null, chunks: R.chunks.size });
 M._run = () => run;
 M._autopilot = (on) => { bot = on && run ? M.makeBot(run, 1) : null; };

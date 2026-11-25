@@ -81,6 +81,8 @@ const A = {
   trick(n) { [523, 659, 784, 1047, 1319].slice(0, 2 + n).forEach((f, i) => this.tone(f, 0.12, 'square', 0.09, null, i * 0.06)); },
   crash() { this.noise(0.3, 0.25, 400, 0.6); this.tone(200, 0.3, 'sawtooth', 0.12, 70); },
   boost() { for (let i = 0; i < 5; i++) this.tone(440 + i * 150, 0.07, 'square', 0.06, null, i * 0.035); this.noise(0.4, 0.08, 3000, 0.5); },
+  creak(p) { this.tone(180 + p * 260, 0.07, 'sawtooth', 0.025); },
+  twang(perfect) { this.tone(110, 0.35, 'triangle', 0.2, 55); this.noise(0.4, 0.14, 2600, 0.6); if (perfect) [784, 1047, 1319].forEach((f, i) => this.tone(f, 0.12, 'square', 0.09, null, 0.05 + i * 0.06)); },
   beep(hi) { this.tone(hi ? 1047 : 523, hi ? 0.4 : 0.16, 'square', 0.1); },
   click() { this.tone(700, 0.04, 'triangle', 0.08); },
   finish() { this.stopBgm(); [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => this.tone(f, 0.18, 'square', 0.11, null, i * 0.1)); },

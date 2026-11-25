@@ -230,6 +230,21 @@ const Run = {
   zoneAt(run, s) { return run.track.frame(s).zone; },
   progress(run) { return run.endless ? 0 : clamp(run.s / run.L, 0, 1); },
 };
+// 출발 로프를 놓는다 — power 0~1 에 따라 첫 속도, 93% 이상이면 부스트
+Run.launch = function (run, power) {
+  const L = PH.launch, p = clamp(power, 0, 1);
+  run.v = run.D.vcap * run.vmul * (L.min + L.gain * p);
+  const perfect = p >= L.perfect;
+  if (perfect) run.boostT = PH.boostT;
+  run.launchPower = p;
+  return [{ type: 'launch', power: p, perfect }];
+};
+// 당긴 힘: 누른 시간 t 에 따라 0→1→0 을 오간다
+Run.chargePower = function (t) {
+  const x = (t / PH.launch.period) % 1;
+  return x < 0.5 ? x * 2 : 2 - x * 2;
+};
+
 M.Run = Run;
 M.ensure = ensure;
 
