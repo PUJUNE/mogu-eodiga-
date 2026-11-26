@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>모구워치</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>
+  html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#1a2030;
+    font-family:'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo',sans-serif; user-select:none;
+    touch-action:none; overscroll-behavior:none;
+    -webkit-user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+  canvas#game { position:fixed; inset:0; display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
+  .hidden { display:none !important; }
+  .card { background:rgba(22,24,36,.86); border:2px solid #c8a060; border-radius:8px; color:#f6ecd6; box-shadow:0 3px 0 rgba(0,0,0,.35); }
+
+  /* ── 전투 HUD ── */
+  #hud { position:fixed; inset:0; pointer-events:none; z-index:6; }
+  #stat { position:absolute; left:calc(10px + env(safe-area-inset-left)); top:calc(8px + env(safe-area-inset-top)); padding:5px 10px; font-weight:900; font-size:16px; white-space:nowrap; display:flex; gap:12px; }
+  #stat .pop { animation:pop .3s; }
+  @keyframes pop { 50% { transform:scale(1.25); color:#ffd83d; } }
+  #wavebox { position:absolute; left:50%; top:calc(8px + env(safe-area-inset-top)); transform:translateX(-50%); padding:4px 14px; text-align:center; white-space:nowrap; }
+  #wavebox .w1 { font-weight:900; font-size:15px; color:#ffd27a; }
+  #wavebox .w2 { font-size:12.5px; }
+  #auto { position:absolute; right:calc(10px + env(safe-area-inset-right)); top:calc(8px + env(safe-area-inset-top)); padding:5px 10px; font-size:13px; font-weight:800; pointer-events:auto; cursor:pointer; text-align:left; line-height:1.35; font-family:inherit; }
+  #auto small { display:block; font-weight:400; font-size:11.5px; color:#cdbf9f; }
+  #auto.on { border-color:#ffd83d; }
+  #bl { position:absolute; left:calc(10px + env(safe-area-inset-left)); bottom:calc(10px + env(safe-area-inset-bottom)); display:flex; gap:6px; pointer-events:auto; }
+  #br { position:absolute; right:calc(10px + env(safe-area-inset-right)); bottom:calc(10px + env(safe-area-inset-bottom)); display:flex; gap:6px; pointer-events:auto; }
+  .hb { min-width:38px; height:38px; padding:0 9px; font:inherit; font-weight:900; font-size:15px; cursor:pointer; }
+  #call { position:absolute; left:50%; bottom:calc(12px + env(safe-area-inset-bottom)); transform:translateX(-50%); pointer-events:auto; padding:8px 18px; font:inherit; font-weight:900; font-size:15px; cursor:pointer;
+    background:rgba(160,60,30,.92); border-color:#ffd83d; white-space:nowrap; }
+  #call small { display:block; font-size:11.5px; font-weight:600; color:#ffe6b0; }
+  #call.pulse { animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { transform:translateX(-50%) scale(1.06); } }
+
+  /* 짓기 메뉴 — 고른 터 위에 뜬다 */
+  #bmenu { position:fixed; z-index:20; transform:translate(-50%, -100%); pointer-events:auto; padding:6px; display:flex; flex-direction:column; align-items:center; gap:5px; }
+  #bmenu .row { display:flex; gap:5px; }
+  .bt { width:62px; padding:4px 2px 3px; font:inherit; color:#f6ecd6; background:#2a2e44; border:2px solid #6a5a3a; border-radius:7px; cursor:pointer; text-align:center; line-height:1.15; }
+  .bt .i { font-size:22px; display:block; }
+  .bt .n { font-size:11.5px; font-weight:800; display:block; }
+  .bt .c { font-size:12px; font-weight:900; color:#ffd83d; display:block; }
+  .bt.sel { border-color:#ffd83d; background:#4a3e24; }
+  .bt.no { opacity:.45; }
+  .bt.no .c { color:#ff8a7a; }
+  .bt.wide { width:96px; }
+  #binfo { font-size:12px; line-height:1.4; text-align:center; max-width:270px; }
+  #binfo b { color:#ffd27a; font-size:13px; }
+  #binfo .hint { color:#ffd83d; font-weight:800; }
+
+  #toast { position:fixed; left:50%; bottom:calc(64px + env(safe-area-inset-bottom)); transform:translateX(-50%); padding:6px 14px; text-align:center; z-index:15; pointer-events:none; font-size:13px; line-height:1.45; white-space:nowrap; }
+  #toast b { color:#ffd27a; }
+  #banner { position:fixed; left:50%; top:30%; transform:translate(-50%,-50%); padding:10px 26px 12px; text-align:center; z-index:16; pointer-events:none; border-top:3px solid #e8603a; }
+  #banner .b1 { font-size:min(34px, 8vw); font-weight:900; }
+  #banner .b2 { font-size:14px; color:#ffd27a; margin-top:2px; }
+  #banner .b3 { font-size:13px; margin-top:4px; line-height:1.45; }
+  #banner.boss { border-top-color:#ff3a5a; }
+  #banner.boss .b1 { color:#ff9a8a; }
+  .float { position:fixed; z-index:9; pointer-events:none; font-weight:900; font-size:13px; color:#ffd83d; text-shadow:0 1px 0 #000, 0 0 3px #000; transform:translate(-50%,-50%); transition:transform .8s ease-out, opacity .8s; }
+
+  /* ── 화면 ── */
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:40; text-align:center; overflow-y:auto; padding:12px 0; box-sizing:border-box; }
+  #title-screen { background:linear-gradient(180deg, rgba(10,12,24,.25), rgba(10,12,24,.7)); color:#f6ecd6; justify-content:flex-start; padding-top:calc(3vh + env(safe-area-inset-top)); }
+  .logo { font-size:min(62px, 13vw); font-weight:900; letter-spacing:3px; color:#fff6dc; text-shadow:0 4px 0 #a8401e, 0 8px 20px rgba(0,0,0,.5); }
+  .logo b { color:#ffd83d; }
+  .sub { margin-top:2px; font-size:14.5px; font-weight:700; text-shadow:0 2px 6px rgba(0,0,0,.6); padding:0 12px; color:#ffe6b0; }
+  .menu-buttons { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; justify-content:center; padding:0 10px; }
+  .btn { pointer-events:auto; padding:10px 22px; font-size:16px; font-weight:900; color:#f6ecd6; background:#2a2e44; border:2px solid #c8a060; border-radius:8px; cursor:pointer; font-family:inherit; box-shadow:0 3px 0 rgba(0,0,0,.4); }
+  .btn:active { transform:translateY(2px); box-shadow:0 1px 0 rgba(0,0,0,.4); }
+  .btn.primary { background:#a8401e; border-color:#ffd83d; }
+  .btn.series { background:transparent; border-color:rgba(255,255,255,.4); font-size:13px; padding:6px 14px; }
+  .diff-btn, .mode-btn { padding:6px 13px; font-size:14px; opacity:.55; }
+  .diff-btn.selected, .mode-btn.selected { opacity:1; border-color:#ffd83d; }
+  #maps { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:7px; width:min(660px, 94vw); margin-top:10px; }
+  .map { pointer-events:auto; border:2px solid #6a5a3a; border-radius:8px; background:rgba(26,28,44,.9); color:#f6ecd6; font-family:inherit; cursor:pointer; padding:8px 6px 7px; text-align:center; position:relative; }
+  .map .ic { font-size:24px; line-height:1.2; }
+  .map .nm { font-weight:900; font-size:15px; }
+  .map .st { font-size:13px; letter-spacing:1px; color:#ffc83a; min-height:17px; }
+  .map .st i { font-style:normal; color:#5a5a6a; }
+  .map .ds { font-size:11px; color:#c8bca0; line-height:1.35; margin-top:1px; }
+  .map .no { position:absolute; left:7px; top:5px; font-size:11px; font-weight:900; color:#8a7a5a; }
+  .map.sel { border-color:#ffd83d; background:rgba(74,62,36,.92); }
+  .map.lock { opacity:.45; cursor:not-allowed; }
+  #title-hint { margin-top:10px; font-size:12.5px; line-height:1.75; padding:0 14px; text-shadow:0 1px 4px rgba(0,0,0,.8); }
+  #title-hint b { color:#ffd83d; }
+  #result-screen, #pause-screen { background:rgba(10,12,24,.6); }
+  .rcard { padding:18px 22px; width:min(440px, 90vw); }
+  .rcard h1 { margin:0; font-size:30px; }
+  .rcard .stars { font-size:38px; letter-spacing:4px; color:#ffc83a; margin-top:4px; }
+  .rcard .stars i { font-style:normal; color:#4a4a5a; }
+  .rcard .lines { margin-top:8px; font-size:15px; line-height:1.85; }
+  .rcard .lines b { color:#ffd27a; }
+  .rcard .best { font-size:13px; color:#c8bca0; }
+  @media (max-width:640px) {
+    #maps { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+    #stat { font-size:14px; gap:8px; padding:4px 8px; }
+    #wavebox { top:calc(44px + env(safe-area-inset-top)); }
+    #auto { font-size:12px; } #auto small { display:none; }
+    #call { bottom:calc(58px + env(safe-area-inset-bottom)); }
+    #toast { bottom:calc(112px + env(safe-area-inset-bottom)); white-space:normal; width:86vw; }
+  }
+  @media (max-height:520px) { #title-screen { padding-top:6px; } .logo { font-size:38px; } #maps { grid-template-columns:repeat(6, minmax(0,1fr)); width:96vw; } .map .ds { display:none; } #title-hint { display:none; } }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="stat" class="card"><span id="s-lives">🐟 20</span><span id="s-gold">🪙 260</span><span id="s-kills">🐭 0</span></div>
+  <div id="wavebox" class="card"><div class="w1" id="w1">공세 준비</div><div class="w2" id="w2">터를 눌러 탑 짓기</div></div>
+  <button id="auto" class="card"><span id="auto-t">🐱 직접 지휘 중</span><small id="auto-s">눌러서 군사 모구에게 맡기기</small></button>
+  <div id="bl"><button class="hb card" id="b-pause" title="쉬기 (P)">⏸</button><button class="hb card" id="b-speed" title="빠르기 (Tab)">1×</button><button class="hb card" id="b-mute" title="소리 (M)">🔊</button></div>
+  <div id="br"><button class="hb card" id="b-zout" title="축소 (-)">−</button><button class="hb card" id="b-zin" title="확대 (+)">+</button></div>
+  <button id="call" class="card">⚔ 공세 부르기<small id="call-s">Space</small></button>
+</div>
+<div id="bmenu" class="card hidden"><div id="binfo"></div><div class="row" id="brow"></div></div>
+<div id="toast" class="card hidden"></div>
+<div id="banner" class="card hidden"><div class="b1" id="ban1"></div><div class="b2" id="ban2"></div><div class="b3" id="ban3"></div></div>
+
+<div id="title-screen" class="screen">
+  <div class="logo">모구<b>워치</b></div>
+  <div class="sub">~ 츄르 도둑단을 막아라! 여섯 동네를 지키는 냥이 탑 디펜스 ~</div>
+  <div class="menu-buttons">
+    <button class="btn diff-btn" data-diff="easy">이지</button>
+    <button class="btn diff-btn" data-diff="normal">노말</button>
+    <button class="btn diff-btn" data-diff="hard">하드</button>
+    <button class="btn diff-btn" data-diff="crazy">크레이지</button>
+    <button class="btn mode-btn" data-mode="campaign">지역 지키기</button>
+    <button class="btn mode-btn" data-mode="endless">끝없는 방어</button>
+  </div>
+  <div id="maps"></div>
+  <div class="menu-buttons">
+    <button class="btn primary" id="btn-start">지키러 가기! (Enter)</button>
+    <button class="btn series" id="btn-series">🏠 모구 게임 시리즈</button>
+  </div>
+  <div id="title-hint">
+    길가의 <b>터</b>를 눌러 냥이 탑을 짓고, 츄르 곳간까지 오는 도둑단을 막아요<br>
+    🧶 털실 망루 · 🥫 캔 포대 · 🔴 레이저 등대 · 🛡️ 냥냥 초소 — 한 번 누르면 쓰임새, 한 번 더 누르면 지어요 (1~4 키)<br>
+    지은 탑을 누르면 증축·철거 · <b>Space</b> 다음 공세를 일찍 부르면 군자금 덤 · 🐱 자동 지휘에 맡겨도 돼요<br>
+    끌어서 둘러보기 · 휠·두 손가락으로 확대 · ★ 지키기 · ★ 츄르 절반 · ★ 츄르 90%
+  </div>
+</div>
+
+<div id="result-screen" class="screen hidden"><div class="rcard card">
+  <h1 id="res-title">지켜냈다!</h1><div class="stars" id="res-stars"></div>
+  <div class="lines" id="res-lines"></div><div class="best" id="res-best"></div>
+  <div class="menu-buttons"><button class="btn primary" id="btn-retry">다시 (Enter)</button><button class="btn" id="btn-next">다음 동네 ▶</button><button class="btn" id="btn-menu">동네 고르기</button></div>
+</div></div>
+
+<div id="pause-screen" class="screen hidden"><div class="rcard card"><h1>잠깐 쉬기</h1>
+  <div class="menu-buttons"><button class="btn primary" id="btn-resume">계속 (Esc)</button><button class="btn" id="btn-restart">처음부터</button><button class="btn" id="btn-quit">동네 고르기</button></div>
+</div></div>
+
+<script src="vendor/three.min.js"></script>
+<script>window.MWT = { ASSETS: { mogu: "assets/mogu-face.png" } };</script>
+<script src="src/rng.js"></script>
+<script src="src/data.js"></script>
+<script src="src/logic.js"></script>
+<script src="src/ai.js"></script>
+<script src="src/render3d.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/ui.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
